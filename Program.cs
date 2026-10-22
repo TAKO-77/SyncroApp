@@ -22,7 +22,7 @@ internal sealed class PlannerWindow : Form
 
     public PlannerWindow()
     {
-        Text = "Planner";
+        Text = "Syncro";
         Width = 1920;
         Height = 1200;
         MinimumSize = new System.Drawing.Size(720, 560);
@@ -40,24 +40,32 @@ internal sealed class PlannerWindow : Form
         int dark = 1;
         int result = DwmSetWindowAttribute(Handle, 20, ref dark, sizeof(int));
         if (result != 0) DwmSetWindowAttribute(Handle, 19, ref dark, sizeof(int));
-        int caption = 0x00171A19; // #191A17 in COLORREF byte order
+        int caption = 0x00171A19;
         DwmSetWindowAttribute(Handle, 35, ref caption, sizeof(int));
-        int border = 0x002B2E2D; // #2D2E2B in COLORREF byte order
+        int border = 0x002B2E2D;
         DwmSetWindowAttribute(Handle, 34, ref border, sizeof(int));
     }
 
     [DllImport("dwmapi.dll", PreserveSig = true)]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int valueSize);
+
     private async System.Threading.Tasks.Task StartPlanner()
     {
+        // Aceita tanto a distribuição plana como a saída de desenvolvimento em dist.
         string folder = AppDomain.CurrentDomain.BaseDirectory;
         string html = Path.Combine(folder, "index.html");
         if (!File.Exists(html))
         {
-            MessageBox.Show(this, "Não foi encontrado o ficheiro index.html junto da aplicação.", "Planner", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            folder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dist");
+            html = Path.Combine(folder, "index.html");
+        }
+        if (!File.Exists(html))
+        {
+            MessageBox.Show(this, "Não foi encontrado o index.html junto da aplicação nem na pasta dist.", "Syncro", MessageBoxButtons.OK, MessageBoxIcon.Error);
             Close();
             return;
         }
+        // Pasta de dados mantida como "Planner" para preservar os dados já guardados.
         string profile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Planner", "WebView2");
         var environment = await CoreWebView2Environment.CreateAsync(null, profile);
         await view.EnsureCoreWebView2Async(environment);
@@ -68,6 +76,3 @@ internal sealed class PlannerWindow : Form
         view.Source = new Uri("https://planner.local/index.html");
     }
 }
-
-
-
