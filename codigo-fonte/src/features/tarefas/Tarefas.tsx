@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type PointerEvent as RPE } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type PointerEvent as RPE } from 'react'
 import { useStore } from '../../store/useStore'
 import { MN, iso, parse } from '../../lib/dates'
 import { Modal, todayIso, uid } from '../../components/common'
@@ -26,6 +26,9 @@ export function Tarefas() {
   const [workspaceMenu, setWorkspaceMenu] = useState(false)
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
   const [sortBy, setSortBy] = useState<'priority' | 'effort' | 'due'>('priority')
+  const [noteText, setNoteText] = useState('')
+  const [editingNotes, setEditingNotes] = useState(false)
+  const noteEditor = useRef<HTMLTextAreaElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const dragStart = (e: RPE, id: string) => {
     if (e.button !== 0 || !listRef.current) return
@@ -50,6 +53,9 @@ export function Tarefas() {
     addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up)
   }
   const workspace = data.workspaces.find(w => w.id === workspaceId) ?? data.workspaces[0]
+  const activeWorkspaceId = workspace?.id ?? 'geral'
+  // Keep the editor in sync when switching workspaces or loading saved data.
+  useEffect(() => { setNoteText(data.taskNotes?.[activeWorkspaceId] ?? ''); setEditingNotes(false) }, [activeWorkspaceId])
   const scoped = workspace?.id === 'geral' ? data.tasks : data.tasks.filter(t => (t.workspaceId ?? 'geral') === workspace?.id)
   const nOpen = scoped.filter(t => !t.d).length
   const list = scoped.filter(t => open ? !t.d : t.d).map((task, index) => ({ task, index })).sort((a, b) => {
@@ -74,6 +80,16 @@ export function Tarefas() {
   }
   const add = (e: FormEvent) => { e.preventDefault(); const v = txt.trim(); if (!v) return; update(d => { d.tasks.push({ id: uid('t'), t: v, due: du, p, d: false, effort, workspaceId: workspace?.id ?? 'geral' }) }); setTxt(''); setDu(''); setEffort(''); setP('media'); setOpen(true) }
   const patch = (id: string, fn: (t: Task) => void) => update(d => { const t = d.tasks.find(x => x.id === id); if (t) fn(t) })
+  const formatNote = (before: string, after = before, line = false) => {
+    const input = noteEditor.current
+    if (!input) return
+    const start = input.selectionStart, end = input.selectionEnd
+    const selected = noteText.slice(start, end) || (line ? 'texto' : 'texto')
+    const replacement = line ? `${before}${selected}` : `${before}${selected}${after}`
+    const next = noteText.slice(0, start) + replacement + noteText.slice(end)
+    setNoteText(next)
+    requestAnimationFrame(() => { input.focus(); input.setSelectionRange(start + before.length, start + before.length + selected.length) })
+  }
 
   return <section className="page narrow">
     <div className="head2"><h2>Tarefas</h2><div className="seg"><button aria-pressed={open} onClick={() => setOpen(true)}>Pendentes {nOpen}</button><button aria-pressed={!open} onClick={() => setOpen(false)}>Concluídas {scoped.length - nOpen}</button></div></div>
@@ -105,6 +121,15 @@ export function Tarefas() {
         <button className="pp2" onClick={() => patch(t.id, x => { x.p = NX[x.p] })}>{PN[t.p]}</button>
         <button className="x" aria-label="Remover" onClick={() => update(d => { d.tasks = d.tasks.filter(x => x.id !== t.id) })}>✕</button>
       </div> }) : <div className="tem">{open ? 'Tudo em dia. Adiciona a próxima tarefa acima.' : 'Ainda nada concluído.'}</div>}</div>
+    {activeWorkspaceId !== 'geral' && <div className="task-notes">
+      <div className="task-notes-head"><label htmlFor="task-notes">Tópicos e notas</label>{editingNotes ? <div className="acts"><button type="button" className="btn" onClick={() => { setNoteText(data.taskNotes?.[activeWorkspaceId] ?? ''); setEditingNotes(false) }}>Cancelar</button><button type="button" className="btn pri" onClick={() => { update(d => { d.taskNotes = { ...(d.taskNotes ?? {}), [activeWorkspaceId]: noteText } }); setEditingNotes(false) }}>Guardar</button></div> : <button type="button" className="btn" onClick={() => setEditingNotes(true)}>{data.taskNotes?.[activeWorkspaceId] ? 'Editar' : 'Escrever'}</button>}</div>
+      {editingNotes ? <><div className="note-toolbar" aria-label="Formatação do texto">
+        <button type="button" title="Negrito" aria-label="Negrito" onClick={() => formatNote('**')}>B</button><button type="button" title="Itálico" aria-label="Itálico" onClick={() => formatNote('_')}><i>I</i></button><span />
+        <button type="button" title="Título" aria-label="Título" onClick={() => formatNote('## ', '', true)}>H</button><button type="button" title="Citação" aria-label="Citação" onClick={() => formatNote('> ', '', true)}>❞</button><button type="button" title="Código" aria-label="Código" onClick={() => formatNote('`')}>{'<>'}</button><span />
+        <button type="button" title="Lista com pontos" aria-label="Lista com pontos" onClick={() => formatNote('- ', '', true)}>• Lista</button><button type="button" title="Lista numerada" aria-label="Lista numerada" onClick={() => formatNote('1. ', '', true)}>1. Lista</button><button type="button" title="Lista de tarefas" aria-label="Lista de tarefas" onClick={() => formatNote('- [ ] ', '', true)}>☐ Tarefa</button>
+      </div><textarea ref={noteEditor} id="task-notes" rows={5} maxLength={5000} value={noteText} placeholder="Escreve tópicos ou texto… Usa a barra para formatar." onChange={e => setNoteText(e.target.value)} autoFocus /></> : <div className="task-notes-content">{data.taskNotes?.[activeWorkspaceId] || <span className="mu">Ainda não há tópicos ou notas neste espaço.</span>}</div>}
+      <small>Notas independentes do espaço “{workspace?.name ?? 'Geral'}”.</small>
+    </div>}
     {ed && <Modal title="Editar tarefa" onClose={() => setEd(null)}>
       <form className="fgrid" onSubmit={e => { e.preventDefault(); const v = ed.t.trim(); if (!v) return; patch(ed.id, x => Object.assign(x, { ...ed, t: v })); setEd(null) }}>
         <label className="w">Nome<input value={ed.t} required maxLength={90} onChange={e => setEd({ ...ed, t: e.target.value })} /></label>

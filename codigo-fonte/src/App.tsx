@@ -17,6 +17,7 @@ export default function App() {
   const [sec, setSec] = useState<Id>('agenda')
   const [anchor, setAnchor] = useState(todayIso())
   const [qa, setQa] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const { data, history, undo } = useStore()
   const now = useNow(10000), h = now.getHours()
   const g = h < 6 ? 'Boa noite' : h < 13 ? 'Bom dia' : h < 20 ? 'Boa tarde' : 'Boa noite'
@@ -28,10 +29,10 @@ export default function App() {
     }
     addEventListener('keydown', k); return () => removeEventListener('keydown', k)
   }, [qa])
-  return <div className="app">
-    <aside className="sb">
+  return <div className={`app${sidebarOpen ? ' sidebar-open' : ''}`}>
+    <aside className="sb" onMouseEnter={() => setSidebarOpen(true)} onMouseLeave={() => setSidebarOpen(false)} onFocus={() => setSidebarOpen(true)} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSidebarOpen(false) }}>
       <div className="brand">Syncro</div>
-      <nav className="nav">{SECTIONS.map(s => <button key={s.id} aria-current={sec === s.id ? 'page' : undefined} onClick={() => setSec(s.id)}>{s.label}</button>)}</nav>
+      <nav className="nav">{SECTIONS.map(s => <button key={s.id} title={s.label} aria-label={s.label} aria-current={sec === s.id ? 'page' : undefined} onClick={() => setSec(s.id)}><span>{s.label}</span><i aria-hidden="true">{s.label[0]}</i></button>)}</nav>
       <Foco />
       <button className="btn undo" disabled={!history.length} onClick={undo}>↶ Anular</button>
     </aside>

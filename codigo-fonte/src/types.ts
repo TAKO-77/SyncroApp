@@ -15,5 +15,5 @@ export interface Category { id: string; name: string; color: string }
 export interface Sleep { bed: string; wake: string; wk: boolean; bed2: string; wake2: string }
 export interface AppData {
   ev: PEvent[]; tasks: Task[]; workspaces: TaskWorkspace[]; fin: Finance[]; days: SpecialDay[]
-  cats: Category[]; sleep: Sleep; name?: string; reset: string
+  cats: Category[]; sleep: Sleep; name?: string; reset: string; taskNotes?: Record<string, string>
 }
