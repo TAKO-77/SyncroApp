@@ -9,7 +9,7 @@ AppVersion={#AppVersion}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
-UninstallDisplayIcon={app}\{#AppExe}
+UninstallDisplayIcon={app}\Syncro-brand.ico
 UninstallDisplayName={#AppName}
 OutputDir=Output
 OutputBaseFilename=SyncroSetup
@@ -40,9 +40,9 @@ Type: files; Name: "{userprograms}\Syncro.lnk"
 
 [Icons]
 Name: "{autoprograms}\{#AppName}\{#AppName}"; Filename: "{app}\{#AppExe}"; \
-  WorkingDir: "{app}"; IconFilename: "{app}\{#AppExe}"
+  WorkingDir: "{app}"; IconFilename: "{app}\Syncro-brand.ico"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; \
-  WorkingDir: "{app}"; Tasks: desktopicon
+  WorkingDir: "{app}"; IconFilename: "{app}\Syncro-brand.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Abrir o Syncro"; Flags: nowait postinstall skipifsilent
@@ -123,3 +123,4 @@ begin
     end;
   end;
 end;
+
