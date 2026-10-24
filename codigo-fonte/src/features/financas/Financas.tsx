@@ -1,3 +1,4 @@
+import { PALETTE } from '../../lib/palette'
 import { useState, type FormEvent } from 'react'
 import { useStore } from '../../store/useStore'
 import { MN, parse } from '../../lib/dates'
@@ -5,7 +6,7 @@ import { Modal, todayIso, uid } from '../../components/common'
 import { Donut } from '../../components/Donut'
 import type { Finance } from '../../types'
 
-const FC = [{ id: 'alim', name: 'Alimentação', color: '#d89d5f' }, { id: 'transp', name: 'Transportes', color: '#7f9fc9' }, { id: 'casa', name: 'Casa', color: '#d2bd62' }, { id: 'saude', name: 'Saúde', color: '#8bb08b' }, { id: 'lazer', name: 'Lazer', color: '#c98fb3' }, { id: 'compras', name: 'Compras', color: '#a692cc' }, { id: 'educ', name: 'Educação', color: '#cf7f7f' }, { id: 'subs', name: 'Subscrições', color: '#6fb3b8' }, { id: 'viag', name: 'Viagens', color: '#9fb0c0' }, { id: 'outros', name: 'Outros', color: '#8a8f99' }]
+const FC = [{ id: 'alim', name: 'Alimentação', color: PALETTE.gold }, { id: 'transp', name: 'Transportes', color: PALETTE.slate }, { id: 'casa', name: 'Casa', color: PALETTE.gold }, { id: 'saude', name: 'Saúde', color: PALETTE.sage }, { id: 'lazer', name: 'Lazer', color: PALETTE.clay }, { id: 'compras', name: 'Compras', color: PALETTE.sage }, { id: 'educ', name: 'Educação', color: PALETTE.clay }, { id: 'subs', name: 'Subscrições', color: PALETTE.sage }, { id: 'viag', name: 'Viagens', color: PALETTE.slate }, { id: 'outros', name: 'Outros', color: PALETTE.neutral }]
 const fcT = (id: string) => FC.find(c => c.id === id) ?? FC[9]
 const eur = (n: number) => n.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 2 })
 const ymAdd = (ym: string, k: number) => { const [a, b] = ym.split('-').map(Number), d = new Date(a, b - 1 + k, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }
@@ -29,7 +30,7 @@ export function Financas() {
   const cats = FC.map(c => ({ ...c, v: T.cat[c.id] ?? 0 })).filter(c => c.v > 0).sort((a, b) => b.v - a.v)
   const rows = data.fin.filter(e => act(e, ym))
   const row = (e: Finance) => <div key={e.id} className="fr" onClick={() => setF({ id: e.id, t: e.t, k: e.k, n: e.n, a: String(e.a), date: e.date, end: e.end, c: e.c || 'alim' })}>
-    <i className="pd" style={{ ['--c' as string]: e.t === 'in' ? '#92b09e' : fcT(e.c).color }} /><span className="fn">{e.n}</span>
+    <i className="pd" style={{ ['--c' as string]: e.t === 'in' ? PALETTE.sage : fcT(e.c).color }} /><span className="fn">{e.n}</span>
     <small className="mu">{e.t === 'in' ? 'Ganho' : fcT(e.c).name}{e.k === 'one' ? ` · ${parse(e.date).getDate()} ${MN[parse(e.date).getMonth()]}` : ''}</small>
     <b className={e.t}>{e.t === 'in' ? '+' : '−'}{eur(e.a)}</b></div>
   const sorted = (k: 'rec' | 'one') => rows.filter(e => e.k === k).sort((a, b) => (a.t === b.t ? 0 : a.t === 'in' ? -1 : 1) || b.a - a.a)
@@ -60,7 +61,7 @@ export function Financas() {
           <div className="fc"><span className="fl">Despesas</span><b className="fv">{eur(T.o)}</b></div></div>
         <div className="fc"><span className="fl">Evolução · últimos 6 meses</span>
           <div className="evo">{months.map(x => <button key={x.q} className="evc" aria-pressed={x.q === ym} onClick={() => setYm(x.q)} title={`Ganhos ${eur(x.i)} · Despesas ${eur(x.o)}`}>
-            <span className="bars"><i style={{ height: `${x.i / mx * 100}%`, background: '#92b09e' }} /><i style={{ height: `${x.o / mx * 100}%`, background: '#c09696' }} /></span><small>{MN[+x.q.slice(5) - 1]}</small></button>)}</div></div>
+            <span className="bars"><i style={{ height: `${x.i / mx * 100}%`, background: PALETTE.sage }} /><i style={{ height: `${x.o / mx * 100}%`, background: PALETTE.clay }} /></span><small>{MN[+x.q.slice(5) - 1]}</small></button>)}</div></div>
         <div className="fg2">
           <div className="fc"><span className="fl">Despesas por categoria</span>{cats.length ? <Donut rows={cats.map(c => ({ id: c.id, name: c.name, color: c.color, v: c.v }))} P={T.o} fv={eur} center={eur(T.o)} label="total" /> : <p className="mu">Sem despesas neste mês.</p>}</div>
           <div className="fc"><span className="fl">Para onde vai o dinheiro</span>

@@ -12,8 +12,9 @@ export interface TaskWorkspace { id: string; name: string }
 export interface Finance { id: string; t: 'in' | 'out'; k: 'rec' | 'one'; n: string; a: number; date: string; end: string; c: string }
 export interface SpecialDay { id: string; n: string; ty: string; s: string; e: string; h: string; o: string; y: boolean }
 export interface Category { id: string; name: string; color: string }
-export interface Sleep { bed: string; wake: string; wk: boolean; bed2: string; wake2: string }
+export interface SleepSchedule { bed: string; wake: string }
+export interface Sleep { daily?: SleepSchedule[]; bed: string; wake: string; wk: boolean; bed2: string; wake2: string }
 export interface AppData {
   ev: PEvent[]; tasks: Task[]; workspaces: TaskWorkspace[]; fin: Finance[]; days: SpecialDay[]
-  cats: Category[]; sleep: Sleep; name?: string; reset: string; taskNotes?: Record<string, string>
+  cats: Category[]; sleep: Sleep; name?: string; photo?: string; reset: string; taskNotes?: Record<string, string>
 }

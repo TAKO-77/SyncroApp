@@ -6,7 +6,7 @@ export function Donut({ rows, P, fv, center, label }: { rows: Slice[]; P: number
   const r = rows.find(x => x.id === h)
   const pc = (v: number) => v / P * 100 < 1 ? '<1%' : Math.round(v / P * 100) + '%'
   return <div className="dv">
-    <div className="don"><svg viewBox="0 0 190 190"><circle cx="95" cy="95" r="70" fill="none" stroke="#151515" strokeWidth="16" />
+    <div className="don"><svg viewBox="0 0 190 190"><circle cx="95" cy="95" r="70" fill="none" stroke="var(--l1)" strokeWidth="16" />
       {rows.map(s => { const L = s.v / P * C, o = off; off += L
         return <circle key={s.id} cx="95" cy="95" r="70" fill="none" stroke={s.color} strokeWidth="16" strokeDasharray={`${Math.max(0, L - (rows.length > 1 ? 3 : 0))} ${C}`} strokeDashoffset={-o} transform="rotate(-90 95 95)" style={{ opacity: h && h !== s.id ? .25 : 1 }} /> })}</svg>
       <div className="dc"><b>{r ? fv(r.v) : center}</b><span>{r ? r.name : label}</span></div></div>

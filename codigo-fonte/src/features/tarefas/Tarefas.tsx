@@ -1,13 +1,14 @@
+import { PALETTE } from '../../lib/palette'
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as RPE } from 'react'
 import { useStore } from '../../store/useStore'
 import { MN, iso, parse } from '../../lib/dates'
 import { Modal, todayIso, uid } from '../../components/common'
 import type { Effort, Priority, Task } from '../../types'
 
-const PC: Record<Priority, string> = { urgente: '#ef7777', alta: '#cf7f7f', media: '#d2bd62', baixa: '#8bb08b' }
+const PC: Record<Priority, string> = { urgente: PALETTE.error, alta: PALETTE.clay, media: PALETTE.gold, baixa: PALETTE.sage }
 const PN: Record<Priority, string> = { urgente: 'Urgente', alta: 'Alta', media: 'Média', baixa: 'Baixa' }
 const NX: Record<Priority, Priority> = { urgente: 'alta', alta: 'media', media: 'baixa', baixa: 'urgente' }
-const LV: Record<Effort, { n: string; t: string; c: string }> = { rel: { n: 'Muito Rápido', t: 'até 15 min', c: '#8fc1d4' }, lig: { n: 'Rápido', t: 'cerca de 30 min', c: '#8fa7d9' }, cui: { n: 'Moderado', t: '1 a 2 horas', c: '#a592d4' }, exi: { n: 'Demorado', t: 'várias horas', c: '#c98fb3' }, pro: { n: 'Projeto', t: 'várias etapas', c: '#d89d5f' } }
+const LV: Record<Effort, { n: string; t: string; c: string }> = { rel: { n: 'Muito Rápido', t: 'até 15 min', c: PALETTE.sage }, lig: { n: 'Rápido', t: 'cerca de 30 min', c: PALETTE.slate }, cui: { n: 'Moderado', t: '1 a 2 horas', c: PALETTE.neutral }, exi: { n: 'Demorado', t: 'várias horas', c: PALETTE.clay }, pro: { n: 'Projeto', t: 'várias etapas', c: PALETTE.gold } }
 const LK = Object.keys(LV) as Effort[]
 
 function due(d: string, today: string): [string, boolean] {

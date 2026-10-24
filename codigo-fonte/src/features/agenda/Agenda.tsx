@@ -1,3 +1,4 @@
+import { PALETTE } from '../../lib/palette'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useStore } from '../../store/useStore'
 import { DN, MN, dow, fmt, hm, iso, mins, parse } from '../../lib/dates'
@@ -43,7 +44,7 @@ export function Agenda({ anchor, setAnchor }: { anchor: string; setAnchor: (s: s
     .sort((a, b) => (a.h || '99').localeCompare(b.h || '99'))
   const label = N === 7 ? `${first.getDate()} ${MN[first.getMonth()]} – ${last.getDate()} ${MN[last.getMonth()]} ${last.getFullYear()}` : `${DN[dow(A)]}, ${A.getDate()} ${MN[A.getMonth()]} ${A.getFullYear()}`
   const move = (k: number) => { const d = new Date(A); d.setDate(d.getDate() + k * N); setAnchor(iso(d)) }
-  const color = (e: PEvent) => data.cats.find(c => c.id === e.cat)?.color ?? e.color ?? '#8a8f99'
+  const color = (e: PEvent) => data.cats.find(c => c.id === e.cat)?.color ?? e.color ?? PALETTE.neutral
 
   const openNew = (ds: string, m: number) => { setErr(''); setForm({ ds, title: '', start: hm(m), end: hm(Math.min(m + 60, 1439)), date: ds, rep: 'none', days: [], cat: data.cats[0]?.id ?? '' }) }
   const openEdit = (id: string, ds: string) => {
@@ -119,7 +120,7 @@ export function Agenda({ anchor, setAnchor }: { anchor: string; setAnchor: (s: s
   }
   let total = 0
 
-  return <section className="page">
+  return <section className="page agenda-page">
     <div className="bar">
       <button className="btn sq" onClick={() => move(-1)} aria-label="Anterior">‹</button>
       <span className="rg">{label}</span>
@@ -130,7 +131,7 @@ export function Agenda({ anchor, setAnchor }: { anchor: string; setAnchor: (s: s
       <div className="seg"><button aria-pressed={view === 'week'} onClick={() => setView('week')}>Semana</button><button aria-pressed={view === 'day'} onClick={() => setView('day')}>Dia</button></div>
       <button className="btn pri" onClick={() => openNew(anchor, anchor === td ? Math.min(nowM + 1, 1439) : 540)}>Novo evento</button>
     </div>
-    <div className="tt" ref={box}>
+    <div className="tt" ref={box} tabIndex={0} role="region" aria-label="Horário da agenda">
       <div className="gr" style={{ gridTemplateColumns: `52px repeat(${N},minmax(104px,1fr))`, minWidth: N === 7 ? 790 : 0 }}>
         <div className="corner" />
         {days.map(d => <div key={iso(d)} className={'hd' + (iso(d) === td ? ' td' : '')}><span className="dw">{DN[dow(d)]}</span><b className="dd">{d.getDate()}</b>

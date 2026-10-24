@@ -1,10 +1,11 @@
+import { PALETTE } from '../../lib/palette'
 import { useState, type FormEvent } from 'react'
 import { useStore } from '../../store/useStore'
 import { DN, dow, iso, parse } from '../../lib/dates'
 import { Modal, todayIso, uid } from '../../components/common'
 import type { SpecialDay } from '../../types'
 
-export const SD = [{ id: 'aniv', name: 'Aniversário', color: '#c98fb3', i: '🎂' }, { id: 'exame', name: 'Exame', color: '#cf7f7f', i: '📝' }, { id: 'consulta', name: 'Consulta', color: '#8bb08b', i: '🩺' }, { id: 'viagem', name: 'Viagem', color: '#7f9fc9', i: '✈️' }, { id: 'evento', name: 'Evento', color: '#d2bd62', i: '⭐' }, { id: 'outro', name: 'Outro', color: '#aa9fc6', i: '📌' }]
+export const SD = [{ id: 'aniv', name: 'Aniversário', color: PALETTE.clay, i: '🎂' }, { id: 'exame', name: 'Exame', color: PALETTE.clay, i: '📝' }, { id: 'consulta', name: 'Consulta', color: PALETTE.sage, i: '🩺' }, { id: 'viagem', name: 'Viagem', color: PALETTE.slate, i: '✈️' }, { id: 'evento', name: 'Evento', color: PALETTE.gold, i: '⭐' }, { id: 'outro', name: 'Outro', color: PALETTE.neutral, i: '📌' }]
 const sdT = (x: SpecialDay) => SD.find(t => t.id === x.ty) ?? SD[5]
 type F = Omit<SpecialDay, 'id'> & { id?: string }
 
@@ -15,15 +16,19 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
   const [f, setF] = useState<F | null>(null)
   const first = parse(m), dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate(), rows = Math.ceil((dow(first) + dim) / 7)
   const sdOn = (ds: string) => data.days.filter(x => x.y ? ds >= x.s && ds.slice(5) === x.s.slice(5) : ds >= x.s && ds <= (x.e || x.s)).sort((a, b) => (a.h || '99').localeCompare(b.h || '99'))
-  const monthEnd = iso(new Date(+today.slice(0, 4), +today.slice(5, 7), 0))
+  const horizon = parse(today)
+  horizon.setDate(horizon.getDate() + 31)
+  const upcomingEnd = iso(horizon)
   const daysLeft = (date: string) => Math.round((Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)) - Date.UTC(+today.slice(0, 4), +today.slice(5, 7) - 1, +today.slice(8, 10))) / 86400000)
   const upcoming = data.days.flatMap(item => {
     if (item.y) {
-      const date = today.slice(0, 4) + item.s.slice(4)
-      return date >= today && date <= monthEnd ? [{ item, date }] : []
+      let year = Math.max(+today.slice(0, 4), +item.s.slice(0, 4))
+      let date = `${year}${item.s.slice(4)}`
+      if (date < today) date = `${++year}${item.s.slice(4)}`
+      return date >= item.s && date <= upcomingEnd && iso(parse(date)) === date ? [{ item, date }] : []
     }
     const end = item.e || item.s
-    if (end < today || item.s > monthEnd) return []
+    if (end < today || item.s > upcomingEnd) return []
     return [{ item, date: item.s < today ? today : item.s }]
   }).sort((a, b) => a.date.localeCompare(b.date) || (a.item.h || '99').localeCompare(b.item.h || '99'))
   const shift = (k: number) => { const d = new Date(first); d.setMonth(d.getMonth() + k); setM(iso(d)) }
@@ -36,7 +41,7 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
     setM(o.s.slice(0, 8) + '01'); setF(null)
   }
   const cells = Array.from({ length: rows * 7 }, (_, i) => { const d = new Date(first); d.setDate(1 - dow(first) + i); return d })
-  return <section className="page">
+  return <section className="page calendar-page">
     <div className="bar">
       <button className="btn sq" onClick={() => shift(-1)} aria-label="Mês anterior">‹</button>
       <span className="rg cap">{first.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}</span>
@@ -45,16 +50,16 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
       <button className="btn pri sp-l" onClick={() => setF(blank())}>Novo dia especial</button>
     </div>
     <section className="upcoming upcoming-compact">
-      <div className="upcoming-head"><h2>Este mês</h2></div>
+      <div className="upcoming-head"><h2>Próximos 31 dias</h2></div>
       {upcoming.length ? <div className="upcoming-list">{upcoming.map(({ item, date }) => {
         const type = sdT(item), left = daysLeft(date)
         return <div className="upcoming-item" key={item.id} style={{ ['--c' as string]: type.color }}>
           <span className="upcoming-icon">{type.i}</span><span className="upcoming-name"><b>{item.n}</b><small>{parse(date).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })}{item.h ? ` · ${item.h}` : ''}</small></span>
           <span className="upcoming-count">{left === 0 ? 'Hoje' : `em ${left} ${left === 1 ? 'dia' : 'dias'}`}</span>
         </div>
-      })}</div> : <p className="mu upcoming-empty">Sem marcações até ao fim do mês.</p>}
+      })}</div> : <p className="mu upcoming-empty">Sem marcações nos próximos 31 dias.</p>}
     </section>
-    <div className="mg">
+    <div className="mg" style={{ gridTemplateRows: `auto repeat(${rows}, minmax(0, 1fr))` }}>
       {DN.map(d => <div key={d} className="mh">{d}</div>)}
       {cells.map(d => { const ds = iso(d), sds = sdOn(ds)
         return <div key={ds} className={'mc' + (d.getMonth() !== first.getMonth() ? ' out' : '') + (ds === today ? ' td' : '')} onClick={() => onOpenDay(ds)}>

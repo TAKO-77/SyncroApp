@@ -1,14 +1,15 @@
+import { PALETTE, harmonizeDefaultColor } from './palette'
 import { z } from 'zod'
 import type { AppData } from '../types'
 
 export const DEFAULT_CATS = [
-  { id: 'presencial', name: 'Estudo presencial', color: '#cf7f7f' },
-  { id: 'autonomo', name: 'Estudo autónomo', color: '#d89d5f' },
-  { id: 'projetos', name: 'Projetos', color: '#7f9fc9' },
-  { id: 'desloc', name: 'Deslocações', color: '#8bb08b' },
-  { id: 'rotina', name: 'Rotina e casa', color: '#d2bd62' },
-  { id: 'exercicio', name: 'Exercício', color: '#a692cc' },
-  { id: 'lazer', name: 'Lazer e social', color: '#c98fb3' },
+  { id: 'presencial', name: 'Estudo presencial', color: PALETTE.clay },
+  { id: 'autonomo', name: 'Estudo autónomo', color: PALETTE.gold },
+  { id: 'projetos', name: 'Projetos', color: PALETTE.slate },
+  { id: 'desloc', name: 'Deslocações', color: PALETTE.sage },
+  { id: 'rotina', name: 'Rotina e casa', color: PALETTE.gold },
+  { id: 'exercicio', name: 'Exercício', color: PALETTE.sage },
+  { id: 'lazer', name: 'Lazer e social', color: PALETTE.clay },
 ]
 export const DEFAULT_SLEEP = { bed: '23:30', wake: '07:30', wk: false, bed2: '00:30', wake2: '09:30' }
 
@@ -20,8 +21,14 @@ const schema = z.object({
   fin: z.array(item).default([]),
   days: z.array(item).default([]),
   cats: z.array(z.object({ id: z.string(), name: z.string(), color: z.string().regex(/^#[0-9a-f]{6}$/i) })).default(DEFAULT_CATS),
-  sleep: z.object({}).passthrough().default({}),
+  sleep: z.object({
+    daily: z.array(z.object({
+      bed: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+      wake: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+    })).length(7).optional(),
+  }).passthrough().default({}),
   name: z.string().optional(),
+  photo: z.string().max(200000).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).optional(),
   reset: z.string().default(''),
 }).passthrough()
 
@@ -46,6 +53,7 @@ export function parseAppData(raw: unknown): AppData | null {
   return {
     ...(d as unknown as AppData),
     workspaces,
+    cats: d.cats.map(category => ({ ...category, color: harmonizeDefaultColor(category.id, category.color) })),
     tasks,
     sleep: { ...DEFAULT_SLEEP, ...(d.sleep as object) },
   }

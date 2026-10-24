@@ -1,3 +1,4 @@
+import { PALETTE } from '../../lib/palette'
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { dow, fmt, iso, mins, parse } from '../../lib/dates'
@@ -18,9 +19,9 @@ export function Dashboard() {
     eventsOn(data, ds).forEach(e => { const k = e.cat || 'none'; m[k] = (m[k] ?? 0) + Math.max(0, mins(e.end) - mins(e.start)); for (let x = mins(e.start); x < mins(e.end); x++) busy[x] = 1 })
     sleepIv(data.sleep, ds).forEach(([p, q]) => { for (let x = p; x < q; x++) if (!busy[x]) sl++ })
   }
-  const cr: Slice[] = [...data.cats, { id: 'none', name: 'Sem categoria', color: '#8a7f72' }].map(c => ({ ...c, v: m[c.id] ?? 0 })).filter(r => r.v > 0).sort((x, y) => y.v - x.v)
+  const cr: Slice[] = [...data.cats, { id: 'none', name: 'Sem categoria', color: PALETTE.neutral }].map(c => ({ ...c, v: m[c.id] ?? 0 })).filter(r => r.v > 0).sort((x, y) => y.v - x.v)
   const plan = cr.reduce((q, r) => q + r.v, 0), P = Math.max(days * 1440, plan)
-  const rows: Slice[] = [...cr, ...(sl ? [{ id: 'sono', name: 'Sono', color: '#5f7392', v: sl }] : []), { id: 'free', name: 'Tempo livre', color: '#50545b', v: Math.max(0, P - plan - sl) }]
+  const rows: Slice[] = [...cr, ...(sl ? [{ id: 'sono', name: 'Sono', color: PALETTE.slate, v: sl }] : []), { id: 'free', name: 'Tempo livre', color: PALETTE.muted, v: Math.max(0, P - plan - sl) }]
   return <>
     <div className="seg dsw"><button aria-pressed={per === 'week'} onClick={() => setPer('week')}>Semana</button><button aria-pressed={per === 'month'} onClick={() => setPer('month')}>Mês</button></div>
     {plan ? <Donut rows={rows} P={P} fv={fmt} center={fmt(plan)} label="planeadas" /> : <p className="mu">Ainda não há eventos neste período.</p>}

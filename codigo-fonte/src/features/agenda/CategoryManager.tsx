@@ -1,10 +1,11 @@
+import { PALETTE } from '../../lib/palette'
 import { useState, type FormEvent } from 'react'
 import { useStore } from '../../store/useStore'
 import { Modal, uid } from '../../components/common'
 
 export function CategoryManager({ onClose }: { onClose: () => void }) {
   const { data, update } = useStore()
-  const [nn, setNn] = useState(''), [nc, setNc] = useState('#d2bd62')
+  const [nn, setNn] = useState(''), [nc, setNc] = useState<string>(PALETTE.gold)
   const patch = (id: string, k: 'name' | 'color', v: string) => {
     if (k === 'name' && !v.trim()) return
     update(d => { const c = d.cats.find(x => x.id === id); if (c) c[k] = k === 'name' ? v.trim() : v })
