@@ -37,8 +37,8 @@ export default function App() {
   }, [qa])
   return <div className={`app${sidebarOpen ? ' sidebar-open' : ''}${sec === 'agenda' || sec === 'calendario' ? ' schedule-layout' : ''}`}>
     <svg className="logo-filters" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
-      <defs><filter id="light-logo-background" x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
-        <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  10 0 -10 0 0" result="symbol" />
+      <defs><filter id="logo-background" x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
+        <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  4 0 -4 0 -0.08" />
       </filter></defs>
     </svg>
     <aside id="sidebar" className="sb" onMouseEnter={() => { if (sidebarAutoOpen) setSidebarOpen(true) }} onMouseLeave={() => { if (sidebarAutoOpen) setSidebarOpen(false) }} onFocus={() => { if (sidebarAutoOpen) setSidebarOpen(true) }} onBlur={e => { if (sidebarAutoOpen && !e.currentTarget.contains(e.relatedTarget as Node | null)) setSidebarOpen(false) }}>

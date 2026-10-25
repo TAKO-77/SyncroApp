@@ -1,4 +1,4 @@
-:root{--bg:#1c1e1e;--s1:#222424;--s2:#2a2c2c;--l1:#343636;--l2:#454747;--tx:#f3f4f6;--mu:#a4a7a7;--ac:#efcb53;color-scheme:dark}
+:root{--bg:#1c1e1e;--s1:#222424;--s2:#2a2c2c;--l1:#343636;--l2:#454747;--tx:#f3f4f6;--mu:#a4a7a7;--ac:#efcb53;--brand:#ffb020;color-scheme:dark}
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:400 14px/1.55 Manrope,"Segoe UI",system-ui,sans-serif}
 h2{font:600 30px/1.1 "Cormorant Garamond",Georgia,serif;margin:0 0 20px}
@@ -14,7 +14,7 @@ h2.sub{font-size:20px;margin-top:34px}
 .sb>.btn,.sb .pomo{opacity:0;pointer-events:none;transition:opacity .15s}
 .sidebar-open .sb .brand,.sidebar-open .sb>.btn,.sidebar-open .sb .pomo{opacity:1;pointer-events:auto}
 .brand{height:64px;flex-shrink:0;display:flex;align-items:center;gap:16px;overflow:hidden;white-space:nowrap}
-.brand img{display:block;width:48px;height:56px;object-fit:contain;flex-shrink:0}.brand span{display:none;color:var(--ac);font:600 24px/1 Inter,"Segoe UI",sans-serif;letter-spacing:.12em}.sidebar-open .brand span{display:block}
+.brand img{display:block;width:48px;height:56px;object-fit:contain;flex-shrink:0}.brand span{display:none;color:var(--brand);font:600 24px/1 Inter,"Segoe UI",sans-serif;letter-spacing:.12em}.sidebar-open .brand span{display:block}
 .mobile-brand{display:none}
 @media(max-width:760px){.mobile-brand{display:block;width:184px;margin-bottom:16px;overflow:hidden;border-radius:8px}.mobile-brand img{display:block;width:100%;height:auto}}
 .nav{display:flex;flex-direction:column;gap:6px}
@@ -142,7 +142,7 @@ select,textarea{background:var(--bg);border:1px solid var(--l2);border-radius:10
 [data-theme=light] .tm.late,[data-theme=light] .neg,[data-theme=light] .btn.dng{color:#dc2626}
 [data-theme=light] .fv.pos,[data-theme=light] .fr b.in{color:#16a34a}
 [data-theme=light] .mc i{color:var(--tx)}
-[data-theme=light] .brand span{color:var(--ac)}
+[data-theme=light] .brand span{color:var(--brand)}
 
 .app:not(.sidebar-open) .sb .pomo{display:none}
 @media(max-width:760px){.sb .nav .settings-link{margin-top:0}}
@@ -166,7 +166,7 @@ select,textarea{background:var(--bg);border:1px solid var(--l2);border-radius:10
 .sleep-sync{margin-top:16px}
 @media(max-width:480px){.sleep-day{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.sleep-day strong{grid-column:1/-1}.sleep-sync>*{width:100%}}
 
-[data-theme=light] .brand img,[data-theme=light] .mobile-brand img{filter:url(#light-logo-background)}
+.brand img,.mobile-brand img{filter:url(#logo-background)}
 .logo-filters{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
 
 /* Use the same neutral surfaces and restrained accent across light controls. */
