@@ -5,7 +5,7 @@ import { DN, MN, dow, fmt, hm, iso, mins, parse } from '../../lib/dates'
 import { eventsOn } from '../../lib/recurrence'
 import { sleepIv } from '../../lib/sleep'
 import { Modal, uid, useNow } from '../../components/common'
-import { CategoryManager } from './CategoryManager'
+import { CategoryManager } from '../../components/CategoryManager'
 import { useToast } from '../../store/toast'
 import { useStore as store } from '../../store/useStore'
 import type { PEvent, Rep } from '../../types'
@@ -152,7 +152,7 @@ export function Agenda({ anchor, setAnchor }: { anchor: string; setAnchor: (s: s
       </div>
     </div>
     <p className="mu">{total ? `${fmt(total)} planeadas ${N === 7 ? 'esta semana' : 'neste dia'}` : ''}</p>
-    {cm && <CategoryManager onClose={() => setCm(false)} />}
+    {cm && <CategoryManager list="cats" title="Categorias da Agenda" description="Define o nome e a cor usadas nos eventos." onClose={() => setCm(false)} />}
     {form && <Modal title={form.id ? 'Editar evento' : 'Novo evento'} onClose={() => setForm(null)}>
       <form className="fgrid" onSubmit={save}>
         <label className="w">Título<input value={form.title} maxLength={80} required autoFocus onChange={e => setForm({ ...form, title: e.target.value })} /></label>

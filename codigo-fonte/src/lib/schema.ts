@@ -11,16 +11,26 @@ export const DEFAULT_CATS = [
   { id: 'exercicio', name: 'Exercício', color: PALETTE.sage },
   { id: 'lazer', name: 'Lazer e social', color: PALETTE.clay },
 ]
+export const DEFAULT_DAY_CATS = [
+  { id: 'aniv', name: 'Aniversário', color: PALETTE.clay, icon: '🎂' },
+  { id: 'exame', name: 'Exame', color: PALETTE.clay, icon: '📝' },
+  { id: 'consulta', name: 'Consulta', color: PALETTE.sage, icon: '🩺' },
+  { id: 'viagem', name: 'Viagem', color: PALETTE.slate, icon: '✈️' },
+  { id: 'evento', name: 'Evento', color: PALETTE.gold, icon: '⭐' },
+  { id: 'outro', name: 'Outro', color: PALETTE.neutral, icon: '📌' },
+]
 export const DEFAULT_SLEEP = { bed: '23:30', wake: '07:30', wk: false, bed2: '00:30', wake2: '09:30' }
 
 const item = z.object({ id: z.string() }).passthrough()
+const category = z.object({ id: z.string(), name: z.string(), color: z.string().regex(/^#[0-9a-f]{6}$/i), icon: z.string().optional() })
 const schema = z.object({
   ev: z.array(item).default([]),
   tasks: z.array(item).default([]),
   workspaces: z.array(z.object({ id: z.string(), name: z.string() })).default([{ id: 'geral', name: 'Geral' }]),
   fin: z.array(item).default([]),
   days: z.array(item).default([]),
-  cats: z.array(z.object({ id: z.string(), name: z.string(), color: z.string().regex(/^#[0-9a-f]{6}$/i) })).default(DEFAULT_CATS),
+  cats: z.array(category).default(DEFAULT_CATS),
+  dayCats: z.array(category).default(DEFAULT_DAY_CATS),
   sleep: z.object({
     daily: z.array(z.object({
       bed: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
@@ -34,6 +44,7 @@ const schema = z.object({
 
 export const emptyData = (): AppData => ({
   ev: [], tasks: [], workspaces: [{ id: 'geral', name: 'Geral' }], fin: [], days: [], cats: DEFAULT_CATS.map(c => ({ ...c })),
+  dayCats: DEFAULT_DAY_CATS.map(c => ({ ...c })),
   sleep: { ...DEFAULT_SLEEP }, reset: '',
 })
 
