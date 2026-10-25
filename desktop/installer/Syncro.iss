@@ -11,7 +11,7 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\Syncro-brand.ico
 UninstallDisplayName={#AppName}
-OutputDir=Output
+OutputDir=..\..\releases
 OutputBaseFilename=SyncroSetup
 Compression=lzma2
 SolidCompression=yes
@@ -29,8 +29,7 @@ Name: "portuguese"; MessagesFile: "compiler:Languages\Portuguese.isl"
 Name: "desktopicon"; Description: "Criar atalho no ambiente de trabalho"; Flags: unchecked
 
 [Files]
-Source: "*"; DestDir: "{app}"; \
-  Excludes: "*.cs,*.iss,*.iml,*.lnk,.idea\*,.git\*,.gitignore,Output\*,out\*,README.md,obj\*,codigo-fonte\*,node_modules\*"; \
+Source: "..\..\dist\windows\*"; DestDir: "{app}"; \
   Flags: recursesubdirs createallsubdirs ignoreversion
 
 [InstallDelete]
@@ -123,4 +122,3 @@ begin
     end;
   end;
 end;
-

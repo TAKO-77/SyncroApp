@@ -4,3 +4,10 @@ node_modules/
 .env.*
 !.env.example
 *.lnk
+
+# Local tooling and generated files
+.idea/
+local/
+dist/
+codigo-fonte/dist/
+releases/
