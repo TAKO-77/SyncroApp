@@ -6,10 +6,11 @@
 AppId={{B7C1E5A2-4D3F-4A8E-9C61-2F5D8E7A1B34}
 AppName={#AppName}
 AppVersion={#AppVersion}
+SetupIconFile=..\assets\Syncro-brand.ico
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
-UninstallDisplayIcon={app}\Syncro-brand.ico
+UninstallDisplayIcon={app}\Syncro-brand-amber-transparent.ico
 UninstallDisplayName={#AppName}
 OutputDir=..\..\releases
 OutputBaseFilename=SyncroSetup
@@ -39,9 +40,9 @@ Type: files; Name: "{userprograms}\Syncro.lnk"
 
 [Icons]
 Name: "{autoprograms}\{#AppName}\{#AppName}"; Filename: "{app}\{#AppExe}"; \
-  WorkingDir: "{app}"; IconFilename: "{app}\Syncro-brand.ico"
+  WorkingDir: "{app}"; IconFilename: "{app}\Syncro-brand-amber-transparent.ico"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; \
-  WorkingDir: "{app}"; IconFilename: "{app}\Syncro-brand.ico"; Tasks: desktopicon
+  WorkingDir: "{app}"; IconFilename: "{app}\Syncro-brand-amber-transparent.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Abrir o Syncro"; Flags: nowait postinstall skipifsilent

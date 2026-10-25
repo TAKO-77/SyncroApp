@@ -34,7 +34,11 @@ internal sealed class PlannerWindow : Form
         MinimumSize = new System.Drawing.Size(720, 560);
         StartPosition = FormStartPosition.CenterScreen;
         WindowState = FormWindowState.Maximized;
-        Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        // Read the icon file directly: shell extraction may return an older cached icon.
+        string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Syncro-brand-amber-transparent.ico");
+        Icon = File.Exists(iconPath)
+            ? new System.Drawing.Icon(iconPath, new System.Drawing.Size(32, 32))
+            : System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         view.Dock = DockStyle.Fill;
         Controls.Add(view);
         Shown += async (sender, args) => await StartPlanner();

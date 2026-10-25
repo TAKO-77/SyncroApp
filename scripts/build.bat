@@ -18,6 +18,8 @@ copy /y "desktop\lib\*.dll" "dist\windows\" >nul
 if errorlevel 1 exit /b 1
 copy /y "desktop\assets\Syncro-brand.ico" "dist\windows\" >nul
 if errorlevel 1 exit /b 1
+copy /y "desktop\assets\Syncro-brand.ico" "dist\windows\Syncro-brand-amber-transparent.ico" >nul
+if errorlevel 1 exit /b 1
 
 echo [3/3] A compilar Syncro.exe...
 set "CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
