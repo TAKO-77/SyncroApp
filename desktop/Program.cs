@@ -37,9 +37,10 @@ internal sealed class PlannerWindow : Form
     public PlannerWindow()
     {
         Text = "Syncro";
-        Width = 1920;
-        Height = 1200;
-        MinimumSize = new System.Drawing.Size(720, 560);
+        // Keep the restored window inside smaller screens instead of a fixed 1920x1200.
+        var area = Screen.PrimaryScreen.WorkingArea;
+        Width = Math.Min(1920, area.Width);
+        Height = Math.Min(1200, area.Height);
         StartPosition = FormStartPosition.CenterScreen;
         WindowState = FormWindowState.Maximized;
         // Read the icon file directly: shell extraction may return an older cached icon.
@@ -52,9 +53,32 @@ internal sealed class PlannerWindow : Form
         Shown += async (sender, args) => await StartPlanner();
     }
 
+    // Minimum window size in CSS pixels; wider than the 760px mobile breakpoint so the desktop layout never collapses.
+    private const int MinLogicalWidth = 960;
+    private const int MinLogicalHeight = 600;
+    private const int WM_DPICHANGED = 0x02E0;
+
+    private void ApplyMinimumSize()
+    {
+        // MinimumSize is in physical pixels under per-monitor DPI, so scale it to keep the same size inside the WebView.
+        int dpi;
+        try { dpi = GetDpiForWindow(Handle); }
+        catch (EntryPointNotFoundException) { using (var g = CreateGraphics()) dpi = (int)g.DpiX; }
+        float scale = Math.Max(1, dpi) / 96f;
+        var area = Screen.FromHandle(Handle).WorkingArea;
+        MinimumSize = new System.Drawing.Size(Math.Min((int)(MinLogicalWidth * scale), area.Width), Math.Min((int)(MinLogicalHeight * scale), area.Height));
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        base.WndProc(ref m);
+        if (m.Msg == WM_DPICHANGED) ApplyMinimumSize();
+    }
+
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
+        ApplyMinimumSize();
         int dark = 1;
         int result = DwmSetWindowAttribute(Handle, 20, ref dark, sizeof(int));
         if (result != 0) DwmSetWindowAttribute(Handle, 19, ref dark, sizeof(int));
@@ -63,6 +87,9 @@ internal sealed class PlannerWindow : Form
         int border = 0x002B2E2D;
         DwmSetWindowAttribute(Handle, 34, ref border, sizeof(int));
     }
+
+    [DllImport("user32.dll")]
+    private static extern int GetDpiForWindow(IntPtr hwnd);
 
     [DllImport("dwmapi.dll", PreserveSig = true)]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int valueSize);
