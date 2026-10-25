@@ -1,4 +1,17 @@
 # Architecture
+
+## Estado da implementação e organização
+
+Expo + React Native e Supabase continuam a ser a arquitetura pretendida. A migração ainda não foi realizada. A implementação atual usa React/TypeScript com Vite em `codigo-fonte/` e um anfitrião Windows WebView2 em `desktop/Program.cs`, com dados locais.
+
+- `docs/`: documentação do produto e design.
+- `codigo-fonte/src/`: componentes, funcionalidades, estado e utilitários da interface.
+- `desktop/assets/`: ícones; `desktop/lib/`: bibliotecas WebView2.
+- `desktop/installer/Syncro.iss`: configuração do instalador, que inclui apenas `dist/windows/`.
+- `scripts/build.bat`: compila a interface e prepara a aplicação em `dist/windows/`.
+- `releases/`: instaladores; `local/`: atalhos específicos da máquina.
+
+As secções seguintes descrevem a arquitetura pretendida para a futura migração.
 # 01 System Overview
 One Codebase (Expo + React Native) → Supabase (Backend, Auth, Database)
 

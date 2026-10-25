@@ -35,6 +35,23 @@ Ao iniciar, o Syncro verifica se existe uma versão mais recente publicada neste
 
 A interface usa React, TypeScript e Vite. O executável Windows usa WebView2.
 
+### Organização do repositório
+
+```text
+docs/                 Requisitos, arquitetura e sistema de design
+codigo-fonte/         Código e configuração da interface
+desktop/              Código e manifesto da aplicação Windows
+  assets/             Ícones da aplicação e do instalador
+  lib/                Bibliotecas WebView2 usadas na compilação
+  installer/          Configuração do instalador Inno Setup
+scripts/              Script de compilação
+dist/windows/         Aplicação Windows pronta a executar
+releases/             Instaladores gerados
+local/                Atalhos locais
+```
+
+As pastas de saída, dependências, atalhos e configurações do editor estão no `.gitignore`. Os artefactos já versionados continuam preservados; novas versões devem ser distribuídas através das GitHub Releases.
+
 Para executar a interface em desenvolvimento:
 
 ```powershell
@@ -46,21 +63,21 @@ npm run dev
 Para compilar a aplicação Windows, fecha o Syncro e executa na pasta principal:
 
 ```powershell
-.\build.bat
+.\scripts\build.bat
 ```
 
-Este comando compila a interface, atualiza `index.html` e `assets/` na pasta principal e gera `Syncro.exe`. A compilação do executável requer o compilador C# do .NET Framework.
+Este comando compila a interface e prepara `dist/windows/` com o executável e os ficheiros necessários. A compilação do executável requer o compilador C# do .NET Framework.
 
-Para executar diretamente pela pasta, mantém `Syncro.exe`, `index.html`, a pasta `assets/` e as DLLs WebView2 juntos. Os ficheiros `Syncro.ico` e `Syncro-brand.ico` são usados na compilação e instalação.
+Para executar diretamente, abre `dist/windows/Syncro.exe`. Mantém os ficheiros dessa pasta juntos. Os ícones originais ficam em `desktop/assets/` e as bibliotecas WebView2 em `desktop/lib/`.
 
 ## Publicar uma versão
 
 A versão atual é **2.3.0**. Para publicar uma atualização:
 
-1. Define o mesmo novo número em `Program.cs` (`AppVersion`) e `Syncro.iss` (`AppVersion`).
-2. Fecha o Syncro e executa `build.bat`.
-3. Abre `Syncro.iss` no Inno Setup e compila o instalador. O resultado fica em `Output/SyncroSetup.exe`.
-4. Faz commit e push do código, dos ficheiros compilados e do instalador atualizados. Exclui dependências instaladas, ficheiros temporários e atalhos locais.
+1. Define o mesmo novo número em `desktop/Program.cs` (`AppVersion`) e `desktop/installer/Syncro.iss` (`AppVersion`).
+2. Fecha o Syncro e executa `scripts/build.bat`.
+3. Abre `desktop/installer/Syncro.iss` no Inno Setup e compila o instalador. O resultado fica em `releases/SyncroSetup.exe`.
+4. Faz commit e push do código e da documentação. Exclui dependências instaladas, ficheiros temporários e atalhos locais. Os ficheiros gerados são distribuídos no instalador da Release.
 5. Cria uma GitHub Release a partir do commit enviado, com uma tag correspondente à versão, por exemplo `v2.3.0`.
 6. Anexa o instalador com o nome exato **SyncroSetup.exe**, descreve as alterações e publica como **Latest**.
 
