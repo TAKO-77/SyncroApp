@@ -22,7 +22,7 @@ export default function App() {
   const [anchor, setAnchor] = useState(todayIso())
   const [qa, setQa] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { data, sidebarAutoOpen, theme } = useStore()
+  const { data, sidebarAutoOpen, focusTimer, theme } = useStore()
   useEffect(() => { setSidebarOpen(false) }, [sidebarAutoOpen])
   useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
   const now = useNow(10000), h = now.getHours()
@@ -45,7 +45,7 @@ export default function App() {
       {!sidebarAutoOpen && <button className="sidebar-toggle" type="button" aria-label={sidebarOpen ? 'Fechar barra lateral' : 'Abrir barra lateral'} title={sidebarOpen ? 'Fechar barra lateral' : 'Abrir barra lateral'} aria-expanded={sidebarOpen} aria-controls="sidebar" onClick={() => setSidebarOpen(open => !open)}><PanelLeft size={20} strokeWidth={1.5} aria-hidden="true" /></button>}
       <div className="brand"><img src={syncroSymbol} alt="Syncro" width={162} height={178} /><span aria-hidden="true">SYNCRO</span></div>
       <nav className="nav">{SECTIONS.filter(s => s.id !== 'definicoes').map(s => <button key={s.id} title={s.label} aria-label={s.label} aria-current={sec === s.id ? 'page' : undefined} onClick={() => setSec(s.id)}>{s.id === 'perfil' && data.photo ? <img className="nav-avatar" src={data.photo} alt="" /> : <s.icon size={20} strokeWidth={1.5} aria-hidden="true" />}<span>{s.label}</span></button>)}</nav>
-      <Foco />
+      {focusTimer && <Foco />}
       <nav className="nav settings-nav" aria-label="Definições"><button title="Definições" aria-label="Definições" aria-current={sec === 'definicoes' ? 'page' : undefined} onClick={() => setSec('definicoes')}><Settings size={20} strokeWidth={1.5} aria-hidden="true" /><span>Definições</span></button></nav>
     </aside>
     <main>

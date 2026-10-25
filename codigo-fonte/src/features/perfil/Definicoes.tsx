@@ -10,7 +10,7 @@ interface DesktopBridge {
 const desktop = (window as Window & { chrome?: { webview?: DesktopBridge } }).chrome?.webview
 
 export function Definicoes() {
-  const { data, replace, sidebarAutoOpen, setSidebarAutoOpen, theme, setTheme } = useStore()
+  const { data, replace, sidebarAutoOpen, setSidebarAutoOpen, focusTimer, setFocusTimer, theme, setTheme } = useStore()
   const [msg, setMsg] = useState('')
   const [version, setVersion] = useState('')
   const [updateStatus, setUpdateStatus] = useState('')
@@ -67,6 +67,7 @@ export function Definicoes() {
     <h2 className="sub">Barra lateral</h2>
     <label className="ck"><input type="checkbox" checked={sidebarAutoOpen} onChange={e => setSidebarAutoOpen(e.target.checked)} aria-describedby="sidebar-preference-description" /> Abrir automaticamente ao passar o rato</label>
     <p id="sidebar-preference-description" className="mu">{sidebarAutoOpen ? 'Ativo — a barra abre automaticamente ao passar o rato.' : 'Desativado — usa os ícones para mudar de aba ou o botão no topo da barra para abrir e fechar manualmente.'}</p>
+    <label className="ck"><input type="checkbox" checked={focusTimer} onChange={e => setFocusTimer(e.target.checked)} /> Mostrar temporizador de foco</label>
     <h2 className="sub">Dados e cópia de segurança</h2>
     <div className="row">
       <button className="btn" onClick={exportar}>Exportar</button>

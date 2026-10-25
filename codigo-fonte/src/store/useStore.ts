@@ -5,9 +5,14 @@ import { emptyData, parseAppData } from '../lib/schema'
 // Mesma chave da versão HTML: se a origem (planner.local) for a mesma, os dados atuais são reaproveitados.
 const KEY = 'wayne'
 const SIDEBAR_AUTO_OPEN_KEY = 'syncro-sidebar-auto-open'
+const FOCUS_TIMER_KEY = 'syncro-focus-timer'
 
 function loadSidebarAutoOpen(): boolean {
   try { return localStorage.getItem(SIDEBAR_AUTO_OPEN_KEY) !== 'false' } catch { return true }
+}
+
+function loadFocusTimer(): boolean {
+  try { return localStorage.getItem(FOCUS_TIMER_KEY) !== 'false' } catch { return true }
 }
 
 function load(): AppData {
@@ -29,6 +34,8 @@ interface Store {
   setTheme: (theme: Theme) => void
   sidebarAutoOpen: boolean
   setSidebarAutoOpen: (enabled: boolean) => void
+  focusTimer: boolean
+  setFocusTimer: (enabled: boolean) => void
   data: AppData
   history: string[]
   update: (fn: (d: AppData) => void) => void
@@ -46,6 +53,11 @@ export const useStore = create<Store>((set, get) => ({
   setSidebarAutoOpen: enabled => {
     try { localStorage.setItem(SIDEBAR_AUTO_OPEN_KEY, String(enabled)) } catch { /* armazenamento indisponível */ }
     set({ sidebarAutoOpen: enabled })
+  },
+  focusTimer: loadFocusTimer(),
+  setFocusTimer: enabled => {
+    try { localStorage.setItem(FOCUS_TIMER_KEY, String(enabled)) } catch { /* armazenamento indisponível */ }
+    set({ focusTimer: enabled })
   },
   data: load(),
   history: [],
