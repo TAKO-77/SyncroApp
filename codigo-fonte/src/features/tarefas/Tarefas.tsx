@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore'
 import { MN, iso, parse } from '../../lib/dates'
 import { Modal, todayIso, uid } from '../../components/common'
 import type { Effort, Priority, Task } from '../../types'
+import { NoteContent, toggleTaskLine } from './NoteContent'
 
 const PC: Record<Priority, string> = { urgente: PALETTE.error, alta: PALETTE.clay, media: PALETTE.gold, baixa: PALETTE.sage }
 const PN: Record<Priority, string> = { urgente: 'Urgente', alta: 'Alta', media: 'Média', baixa: 'Baixa' }
@@ -84,12 +85,24 @@ export function Tarefas() {
   const formatNote = (before: string, after = before, line = false) => {
     const input = noteEditor.current
     if (!input) return
+    if (line) {
+      // Line formats apply at the start of every selected line so the notes view recognises them.
+      const from = noteText.lastIndexOf('\n', input.selectionStart - 1) + 1, to = input.selectionEnd
+      const block = noteText.slice(from, to) || 'texto'
+      const replacement = block.split('\n').map(l => before + l).join('\n')
+      setNoteText(noteText.slice(0, from) + replacement + noteText.slice(to))
+      requestAnimationFrame(() => { input.focus(); input.setSelectionRange(from + replacement.length, from + replacement.length) })
+      return
+    }
     const start = input.selectionStart, end = input.selectionEnd
-    const selected = noteText.slice(start, end) || (line ? 'texto' : 'texto')
-    const replacement = line ? `${before}${selected}` : `${before}${selected}${after}`
-    const next = noteText.slice(0, start) + replacement + noteText.slice(end)
-    setNoteText(next)
+    const selected = noteText.slice(start, end) || 'texto'
+    setNoteText(noteText.slice(0, start) + `${before}${selected}${after}` + noteText.slice(end))
     requestAnimationFrame(() => { input.focus(); input.setSelectionRange(start + before.length, start + before.length + selected.length) })
+  }
+  const toggleNoteTask = (lineIndex: number) => {
+    const next = toggleTaskLine(data.taskNotes?.[activeWorkspaceId] ?? '', lineIndex)
+    update(d => { d.taskNotes = { ...(d.taskNotes ?? {}), [activeWorkspaceId]: next } })
+    setNoteText(next)
   }
 
   return <section className="page narrow">
@@ -128,7 +141,7 @@ export function Tarefas() {
         <button type="button" title="Negrito" aria-label="Negrito" onClick={() => formatNote('**')}>B</button><button type="button" title="Itálico" aria-label="Itálico" onClick={() => formatNote('_')}><i>I</i></button><span />
         <button type="button" title="Título" aria-label="Título" onClick={() => formatNote('## ', '', true)}>H</button><button type="button" title="Citação" aria-label="Citação" onClick={() => formatNote('> ', '', true)}>❞</button><button type="button" title="Código" aria-label="Código" onClick={() => formatNote('`')}>{'<>'}</button><span />
         <button type="button" title="Lista com pontos" aria-label="Lista com pontos" onClick={() => formatNote('- ', '', true)}>• Lista</button><button type="button" title="Lista numerada" aria-label="Lista numerada" onClick={() => formatNote('1. ', '', true)}>1. Lista</button><button type="button" title="Lista de tarefas" aria-label="Lista de tarefas" onClick={() => formatNote('- [ ] ', '', true)}>☐ Tarefa</button>
-      </div><textarea ref={noteEditor} id="task-notes" rows={5} maxLength={5000} value={noteText} placeholder="Escreve tópicos ou texto… Usa a barra para formatar." onChange={e => setNoteText(e.target.value)} autoFocus /></> : <div className="task-notes-content">{data.taskNotes?.[activeWorkspaceId] || <span className="mu">Ainda não há tópicos ou notas neste espaço.</span>}</div>}
+      </div><textarea ref={noteEditor} id="task-notes" rows={5} maxLength={5000} value={noteText} placeholder="Escreve tópicos ou texto… Usa a barra para formatar." onChange={e => setNoteText(e.target.value)} autoFocus /></> : <div className="task-notes-content">{data.taskNotes?.[activeWorkspaceId] ? <NoteContent text={data.taskNotes[activeWorkspaceId]} onToggle={toggleNoteTask} /> : <span className="mu">Ainda não há tópicos ou notas neste espaço.</span>}</div>}
       <small>Notas independentes do espaço “{workspace?.name ?? 'Geral'}”.</small>
     </div>}
     {ed && <Modal title="Editar tarefa" onClose={() => setEd(null)}>

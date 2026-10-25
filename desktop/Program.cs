@@ -121,9 +121,15 @@ internal sealed class PlannerWindow : Form
         view.CoreWebView2.NewWindowRequested += (sender, args) =>
         {
             args.Handled = true;
-            if (args.Uri != "https://github.com/TAKO-77/SyncroApp/releases/latest") return;
-            try { Process.Start(new ProcessStartInfo(args.Uri) { UseShellExecute = true }); }
-            catch (Exception ex) { LogUpdateFailure(ex); PublishUpdateStatus("Não foi possível abrir o navegador. Visita as releases do Syncro no GitHub.", false); }
+            Uri target;
+            if (!Uri.TryCreate(args.Uri, UriKind.Absolute, out target) || (target.Scheme != Uri.UriSchemeHttps && target.Scheme != Uri.UriSchemeHttp)) return;
+            var isReleases = target.AbsoluteUri == "https://github.com/TAKO-77/SyncroApp/releases/latest";
+            try { Process.Start(new ProcessStartInfo(target.AbsoluteUri) { UseShellExecute = true }); }
+            catch (Exception ex)
+            {
+                LogUpdateFailure(ex);
+                if (isReleases) PublishUpdateStatus("Não foi possível abrir o navegador. Visita as releases do Syncro no GitHub.", false);
+            }
         };
         view.CoreWebView2.WebMessageReceived += async (sender, args) =>
         {
