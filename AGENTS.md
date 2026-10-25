@@ -11,11 +11,10 @@ on this project. Follow these every session.
 
 # 03 General Rules
 - Use TypeScript for all files.
-- Follow the design system exactly. No new colours or fonts.
 - Reuse existing components wherever possible.
 - Keep code modular. One component, one job.
 - Don't create unnecessary files.
-- Only build what's in the PRD. Ask before adding features like gym tracking.
+- Only build what's in the PRD. Ask before adding features.
 
 # 04 Code Guidelines
 - Use functional components and modern React hooks.
