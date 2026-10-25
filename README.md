@@ -31,9 +31,17 @@ O instalador preserva os dados durante as atualizações. Ao desinstalar, podes 
 
 Ao iniciar, o Syncro verifica se existe uma versão mais recente publicada neste repositório. Quando encontra uma atualização, pergunta se queres descarregar e executar o instalador. A aplicação continua a funcionar se não houver ligação à Internet ou se a verificação falhar.
 
+Em **Definições → Atualizações**, podes consultar a versão instalada, procurar atualizações manualmente e abrir a página de releases. A procura manual mostra o resultado e eventuais erros. A app só fecha depois de descarregar, validar e conseguir abrir o instalador, que reutiliza a pasta de instalação atual.
+
+O atualizador usa apenas releases públicas estáveis, com tag numérica (`v2.3.2` ou `V2.3.2`) e um anexo chamado **SyncroSetup.exe**. Confirma o tamanho do download e, quando fornecido pelo GitHub, o SHA-256. As falhas ficam registadas em `%LOCALAPPDATA%\Syncro\updates.log`.
+
+**Versões 2.3.0 e 2.3.1:** têm um erro na leitura dos anexos da release. É necessário descarregar e instalar manualmente a versão 2.3.2 uma vez, por cima da instalação existente, sem desinstalar. As atualizações futuras passam a usar o atualizador corrigido.
+
 ## Desenvolvimento
 
 A interface usa React, TypeScript e Vite. O executável Windows usa WebView2.
+
+A compilação e os testes requerem Node.js 22.18 ou superior (suporte nativo a scripts TypeScript) e o .NET Framework do Windows. O instalador é compilado com Inno Setup.
 
 ### Organização do repositório
 
@@ -68,17 +76,21 @@ Para compilar a aplicação Windows, fecha o Syncro e executa na pasta principal
 
 Este comando compila a interface e prepara `dist/windows/` com o executável e os ficheiros necessários. A compilação do executável requer o compilador C# do .NET Framework.
 
+No final, executa os testes do atualizador contra o executável compilado e confirma que a versão da app coincide com a do instalador. Para repetir apenas esses testes: `node scripts/test-updater.ts`. Os testes usam respostas simuladas e downloads locais; não abrem a app nem executam instaladores.
+
 Para executar diretamente, abre `dist/windows/Syncro.exe`. Mantém os ficheiros dessa pasta juntos. Os ícones originais ficam em `desktop/assets/` e as bibliotecas WebView2 em `desktop/lib/`.
 
 ## Publicar uma versão
 
-A versão atual é **2.3.0**. Para publicar uma atualização:
+A versão preparada é **2.3.2**. Para publicar uma atualização:
 
 1. Define o mesmo novo número em `desktop/Program.cs` (`AppVersion`) e `desktop/installer/Syncro.iss` (`AppVersion`).
 2. Fecha o Syncro e executa `scripts/build.bat`.
 3. Abre `desktop/installer/Syncro.iss` no Inno Setup e compila o instalador. O resultado fica em `releases/SyncroSetup.exe`.
 4. Faz commit e push do código e da documentação. Exclui dependências instaladas, ficheiros temporários e atalhos locais. Os ficheiros gerados são distribuídos no instalador da Release.
-5. Cria uma GitHub Release a partir do commit enviado, com uma tag correspondente à versão, por exemplo `v2.3.0`.
-6. Anexa o instalador com o nome exato **SyncroSetup.exe**, descreve as alterações e publica como **Latest**.
+5. Cria uma GitHub Release a partir do commit enviado, com uma tag correspondente à versão, por exemplo `v2.3.2`.
+6. Anexa o **novo** `releases/SyncroSetup.exe`, com o nome exato **SyncroSetup.exe**, descreve as alterações e publica como **Latest**. Não marques como draft ou pre-release. Só enviar commits ou criar uma tag não disponibiliza o instalador à app.
 
 O número da tag deve coincidir com a versão do executável e do instalador para que a deteção de atualizações funcione corretamente.
+
+O Inno Setup recusa compilar se a versão do executável for diferente da declarada no instalador, evitando publicar um instalador com um executável antigo. Antes de publicar, confirma a instalação por cima de uma versão anterior e a opção **Procurar atualizações**. Na release 2.3.2, indica que a instalação manual inicial é necessária para quem usa 2.3.0/2.3.1.

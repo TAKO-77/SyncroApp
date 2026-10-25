@@ -1,6 +1,13 @@
 #define AppName "Syncro"
-#define AppVersion "2.3.1"
+#define AppVersion "2.3.2"
 #define AppExe "Syncro.exe"
+
+#if !FileExists(AddBackslash(SourcePath) + "..\..\dist\windows\Syncro.exe")
+  #error Execute scripts/build.bat antes de compilar o instalador.
+#endif
+#if GetVersionNumbersString(AddBackslash(SourcePath) + "..\..\dist\windows\Syncro.exe") != AppVersion + ".0"
+  #error A versao do executavel difere de AppVersion. Execute scripts/build.bat novamente.
+#endif
 
 [Setup]
 AppId={{B7C1E5A2-4D3F-4A8E-9C61-2F5D8E7A1B34}
@@ -30,8 +37,11 @@ Name: "portuguese"; MessagesFile: "compiler:Languages\Portuguese.isl"
 Name: "desktopicon"; Description: "Criar atalho no ambiente de trabalho"; Flags: unchecked
 
 [Files]
-Source: "..\..\dist\windows\*"; DestDir: "{app}"; \
-  Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "..\..\dist\windows\Syncro.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\dist\windows\Syncro-brand-amber-transparent.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\dist\windows\*.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\dist\windows\index.html"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\dist\windows\assets\*"; DestDir: "{app}\assets"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [InstallDelete]
 Type: files; Name: "{app}\index.html"

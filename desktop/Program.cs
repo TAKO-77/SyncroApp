@@ -6,8 +6,14 @@ using System.Net;
 using System.Collections.Generic;
 using System.Web.Script.Serialization;
 using System.Diagnostics;
+using System.Collections;
+using System.Security.Cryptography;
+using System.Reflection;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
+
+[assembly: AssemblyVersion(PlannerWindow.AppVersion)]
+[assembly: AssemblyFileVersion(PlannerWindow.AppVersion)]
 
 internal static class Program
 {
@@ -16,15 +22,17 @@ internal static class Program
     {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
+        ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
         Application.Run(new PlannerWindow());
     }
 }
 
 internal sealed class PlannerWindow : Form
 {
-    private const string AppVersion = "2.3.1";
+    internal const string AppVersion = "2.3.2";
     private const string LatestReleaseApi = "https://api.github.com/repos/TAKO-77/SyncroApp/releases/latest";
     private readonly WebView2 view = new WebView2();
+    private bool checkingUpdates;
 
     public PlannerWindow()
     {
@@ -83,60 +91,192 @@ internal sealed class PlannerWindow : Form
         view.CoreWebView2.Settings.IsStatusBarEnabled = false;
         view.CoreWebView2.Settings.AreDevToolsEnabled = false;
         view.CoreWebView2.SetVirtualHostNameToFolderMapping("planner.local", folder, CoreWebView2HostResourceAccessKind.Allow);
+        view.CoreWebView2.NewWindowRequested += (sender, args) =>
+        {
+            args.Handled = true;
+            if (args.Uri != "https://github.com/TAKO-77/SyncroApp/releases/latest") return;
+            try { Process.Start(new ProcessStartInfo(args.Uri) { UseShellExecute = true }); }
+            catch (Exception ex) { LogUpdateFailure(ex); PublishUpdateStatus("Não foi possível abrir o navegador. Visita as releases do Syncro no GitHub.", false); }
+        };
+        view.CoreWebView2.WebMessageReceived += async (sender, args) =>
+        {
+            if (!args.Source.StartsWith("https://planner.local/", StringComparison.OrdinalIgnoreCase)) return;
+            string message;
+            try { message = args.TryGetWebMessageAsString(); }
+            catch (ArgumentException) { return; }
+            if (message == "syncro:check-for-updates") await CheckForUpdates(true);
+            else if (message == "syncro:version") PublishUpdateStatus("", checkingUpdates);
+        };
         view.Source = new Uri("https://planner.local/index.html");
         await CheckForUpdates();
     }
 
-    private async System.Threading.Tasks.Task CheckForUpdates()
+    private void PublishUpdateStatus(string message, bool busy)
+    {
+        if (IsDisposed || Disposing || view.CoreWebView2 == null) return;
+        view.CoreWebView2.PostWebMessageAsJson(new JavaScriptSerializer().Serialize(new {
+            type = "syncro:update-status", version = AppVersion, message = message, busy = busy,
+        }));
+    }
+
+    private static void LogUpdateFailure(Exception error)
     {
         try
         {
+            string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Syncro");
+            Directory.CreateDirectory(folder);
+            string path = Path.Combine(folder, "updates.log");
+            // Bound the log so repeated offline starts do not fill the profile.
+            if (File.Exists(path) && new FileInfo(path).Length > 262144) File.WriteAllText(path, "");
+            File.AppendAllText(path, DateTime.UtcNow.ToString("o") + " " + error.GetType().Name + ": " + error.Message + Environment.NewLine);
+        }
+        catch { /* Logging must never prevent the app from opening. */ }
+    }
+
+    private sealed class UpdateInfo
+    {
+        public Version Version;
+        public string InstallerUrl;
+        public long Size;
+        public string Digest;
+    }
+
+    private static Version NormalizeVersion(Version version)
+    {
+        return new Version(version.Major, version.Minor, Math.Max(0, version.Build), Math.Max(0, version.Revision));
+    }
+
+    private static UpdateInfo ParseUpdate(string json, string installedVersion)
+    {
+        var release = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
+        if (release == null) throw new InvalidDataException("Resposta de atualização inválida.");
+        object value;
+        if ((release.TryGetValue("draft", out value) && true.Equals(value)) ||
+            (release.TryGetValue("prerelease", out value) && true.Equals(value))) return null;
+        if (!release.TryGetValue("tag_name", out value)) throw new InvalidDataException("A release não tem uma tag de versão.");
+        string tag = Convert.ToString(value).Trim();
+        Version latest, current;
+        if (!Version.TryParse(tag.TrimStart('v', 'V'), out latest) || !Version.TryParse(installedVersion, out current))
+            throw new InvalidDataException("A tag da release deve ter o formato v2.3.2.");
+        if (NormalizeVersion(latest) <= NormalizeVersion(current)) return null;
+
+        // JavaScriptSerializer returns ArrayList here, not object[]. Accept its enumerable interface.
+        IEnumerable assets = release.TryGetValue("assets", out value) ? value as IEnumerable : null;
+        if (assets != null) foreach (object asset in assets)
+        {
+            var item = asset as Dictionary<string, object>;
+            if (item == null || !item.TryGetValue("name", out value)) continue;
+            string name = Convert.ToString(value);
+            if (!String.Equals(name, "SyncroSetup.exe", StringComparison.OrdinalIgnoreCase)) continue;
+            if (item.TryGetValue("state", out value) && !String.Equals(Convert.ToString(value), "uploaded", StringComparison.Ordinal)) continue;
+            Uri url;
+            string downloadUrl = item.TryGetValue("browser_download_url", out value) ? Convert.ToString(value) : "";
+            string expectedPath = "/TAKO-77/SyncroApp/releases/download/" + Uri.EscapeDataString(tag) + "/" + Uri.EscapeDataString(name);
+            if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out url) || url.Scheme != Uri.UriSchemeHttps ||
+                !String.Equals(url.Host, "github.com", StringComparison.OrdinalIgnoreCase) || !url.IsDefaultPort ||
+                url.UserInfo.Length != 0 || url.Query.Length != 0 || url.Fragment.Length != 0 || url.AbsolutePath != expectedPath)
+                throw new InvalidDataException("O instalador não pertence à release oficial do Syncro.");
+            long size;
+            if (!item.TryGetValue("size", out value) || !Int64.TryParse(Convert.ToString(value), out size) || size <= 0)
+                throw new InvalidDataException("O tamanho do instalador é inválido.");
+            return new UpdateInfo { Version = latest, InstallerUrl = url.AbsoluteUri, Size = size,
+                Digest = item.TryGetValue("digest", out value) ? Convert.ToString(value) : "" };
+        }
+        throw new InvalidDataException("A nova release não contém o ficheiro SyncroSetup.exe pronto a descarregar.");
+    }
+
+    private static void ValidateInstaller(string path, long expectedSize, string digest)
+    {
+        using (var file = File.OpenRead(path))
+        {
+            if (file.Length != expectedSize || file.Length < 2 || file.ReadByte() != 'M' || file.ReadByte() != 'Z')
+                throw new InvalidDataException("O instalador está incompleto ou não é um executável Windows. Volta a tentar.");
+            if (!String.IsNullOrEmpty(digest))
+            {
+                file.Position = 0;
+                using (var sha = SHA256.Create())
+                {
+                    string actual = "sha256:" + BitConverter.ToString(sha.ComputeHash(file)).Replace("-", "").ToLowerInvariant();
+                    if (!String.Equals(actual, digest, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("O instalador não corresponde ao ficheiro publicado no GitHub. Volta a tentar.");
+                }
+            }
+        }
+    }
+
+    private async System.Threading.Tasks.Task CheckForUpdates(bool manual = false)
+    {
+        if (checkingUpdates) { PublishUpdateStatus("Já está em curso uma procura de atualizações.", true); return; }
+        checkingUpdates = true;
+        bool accepted = false;
+        bool launched = false;
+        string installerPath = null;
+        string status = "";
+        try
+        {
+            PublishUpdateStatus("A procurar atualizações…", true);
             using (var client = new UpdateWebClient())
             {
                 client.Headers[HttpRequestHeader.UserAgent] = "Syncro-Updater";
                 client.Headers[HttpRequestHeader.Accept] = "application/vnd.github+json";
                 string json = await client.DownloadStringTaskAsync(LatestReleaseApi);
-                var release = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
-                string tag = Convert.ToString(release["tag_name"]).TrimStart('v', 'V');
-                Version latest, current;
-                if (!Version.TryParse(tag, out latest) || !Version.TryParse(AppVersion, out current) || latest <= current) return;
-
-                string installerUrl = null;
-                foreach (var asset in (object[])release["assets"])
-                {
-                    var item = asset as Dictionary<string, object>;
-                    if (item != null && String.Equals(Convert.ToString(item["name"]), "SyncroSetup.exe", StringComparison.OrdinalIgnoreCase))
-                    {
-                        installerUrl = Convert.ToString(item["browser_download_url"]);
-                        break;
-                    }
-                }
-                if (String.IsNullOrEmpty(installerUrl)) return;
-
-                if (MessageBox.Show(this, "Está disponível a versão " + latest + " do Syncro. Queres instalar a atualização agora?", "Atualização do Syncro", MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes) return;
-                string installerPath = Path.Combine(Path.GetTempPath(), "SyncroSetup-" + latest + ".exe");
-                using (var download = new UpdateWebClient())
+                UpdateInfo update = ParseUpdate(json, AppVersion);
+                if (IsDisposed || Disposing) return;
+                if (update == null) { status = "Tens a versão mais recente (" + AppVersion + ")."; return; }
+                if (MessageBox.Show(this, "Está disponível a versão " + update.Version + " do Syncro. Queres descarregar e instalar a atualização agora?", "Atualização do Syncro", MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes)
+                { status = "Atualização disponível: " + update.Version + ". Podes instalá-la mais tarde."; return; }
+                accepted = true;
+                PublishUpdateStatus("A descarregar a atualização…", true);
+                string downloadFolder = Path.Combine(Path.GetTempPath(), "Syncro-Update-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(downloadFolder);
+                installerPath = Path.Combine(downloadFolder, "SyncroSetup.exe");
+                using (var download = new UpdateWebClient(120000))
                 {
                     download.Headers[HttpRequestHeader.UserAgent] = "Syncro-Updater";
-                    await download.DownloadFileTaskAsync(installerUrl, installerPath);
+                    await download.DownloadFileTaskAsync(update.InstallerUrl, installerPath);
                 }
-                Process.Start(new ProcessStartInfo(installerPath) { UseShellExecute = true });
+                ValidateInstaller(installerPath, update.Size, update.Digest);
+                if (IsDisposed || Disposing) return;
+                string installFolder = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+                var installer = Process.Start(new ProcessStartInfo(installerPath) {
+                    UseShellExecute = true, Arguments = "/DIR=\"" + installFolder + "\"",
+                });
+                if (installer == null) throw new IOException("Não foi possível abrir o instalador.");
+                launched = true;
                 Close();
             }
         }
         catch (Exception ex)
         {
-            // A falta de ligação ou uma falha no serviço de versões não impede o uso da app.
-            System.Diagnostics.Debug.WriteLine("Falha ao procurar atualizações: " + ex.Message);
+            LogUpdateFailure(ex);
+            status = "Não foi possível atualizar. " + ex.Message + " Podes tentar novamente ou descarregar a versão no GitHub.";
+            if (accepted && !IsDisposed && !Disposing)
+                MessageBox.Show(this, status, "Atualização do Syncro", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            // Startup stays quiet offline. A manual check always reports its outcome in Settings.
+            if (!manual && !accepted) status = "Não foi possível procurar atualizações. Verifica a ligação e tenta novamente.";
+        }
+        finally
+        {
+            checkingUpdates = false;
+            PublishUpdateStatus(status, false);
+            if (!launched && installerPath != null)
+            {
+                try { File.Delete(installerPath); Directory.Delete(Path.GetDirectoryName(installerPath)); }
+                catch { /* A failed download must not hide the original error. */ }
+            }
         }
     }
 
     private sealed class UpdateWebClient : WebClient
     {
+        private readonly int timeout;
+        public UpdateWebClient(int timeout = 15000) { this.timeout = timeout; }
         protected override WebRequest GetWebRequest(Uri address)
         {
             var request = base.GetWebRequest(address);
-            request.Timeout = 10000;
+            request.Timeout = timeout;
+            var http = request as HttpWebRequest;
+            if (http != null) http.ReadWriteTimeout = timeout;
             return request;
         }
     }
