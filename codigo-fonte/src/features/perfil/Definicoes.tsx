@@ -1,22 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { parseAppData } from '../../lib/schema'
+import { desktop } from '../../lib/desktop'
+import { flush, pull, useSync, type SyncStatus } from '../../lib/sync/engine'
+import { signOut, useAuth } from '../../store/useAuth'
 
-interface DesktopBridge {
-  postMessage: (message: string) => void
-  addEventListener: (type: 'message', listener: (event: MessageEvent) => void) => void
-  removeEventListener: (type: 'message', listener: (event: MessageEvent) => void) => void
-}
-const desktop = (window as Window & { chrome?: { webview?: DesktopBridge } }).chrome?.webview
+const SYNC_LABEL: Record<SyncStatus, string> = { idle: 'A preparar a sincronização…', syncing: 'A sincronizar…', synced: 'Sincronizado', offline: 'Sem ligação — as alterações ficam guardadas neste computador', error: 'Não foi possível sincronizar' }
 
 export function Definicoes() {
   const { data, replace, sidebarAutoOpen, setSidebarAutoOpen, focusTimer, setFocusTimer, theme, setTheme } = useStore()
+  const { user, offline } = useAuth()
+  const sync = useSync()
   const [msg, setMsg] = useState('')
   const [version, setVersion] = useState('')
   const [updateStatus, setUpdateStatus] = useState('')
   const [checkingUpdates, setCheckingUpdates] = useState(false)
   useEffect(() => {
-    if (!desktop) return
+    const bridge = desktop
+    if (!bridge) return
     const onMessage = (event: MessageEvent) => {
       if (!event.data || typeof event.data !== 'object') return
       const payload = event.data as { type?: string; version?: string; message?: string; busy?: boolean }
@@ -25,15 +26,19 @@ export function Definicoes() {
       if (typeof payload.message === 'string') setUpdateStatus(payload.message)
       setCheckingUpdates(payload.busy === true)
     }
-    desktop.addEventListener('message', onMessage)
-    desktop.postMessage('syncro:version')
-    return () => desktop.removeEventListener('message', onMessage)
+    bridge.addEventListener('message', onMessage)
+    bridge.postMessage('syncro:version')
+    return () => bridge.removeEventListener('message', onMessage)
   }, [])
   const checkUpdates = () => {
     if (!desktop) return
     setCheckingUpdates(true)
     setUpdateStatus('A procurar atualizações…')
     desktop.postMessage('syncro:check-for-updates')
+  }
+  const leave = () => {
+    if (sync.pending && !window.confirm(`Há ${sync.pending} alteraç${sync.pending === 1 ? 'ão' : 'ões'} por enviar. Se terminares sessão, só serão enviadas quando voltares a entrar neste computador. Continuar?`)) return
+    void signOut()
   }
   const file = useRef<HTMLInputElement>(null)
   const exportar = () => {
@@ -55,6 +60,14 @@ export function Definicoes() {
 
   return <section className="page narrow">
     <h2>Definições</h2>
+    <h2 className="sub">Conta</h2>
+    <p>{user?.email}</p>
+    <p className="mu" role="status" aria-live="polite">{offline ? 'Sessão sem ligação — a usar os dados guardados neste computador.' : SYNC_LABEL[sync.status]}{sync.pending ? ` · ${sync.pending} por enviar` : ''}{sync.lastSync && sync.status === 'synced' ? ` · ${new Date(sync.lastSync).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>
+    {sync.rejected > 0 && <p className="mu">{sync.rejected} alteraç{sync.rejected === 1 ? 'ão foi recusada' : 'ões foram recusadas'} pelo servidor por conterem dados inválidos.</p>}
+    <div className="row">
+      <button className="btn" disabled={sync.status === 'syncing'} onClick={() => { void flush().then(pull) }}>Sincronizar agora</button>
+      <button className="btn" onClick={leave}>Terminar sessão</button>
+    </div>
     <h2 className="sub">Atualizações</h2>
     {desktop ? <>
       <p className="mu">{version ? `Versão instalada: ${version}` : 'A obter a versão instalada…'}</p>

@@ -10,7 +10,7 @@ import { Foco } from './features/foco/Foco'
 import { QuickAdd } from './components/QuickAdd'
 import { Toast } from './components/Toast'
 import { useStore } from './store/useStore'
-import { todayIso, useNow } from './components/common'
+import { LogoFilter, todayIso, useNow } from './components/common'
 const syncroSymbol = new URL('./assets/syncro-symbol.png', import.meta.url).href
 const syncroLogo = new URL('./assets/syncro-logo.png', import.meta.url).href
 
@@ -36,11 +36,7 @@ export default function App() {
     addEventListener('keydown', k); return () => removeEventListener('keydown', k)
   }, [qa])
   return <div className={`app${sidebarOpen ? ' sidebar-open' : ''}${sec === 'agenda' || sec === 'calendario' ? ' schedule-layout' : ''}`}>
-    <svg className="logo-filters" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
-      <defs><filter id="logo-background" x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
-        <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  4 0 -4 0 -0.08" />
-      </filter></defs>
-    </svg>
+    <LogoFilter />
     <aside id="sidebar" className="sb" onMouseEnter={() => { if (sidebarAutoOpen) setSidebarOpen(true) }} onMouseLeave={() => { if (sidebarAutoOpen) setSidebarOpen(false) }} onFocus={() => { if (sidebarAutoOpen) setSidebarOpen(true) }} onBlur={e => { if (sidebarAutoOpen && !e.currentTarget.contains(e.relatedTarget as Node | null)) setSidebarOpen(false) }}>
       {!sidebarAutoOpen && <button className="sidebar-toggle" type="button" aria-label={sidebarOpen ? 'Fechar barra lateral' : 'Abrir barra lateral'} title={sidebarOpen ? 'Fechar barra lateral' : 'Abrir barra lateral'} aria-expanded={sidebarOpen} aria-controls="sidebar" onClick={() => setSidebarOpen(open => !open)}><PanelLeft size={20} strokeWidth={1.5} aria-hidden="true" /></button>}
       <div className="brand"><img src={syncroSymbol} alt="Syncro" width={162} height={178} /><span aria-hidden="true">SYNCRO</span></div>

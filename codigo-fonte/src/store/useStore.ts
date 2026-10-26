@@ -2,10 +2,11 @@ import { create } from 'zustand'
 import type { AppData } from '../types'
 import { emptyData, parseAppData } from '../lib/schema'
 
-// Mesma chave da versão HTML: se a origem (planner.local) for a mesma, os dados atuais são reaproveitados.
-const KEY = 'wayne'
+// Data saved before accounts existed, kept under the key of the original HTML version.
+export const LEGACY_KEY = 'wayne'
 const SIDEBAR_AUTO_OPEN_KEY = 'syncro-sidebar-auto-open'
 const FOCUS_TIMER_KEY = 'syncro-focus-timer'
+export const cacheKey = (userId: string) => `syncro-data:${userId}`
 
 function loadSidebarAutoOpen(): boolean {
   try { return localStorage.getItem(SIDEBAR_AUTO_OPEN_KEY) !== 'false' } catch { return true }
@@ -15,19 +16,26 @@ function loadFocusTimer(): boolean {
   try { return localStorage.getItem(FOCUS_TIMER_KEY) !== 'false' } catch { return true }
 }
 
-function load(): AppData {
+export function readData(key: string): AppData | null {
   try {
-    const raw = localStorage.getItem(KEY)
-    if (raw) { const d = parseAppData(JSON.parse(raw)); if (d) return d }
-  } catch { /* dados corrompidos: começa vazio */ }
-  return emptyData()
+    const raw = localStorage.getItem(key)
+    if (raw) return parseAppData(JSON.parse(raw))
+  } catch { /* dados corrompidos */ }
+  return null
 }
-const persist = (d: AppData) => { try { localStorage.setItem(KEY, JSON.stringify(d)) } catch { /* quota */ } }
+const persist = (userId: string | null, d: AppData) => {
+  if (!userId) return
+  try { localStorage.setItem(cacheKey(userId), JSON.stringify(d)) } catch { /* quota */ }
+}
 
 type Theme = 'dark' | 'light'
 function loadTheme(): Theme {
   try { return localStorage.getItem('syncro-theme') === 'light' ? 'light' : 'dark' } catch { return 'dark' }
 }
+
+// Set by the sync engine so local changes are queued for upload.
+let onCommit: (prev: AppData, next: AppData) => void = () => {}
+export const setCommitListener = (fn: typeof onCommit) => { onCommit = fn }
 
 interface Store {
   theme: Theme
@@ -36,8 +44,13 @@ interface Store {
   setSidebarAutoOpen: (enabled: boolean) => void
   focusTimer: boolean
   setFocusTimer: (enabled: boolean) => void
+  userId: string | null
   data: AppData
   history: string[]
+  /** Loads a user's data without queueing it for upload. */
+  hydrate: (userId: string | null, d: AppData) => void
+  /** Replaces the data with what came from the server, without queueing it for upload. */
+  applyRemote: (d: AppData) => void
   update: (fn: (d: AppData) => void) => void
   replace: (d: AppData) => void
   undo: () => void
@@ -59,21 +72,26 @@ export const useStore = create<Store>((set, get) => ({
     try { localStorage.setItem(FOCUS_TIMER_KEY, String(enabled)) } catch { /* armazenamento indisponível */ }
     set({ focusTimer: enabled })
   },
-  data: load(),
+  userId: null,
+  data: emptyData(),
   history: [],
+  hydrate: (userId, d) => { persist(userId, d); set({ userId, data: d, history: [] }) },
+  applyRemote: d => { persist(get().userId, d); set({ data: d, history: [] }) },
   update: fn => {
-    const { data, history } = get()
+    const { data, history, userId } = get()
     const next = structuredClone(data)
     fn(next)
-    persist(next)
+    persist(userId, next)
     set({ data: next, history: [...history.slice(-29), JSON.stringify(data)] })
+    onCommit(data, next)
   },
   replace: d => get().update(x => Object.assign(x, d)),
   undo: () => {
-    const { history } = get()
+    const { history, data, userId } = get()
     if (!history.length) return
     const prev = JSON.parse(history[history.length - 1]) as AppData
-    persist(prev)
+    persist(userId, prev)
     set({ data: prev, history: history.slice(0, -1) })
+    onCommit(data, prev)
   },
 }))

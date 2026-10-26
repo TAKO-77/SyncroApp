@@ -23,7 +23,11 @@ A barra lateral pode abrir ao passar o rato ou através do botão manual. Os íc
 
 ## Dados e cópias de segurança
 
-Os dados são guardados localmente no perfil do utilizador. Em **Definições → Dados e cópia de segurança**, podes exportar um ficheiro JSON ou importar uma cópia anterior.
+É necessário iniciar sessão com uma conta (email e palavra-passe). Os dados de cada conta são guardados no Supabase e mantidos em cache no computador: as alterações aparecem de imediato, são enviadas em segundo plano e continuam guardadas localmente se não houver ligação à Internet. O primeiro início de sessão num computador precisa de ligação.
+
+No primeiro início de sessão, os dados guardados neste computador antes das contas são enviados para a conta, se esta estiver vazia. Se a conta já tiver dados, o Syncro pergunta se queres juntá-los, manter só os da conta ou substituí-los pelos do computador.
+
+Em **Definições → Conta**, podes ver o estado da sincronização, sincronizar manualmente e terminar sessão. Em **Definições → Dados e cópia de segurança**, podes exportar um ficheiro JSON ou importar uma cópia anterior.
 
 O instalador preserva os dados durante as atualizações. Ao desinstalar, podes escolher se pretendes eliminá-los.
 
@@ -52,13 +56,25 @@ desktop/              Código e manifesto da aplicação Windows
   assets/             Ícones da aplicação e do instalador
   lib/                Bibliotecas WebView2 usadas na compilação
   installer/          Configuração do instalador Inno Setup
-scripts/              Script de compilação
+scripts/              Script de compilação e testes
+supabase/migrations/  Esquema da base de dados (tabelas e políticas RLS)
 dist/windows/         Aplicação Windows pronta a executar
 releases/             Instaladores gerados
 local/                Atalhos locais
 ```
 
 As pastas de saída, dependências, atalhos e configurações do editor estão no `.gitignore`. Os artefactos já versionados continuam preservados; novas versões devem ser distribuídas através das GitHub Releases.
+
+### Base de dados (Supabase)
+
+1. Cria um projeto em [supabase.com](https://supabase.com).
+2. No **SQL Editor**, executa o conteúdo de `supabase/migrations/20261025000000_initial_schema.sql`.
+3. Em **Authentication → Sign In / Providers → Email**, mantém **Confirm email** ativo.
+4. Em **Authentication → Emails**, altera os modelos **Confirm signup** e **Reset password** para incluírem o código `{{ .Token }}`. A aplicação pede o código; as ligações dos emails não funcionam dentro da app Windows.
+5. Em **Authentication → URL Configuration**, adiciona aos **Redirect URLs** `http://127.0.0.1:47821/auth/callback` (app Windows) e `http://localhost:5173` (desenvolvimento). Só é necessário para o início de sessão com Google, que se ativa em **Authentication → Sign In / Providers**; os botões só aparecem para os fornecedores ativos.
+6. Copia `codigo-fonte/.env.example` para `codigo-fonte/.env` e preenche `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` com os valores de **Project Settings → API**. Nunca uses a chave `service_role`.
+
+O `.env` é lido durante a compilação, por isso volta a executar `npm run build` ou `scripts/build.bat` depois de o alterar. Para testar apenas o mapeamento da sincronização: `node scripts/test-sync.ts`.
 
 Para executar a interface em desenvolvimento:
 

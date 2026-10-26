@@ -2,7 +2,7 @@
 
 ## Estado da implementação e organização
 
-Expo + React Native e Supabase continuam a ser a arquitetura pretendida. A migração ainda não foi realizada. A implementação atual usa React/TypeScript com Vite em `codigo-fonte/` e um anfitrião Windows WebView2 em `desktop/Program.cs`, com dados locais.
+Expo + React Native e Supabase continuam a ser a arquitetura pretendida. A migração ainda não foi realizada. A implementação atual usa React/TypeScript com Vite em `codigo-fonte/` e um anfitrião Windows WebView2 em `desktop/Program.cs`. O Supabase já é usado para autenticação (email e palavra-passe) e base de dados, com tabelas por entidade protegidas por RLS (`supabase/migrations/`). A interface é local-first: lê e escreve numa cache local por utilizador, envia as alterações em segundo plano através de uma fila (`codigo-fonte/src/lib/sync/`) e recebe alterações de outros dispositivos por `updated_at`, com eliminações lógicas (`deleted`).
 
 - `docs/`: documentação do produto e design.
 - `codigo-fonte/src/`: componentes, funcionalidades, estado e utilitários da interface.

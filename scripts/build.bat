@@ -28,7 +28,9 @@ if not exist "%CSC%" set "CSC=%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.ex
 if not exist "%CSC%" (echo Nao foi encontrado o csc.exe do .NET Framework.& exit /b 1)
 "%CSC%" /nologo /target:winexe /codepage:65001 /win32manifest:desktop\Syncro.manifest /out:dist\windows\Syncro.exe /win32icon:desktop\assets\Syncro.ico /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll /reference:desktop\lib\Microsoft.Web.WebView2.Core.dll /reference:desktop\lib\Microsoft.Web.WebView2.WinForms.dll desktop\Program.cs
 if errorlevel 1 exit /b 1
-echo [4/4] A testar o atualizador...
+echo [4/4] A testar o atualizador e a sincronizacao...
 node scripts\test-updater.ts
+if errorlevel 1 exit /b 1
+node scripts\test-sync.ts
 if errorlevel 1 exit /b 1
 echo Build concluido: dist\windows\Syncro.exe
