@@ -31,7 +31,7 @@ internal static class Program
 
 internal sealed class PlannerWindow : Form
 {
-    internal const string AppVersion = "2.3.2";
+    internal const string AppVersion = "2.4.0";
     private const string LatestReleaseApi = "https://api.github.com/repos/TAKO-77/SyncroApp/releases/latest";
     private readonly WebView2 view = new WebView2();
     private bool checkingUpdates;
