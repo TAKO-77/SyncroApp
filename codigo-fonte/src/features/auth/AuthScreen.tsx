@@ -1,7 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
 import { LogoFilter } from '../../components/common'
-import { enabledProviders, listenForDesktopOAuth, oauthRedirectError, startOAuth, type OAuthProvider } from './oauth'
 const syncroLogo = new URL('../../assets/syncro-logo.png', import.meta.url).href
 
 type Mode = 'signin' | 'signup' | 'confirm' | 'forgot' | 'reset'
@@ -23,13 +22,6 @@ function describe(error: { code?: string; message: string; name?: string }) {
   return 'Não foi possível concluir o pedido. Tenta novamente.'
 }
 
-function describeOAuth(reason: string) {
-  if (reason === 'port_unavailable') return 'Não foi possível receber a resposta do navegador (a porta 47821 está ocupada). Fecha outras instâncias do Syncro e tenta novamente.'
-  if (/access_denied|cancel/i.test(reason)) return 'O início de sessão foi cancelado.'
-  if (/provider is not enabled|Unsupported provider/i.test(reason)) return 'Este método de início de sessão ainda não está disponível.'
-  return 'Não foi possível iniciar sessão com este serviço. Tenta novamente.'
-}
-
 function EyeIcon({ off }: { off: boolean }) {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" />
@@ -48,27 +40,6 @@ export function AuthScreen() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
-  const [providers, setProviders] = useState<Awaited<ReturnType<typeof enabledProviders>>>([])
-  useEffect(() => {
-    let active = true
-    void enabledProviders().then(list => { if (active) setProviders(list) })
-    return () => { active = false }
-  }, [])
-  useEffect(() => {
-    const redirectError = oauthRedirectError()
-    if (redirectError) { setError(describeOAuth(redirectError)); history.replaceState(null, '', location.pathname) }
-    return listenForDesktopOAuth(reason => { setInfo(''); setError(describeOAuth(reason)) })
-  }, [])
-  const oauth = async (provider: OAuthProvider) => {
-    setBusy(true); setError(''); setInfo('')
-    try {
-      const r = await startOAuth(provider)
-      if (r.error) setError(describeOAuth(r.error))
-      else if (r.external) setInfo('Conclui o início de sessão no navegador. Esta janela atualiza-se automaticamente.')
-    } catch {
-      setError('Sem ligação ao servidor. Verifica a ligação à Internet.')
-    } finally { setBusy(false) }
-  }
   const go = (next: Mode, message = '') => { setMode(next); setError(''); setInfo(message); setCode(''); setShowPassword(false); if (next !== 'signin' && next !== 'signup') setPassword('') }
 
   const submit = async (e: FormEvent) => {
@@ -130,10 +101,6 @@ export function AuthScreen() {
       </span></label>}
       {error && <p className="auth-error" role="alert">{error}</p>}
       <button className="btn pri" type="submit" disabled={busy}>{busy ? 'Aguarda…' : { signin: 'Entrar', signup: 'Criar conta', confirm: 'Confirmar', forgot: 'Enviar código', reset: 'Guardar palavra-passe' }[mode]}</button>
-      {(mode === 'signin' || mode === 'signup') && providers.length > 0 && <>
-        <div className="auth-or" role="separator"><span>ou</span></div>
-        <div className="auth-providers">{providers.map(p => <button key={p.id} type="button" className="btn" disabled={busy} onClick={() => void oauth(p.id)}>Continuar com {p.label}</button>)}</div>
-      </>}
       <div className="auth-links">
         {mode === 'signin' && <><button type="button" className="btn ghost" onClick={() => go('signup')}>Criar conta</button><button type="button" className="btn ghost" onClick={() => go('forgot')}>Esqueci-me da palavra-passe</button></>}
         {mode === 'signup' && <button type="button" className="btn ghost" onClick={() => go('signin')}>Já tenho conta</button>}

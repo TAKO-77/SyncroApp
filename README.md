@@ -71,8 +71,7 @@ As pastas de saída, dependências, atalhos e configurações do editor estão n
 2. No **SQL Editor**, executa o conteúdo de `supabase/migrations/20261025000000_initial_schema.sql`.
 3. Em **Authentication → Sign In / Providers → Email**, mantém **Confirm email** ativo.
 4. Em **Authentication → Emails**, altera os modelos **Confirm signup** e **Reset password** para incluírem o código `{{ .Token }}`. A aplicação pede o código; as ligações dos emails não funcionam dentro da app Windows.
-5. Em **Authentication → URL Configuration**, adiciona aos **Redirect URLs** `http://127.0.0.1:47821/auth/callback` (app Windows) e `http://localhost:5173` (desenvolvimento). Só é necessário para o início de sessão com Google, que se ativa em **Authentication → Sign In / Providers**; os botões só aparecem para os fornecedores ativos.
-6. Copia `codigo-fonte/.env.example` para `codigo-fonte/.env` e preenche `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` com os valores de **Project Settings → API**. Nunca uses a chave `service_role`.
+5. Copia `codigo-fonte/.env.example` para `codigo-fonte/.env` e preenche `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` com os valores de **Project Settings → API**. Nunca uses a chave `service_role`.
 
 O `.env` é lido durante a compilação, por isso volta a executar `npm run build` ou `scripts/build.bat` depois de o alterar. Para testar apenas o mapeamento da sincronização: `node scripts/test-sync.ts`.
 

@@ -59,10 +59,7 @@ The version is defined in two places that must match: `AppVersion` in `desktop/P
 
 ## Auth and sync (`features/auth/`, `store/useAuth.ts`, `lib/sync/`)
 
-- `main.tsx` wraps `App` in `AccountGate`: it shows the sign-in flow (`AuthScreen`), then `startSync(userId)`, and only renders the app once data is loaded. Sign-in uses email + password, and confirmation and password recovery use emailed OTP codes; magic links don't work inside WebView2. OAuth (`features/auth/oauth.ts`, PKCE) is handled differently in each environment:
-  - In the browser, it redirects back to the page.
-  - In WebView2, providers block embedded sign-in. So the URL opens in the system browser, `Program.cs` listens once on `http://127.0.0.1:47821/auth/callback` (a `TcpListener` with a 5-minute timeout), and posts `{ type: 'syncro:oauth', code }` back for `exchangeCodeForSession`.
-  - Buttons only appear for providers enabled in `/auth/v1/settings`.
+- `main.tsx` wraps `App` in `AccountGate`: it shows the sign-in flow (`AuthScreen`), then `startSync(userId)`, and only renders the app once data is loaded. Sign-in uses email + password, and confirmation and password recovery use emailed OTP codes; magic links don't work inside WebView2. There is no OAuth sign-in.
 - `lib/sync/rows.ts` is pure (type-only imports; tested by `node scripts/test-sync.ts`). It maps `AppData` ↔ table rows (`toRows`/`fromRows`), diffs two snapshots into row upserts and soft deletes (`diffRows`), and merges pulled rows (`applyRemote`). Array order is stored as `position`. `taskNotes` live in `workspaces.notes`, and name/photo/sleep live in `profiles`.
 - `lib/sync/engine.ts` keeps an outbox per user in `localStorage` (coalesced by `table:id`, flushed ~600 ms after a change). It uploads with `upsert` on `(user_id, id)` and pulls by `updated_at`, with a 2-minute overlap, on start, on focus, when coming back online and every 60 s. Rows with pending local changes are never overwritten by a pull. Constraint errors (`22xxx`/`23xxx`) are dropped into a `syncro-rejected:<userId>` log; everything else is retried with backoff.
 - **Adding a field to `AppData`** means changing four places: add a column in a new migration under `supabase/migrations/`, map it in `toRows`/`fromRows`/`FIELDS`, add a default in `lib/schema.ts`, and extend `scripts/test-sync.ts`.

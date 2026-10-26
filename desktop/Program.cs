@@ -3,8 +3,6 @@ using System.IO;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using System.Net;
-using System.Net.Sockets;
-using System.Text;
 using System.Collections.Generic;
 using System.Web.Script.Serialization;
 using System.Diagnostics;
@@ -141,7 +139,6 @@ internal sealed class PlannerWindow : Form
             catch (ArgumentException) { return; }
             if (message == "syncro:check-for-updates") await CheckForUpdates(true);
             else if (message == "syncro:version") PublishUpdateStatus("", checkingUpdates);
-            else if (message == "syncro:oauth-listen") await ListenForOAuthCallback();
         };
         view.Source = new Uri("https://planner.local/index.html");
         await CheckForUpdates();
@@ -153,91 +150,6 @@ internal sealed class PlannerWindow : Form
         view.CoreWebView2.PostWebMessageAsJson(new JavaScriptSerializer().Serialize(new {
             type = "syncro:update-status", version = AppVersion, message = message, busy = busy,
         }));
-    }
-
-    // OAuth providers refuse embedded WebViews, so sign-in runs in the system browser and Supabase
-    // redirects back to this loopback address with a one-time PKCE code for the page to exchange.
-    private const int OAuthPort = 47821;
-    private TcpListener oauthListener;
-
-    private async System.Threading.Tasks.Task ListenForOAuthCallback()
-    {
-        if (oauthListener != null) oauthListener.Stop();
-        var listener = new TcpListener(IPAddress.Loopback, OAuthPort);
-        try { listener.Start(); }
-        catch (SocketException ex) { LogUpdateFailure(ex); PublishOAuthResult(null, "port_unavailable"); return; }
-        oauthListener = listener;
-        var timeout = new System.Threading.Timer(state => listener.Stop(), null, 5 * 60 * 1000, System.Threading.Timeout.Infinite);
-        try
-        {
-            while (true)
-            {
-                using (var client = await listener.AcceptTcpClientAsync())
-                {
-                    var stream = client.GetStream();
-                    var reader = new StreamReader(stream, Encoding.ASCII);
-                    string requestLine = await reader.ReadLineAsync() ?? "";
-                    string[] parts = requestLine.Split(' ');
-                    string target = parts.Length > 1 ? parts[1] : "";
-                    if (!target.StartsWith("/auth/callback", StringComparison.Ordinal))
-                    {
-                        await WriteHttpResponse(stream, "404 Not Found", "");
-                        continue;
-                    }
-                    var query = ParseQuery(target.Contains("?") ? target.Substring(target.IndexOf('?') + 1) : "");
-                    string code, error, description;
-                    query.TryGetValue("code", out code);
-                    query.TryGetValue("error", out error);
-                    query.TryGetValue("error_description", out description);
-                    await WriteHttpResponse(stream, "200 OK", code != null
-                        ? "<h2>Sessão iniciada</h2><p>Podes fechar este separador e voltar ao Syncro.</p>"
-                        : "<h2>Não foi possível iniciar sessão</h2><p>Volta ao Syncro e tenta novamente.</p>");
-                    PublishOAuthResult(code, code != null ? null : (error ?? "unknown") + (description != null ? ": " + description : ""));
-                    if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Maximized;
-                    Activate();
-                    break;
-                }
-            }
-        }
-        catch (ObjectDisposedException) { }
-        catch (SocketException) { }
-        catch (InvalidOperationException) { }
-        catch (IOException) { }
-        finally
-        {
-            timeout.Dispose();
-            listener.Stop();
-            if (oauthListener == listener) oauthListener = null;
-        }
-    }
-
-    private static Dictionary<string, string> ParseQuery(string query)
-    {
-        var values = new Dictionary<string, string>();
-        foreach (string pair in query.Split('&'))
-        {
-            if (pair.Length == 0) continue;
-            int eq = pair.IndexOf('=');
-            string key = Uri.UnescapeDataString((eq < 0 ? pair : pair.Substring(0, eq)).Replace('+', ' '));
-            string value = eq < 0 ? "" : Uri.UnescapeDataString(pair.Substring(eq + 1).Replace('+', ' '));
-            values[key] = value;
-        }
-        return values;
-    }
-
-    private static async System.Threading.Tasks.Task WriteHttpResponse(Stream stream, string status, string body)
-    {
-        byte[] content = Encoding.UTF8.GetBytes("<!doctype html><html lang=\"pt\"><meta charset=\"utf-8\"><title>Syncro</title>"
-            + "<body style=\"font-family:Segoe UI,sans-serif;background:#1c1e1e;color:#f3f4f6;text-align:center;padding-top:15vh\">" + body + "</body></html>");
-        byte[] head = Encoding.ASCII.GetBytes("HTTP/1.1 " + status + "\r\nContent-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\nConnection: close\r\nContent-Length: " + content.Length + "\r\n\r\n");
-        await stream.WriteAsync(head, 0, head.Length);
-        await stream.WriteAsync(content, 0, content.Length);
-    }
-
-    private void PublishOAuthResult(string code, string error)
-    {
-        if (IsDisposed || Disposing || view.CoreWebView2 == null) return;
-        view.CoreWebView2.PostWebMessageAsJson(new JavaScriptSerializer().Serialize(new { type = "syncro:oauth", code = code, error = error }));
     }
 
     private static void LogUpdateFailure(Exception error)
