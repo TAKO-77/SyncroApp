@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { ChevronLeft, ChevronRight, Eye, EyeOff, Plus } from 'lucide-react-native'
 import { useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { AppText } from '@/components/AppText'
@@ -8,9 +8,11 @@ import { Donut } from '@/components/Donut'
 import { FinanceEditor } from '@/components/FinanceEditor'
 import { FinanceList } from '@/components/FinanceList'
 import { FinanceTrend } from '@/components/FinanceTrend'
+import { IconButton } from '@/components/IconButton'
 import { LoadState } from '@/components/LoadState'
 import { Notice } from '@/components/Notice'
 import { Screen } from '@/components/Screen'
+import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { useCloudData } from '@/hooks/useCloudData'
 import { useTheme } from '@/hooks/useTheme'
 import { addMonths, monthLabel, todayIso } from '@/lib/dates'
@@ -22,11 +24,17 @@ import type { Finance, FinanceDraft } from '@/types/finances'
 interface Editing { draft: FinanceDraft; item?: Finance }
 const HIDDEN = '•••'
 
-function Kpi({ label, value, tone, hint }: { label: string; value: string; tone?: 'success' | 'error'; hint?: string }) {
-  return <Card style={styles.kpi}>
-    <AppText variant="caption" tone="muted">{label}</AppText>
-    <AppText variant="h3" tone={tone}>{value}</AppText>
+/** Balance of the month in large type, with income and expenses side by side. */
+function MonthSummary({ balance, income, expenses, hint, negative }: { balance: string; income: string; expenses: string; hint?: string; negative: boolean }) {
+  const { colors } = useTheme()
+  return <Card>
+    <AppText variant="caption" tone="muted">Saldo do mês</AppText>
+    <AppText variant="h3" tone={negative ? 'error' : 'success'}>{balance}</AppText>
     {hint && <AppText variant="caption" tone="muted">{hint}</AppText>}
+    <View style={[styles.split, { borderTopColor: colors.border }]}>
+      <View style={styles.half}><AppText variant="caption" tone="muted">Ganhos</AppText><AppText weight="semibold">{income}</AppText></View>
+      <View style={[styles.half, styles.divider, { borderLeftColor: colors.border }]}><AppText variant="caption" tone="muted">Despesas</AppText><AppText weight="semibold">{expenses}</AppText></View>
+    </View>
   </Card>
 }
 
@@ -37,6 +45,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'er
 export default function Financas() {
   const { colors } = useTheme()
   const cloud = useCloudData()
+  const mobile = useBreakpoint() === 'mobile'
   const { finances } = cloud.data
   const today = todayIso()
   const [month, setMonth] = useState(today.slice(0, 7))
@@ -60,25 +69,23 @@ export default function Financas() {
     return result
   }
 
-  return <Screen title="Finanças" actions={<>
-    <Button label={hidden ? 'Mostrar valores' : 'Ocultar valores'} onPress={() => setHidden(h => !h)} />
-    <Button label="Novo registo" variant="primary" onPress={openNew} />
-  </>}>
+  return <Screen title="Finanças" primaryAction={{ label: 'Novo registo', icon: Plus, onPress: openNew }}
+    actions={mobile ? <IconButton icon={hidden ? Eye : EyeOff} label={hidden ? 'Mostrar valores' : 'Ocultar valores'} active={!hidden} onPress={() => setHidden(h => !h)} />
+      : <Button label={hidden ? 'Mostrar valores' : 'Ocultar valores'} onPress={() => setHidden(h => !h)} />}>
     <View style={styles.nav}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Mês anterior" hitSlop={8} onPress={() => setMonth(m => addMonths(m, -1))}><ChevronLeft size={22} color={colors.text} strokeWidth={1.5} /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Mês anterior" hitSlop={10} onPress={() => setMonth(m => addMonths(m, -1))}><ChevronLeft size={24} color={colors.text} strokeWidth={1.5} /></Pressable>
       <AppText weight="semibold" style={styles.label}>{monthLabel(month)}</AppText>
-      <Pressable accessibilityRole="button" accessibilityLabel="Mês seguinte" hitSlop={8} onPress={() => setMonth(m => addMonths(m, 1))}><ChevronRight size={22} color={colors.text} strokeWidth={1.5} /></Pressable>
-      <Button label="Hoje" variant="ghost" onPress={() => setMonth(today.slice(0, 7))} />
+      <Pressable accessibilityRole="button" accessibilityLabel="Mês seguinte" hitSlop={10} onPress={() => setMonth(m => addMonths(m, 1))}><ChevronRight size={24} color={colors.text} strokeWidth={1.5} /></Pressable>
+      <Button label="Hoje" variant={month === today.slice(0, 7) ? 'ghost' : 'secondary'} onPress={() => setMonth(today.slice(0, 7))} />
     </View>
     <Notice message={cloud.error} onDismiss={cloud.dismissError} />
     {cloud.state !== 'ready' ? <LoadState state={cloud.state} what="as finanças" onRetry={cloud.retry} />
       : !finances.length ? <Card><AppText tone="muted">Ainda não há registos. Começa por adicionar o teu ordenado (ganho mensal recorrente) e as despesas fixas.</AppText></Card>
       : <>
-        <View style={styles.kpis}>
-          <Kpi label="Saldo do mês" value={hidden ? HIDDEN : `${balance > 0 ? '+' : ''}${formatEuro(balance)}`} tone={balance < 0 ? 'error' : 'success'} hint={hidden ? undefined : savings} />
-          <Kpi label="Ganhos" value={money(totals.income)} />
-          <Kpi label="Despesas" value={money(totals.expenses)} />
-        </View>
+        <MonthSummary balance={hidden ? HIDDEN : `${balance > 0 ? '+' : ''}${formatEuro(balance)}`} income={money(totals.income)} expenses={money(totals.expenses)}
+          hint={hidden ? undefined : savings} negative={balance < 0} />
+        <FinanceList recurring={recordsOf(finances, month, 'rec')} oneOff={recordsOf(finances, month, 'one')} money={money} onEdit={openEdit} />
+        <AppText variant="caption" weight="semibold" tone="muted" style={styles.heading}>ANÁLISE</AppText>
         <FinanceTrend months={lastMonths(finances, month)} selected={month} hidden={hidden} format={formatEuro} onSelect={setMonth} />
         <View style={styles.columns}>
           <Card style={styles.column}>
@@ -93,7 +100,6 @@ export default function Financas() {
             <Stat label={balance >= 0 ? 'Por gastar ou poupar' : 'Excedido em'} value={money(Math.abs(balance))} tone={balance < 0 ? 'error' : undefined} />
           </Card>
         </View>
-        <FinanceList recurring={recordsOf(finances, month, 'rec')} oneOff={recordsOf(finances, month, 'one')} money={money} onEdit={openEdit} />
       </>}
 
     {editing && <FinanceEditor initial={editing.draft} isNew={!editing.item}
@@ -105,9 +111,11 @@ export default function Financas() {
 
 const styles = StyleSheet.create({
   nav: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  label: { minWidth: 140, textAlign: 'center' },
-  kpis: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  kpi: { flexGrow: 1, flexBasis: 200 },
+  label: { flex: 1, maxWidth: 220, textAlign: 'center' },
+  split: { flexDirection: 'row', marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth },
+  half: { flex: 1, gap: 2 },
+  divider: { borderLeftWidth: StyleSheet.hairlineWidth, paddingLeft: spacing.md },
+  heading: { fontSize: 12, letterSpacing: 0.5, marginTop: spacing.sm },
   columns: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   column: { flexGrow: 1, flexBasis: 320 },
   stat: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs },

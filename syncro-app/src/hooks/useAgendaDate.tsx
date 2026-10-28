@@ -1,5 +1,4 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
-import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { todayIso } from '@/lib/dates'
 
 export type AgendaView = 'week' | 'day'
@@ -16,10 +15,9 @@ const AgendaDateContext = createContext<AgendaDateValue | null>(null)
 
 /** Day and view shown by the Agenda; other sections (Calendário, adição rápida) set them before opening the Agenda. */
 export function AgendaDateProvider({ children }: { children: ReactNode }) {
-  const mobile = useBreakpoint() === 'mobile'
   const [date, setDate] = useState(todayIso)
-  // Phones start on the day view, wider screens on the week.
-  const [view, setView] = useState<AgendaView>(() => (mobile ? 'day' : 'week'))
+  // The week fits every screen, so it is the default everywhere.
+  const [view, setView] = useState<AgendaView>('week')
   const value = useMemo<AgendaDateValue>(() => ({
     date, setDate, view, setView,
     openDay: day => { setDate(day); setView('day') },

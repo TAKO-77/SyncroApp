@@ -44,7 +44,7 @@ export function SleepWeek({ sleep, onChange }: { sleep: Sleep; onChange: (sleep:
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs, borderTopWidth: StyleSheet.hairlineWidth },
   head: { borderTopWidth: 0 },
-  day: { width: 40 },
-  time: { width: 100 },
+  day: { width: 36 },
+  time: { flex: 1, maxWidth: 120 },
   apply: { alignSelf: 'flex-start' },
 })

@@ -4,7 +4,6 @@ import { BottomNav, SideNav } from '@/components/AppNav'
 import { AgendaDateProvider } from '@/hooks/useAgendaDate'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { CloudDataProvider } from '@/hooks/useCloudData'
-import { PreferencesProvider } from '@/hooks/usePreferences'
 import { useTheme } from '@/hooks/useTheme'
 import { SECTIONS } from '@/lib/sections'
 
@@ -27,9 +26,7 @@ function TabsNavigator() {
 /** Signed-in area: the account's data is loaded once here and shared by every section. */
 export default function TabsLayout() {
   return <CloudDataProvider>
-    <PreferencesProvider>
-      <AgendaDateProvider><TabsNavigator /></AgendaDateProvider>
-    </PreferencesProvider>
+    <AgendaDateProvider><TabsNavigator /></AgendaDateProvider>
   </CloudDataProvider>
 }
 

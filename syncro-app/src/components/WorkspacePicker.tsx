@@ -67,7 +67,7 @@ export function WorkspacePicker({ workspaces, current, onSelect, onCreate, onDel
 }
 
 const styles = StyleSheet.create({
-  current: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4, alignSelf: 'flex-start', minWidth: 220, maxWidth: '100%', paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderWidth: 1, borderRadius: radius.md },
+  current: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4, flexGrow: 1, minWidth: 220, maxWidth: 420, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderWidth: 1, borderRadius: radius.md },
   currentText: { flexShrink: 1, flexGrow: 1 },
   overline: { fontSize: 11, lineHeight: 14, letterSpacing: 0.5 },
   pressed: { opacity: 0.7 },

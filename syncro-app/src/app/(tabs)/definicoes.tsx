@@ -3,12 +3,10 @@ import { Linking, StyleSheet } from 'react-native'
 import { AppText } from '@/components/AppText'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
-import { Checkbox } from '@/components/Checkbox'
 import { Screen } from '@/components/Screen'
 import { SegmentedControl } from '@/components/SegmentedControl'
 import { useAuth } from '@/hooks/useAuth'
 import { useCloudData } from '@/hooks/useCloudData'
-import { usePreferences } from '@/hooks/usePreferences'
 import { useTheme, type ThemePreference } from '@/hooks/useTheme'
 
 const THEMES: { value: ThemePreference; label: string }[] = [
@@ -22,7 +20,6 @@ export default function Definicoes() {
   const { preference, setPreference } = useTheme()
   const { user, signOut } = useAuth()
   const cloud = useCloudData()
-  const { focusTimer, setFocusTimer } = usePreferences()
   const [leaving, setLeaving] = useState(false)
   const status = cloud.state === 'loading' ? 'A carregar os dados…' : cloud.state === 'error' || cloud.error ? 'Sem ligação ao servidor.' : 'Ligado — as alterações são guardadas na conta.'
 
@@ -37,11 +34,6 @@ export default function Definicoes() {
       <AppText weight="semibold">Aparência</AppText>
       <AppText variant="caption" tone="muted">“Sistema” acompanha o modo claro ou escuro do dispositivo. Esta opção só se aplica a este dispositivo.</AppText>
       <SegmentedControl label="Tema" value={preference} options={THEMES} onChange={setPreference} />
-    </Card>
-    <Card>
-      <AppText weight="semibold">Barra lateral</AppText>
-      <Checkbox label="Mostrar temporizador de foco" checked={focusTimer} onChange={setFocusTimer} />
-      <AppText variant="caption" tone="muted">O temporizador aparece na barra lateral em ecrãs largos. Esta opção só se aplica a este dispositivo.</AppText>
     </Card>
     <Card>
       <AppText weight="semibold">Versão para Windows</AppText>
