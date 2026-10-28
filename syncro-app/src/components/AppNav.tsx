@@ -2,7 +2,9 @@ import { Image, StyleSheet, View } from 'react-native'
 import { TabTrigger } from 'expo-router/ui'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AppText } from '@/components/AppText'
+import { FocusTimer } from '@/components/FocusTimer'
 import { NavItem, type NavVariant } from '@/components/NavItem'
+import { usePreferences } from '@/hooks/usePreferences'
 import { useTheme } from '@/hooks/useTheme'
 import { SECTIONS, type Section } from '@/lib/sections'
 import { brand, spacing } from '@/lib/theme'
@@ -15,6 +17,7 @@ const trigger = (section: Section, variant: NavVariant) =>
 /** Sidebar with labels on desktop, icon rail on tablet. */
 export function SideNav({ compact }: { compact: boolean }) {
   const { colors } = useTheme()
+  const { focusTimer } = usePreferences()
   const insets = useSafeAreaInsets()
   const variant: NavVariant = compact ? 'rail' : 'sidebar'
   return <View accessibilityRole="tablist" style={[compact ? styles.rail : styles.sidebar, { backgroundColor: colors.background, borderColor: colors.border, paddingTop: spacing.lg + insets.top, paddingBottom: spacing.md + insets.bottom }]}>
@@ -23,7 +26,8 @@ export function SideNav({ compact }: { compact: boolean }) {
       {!compact && <AppText weight="bold" style={styles.wordmark}>SYNCRO</AppText>}
     </View>
     <View style={styles.list}>{SECTIONS.filter(s => !s.secondary).map(s => trigger(s, variant))}</View>
-    <View style={[styles.list, styles.bottom]}>{SECTIONS.filter(s => s.secondary).map(s => trigger(s, variant))}</View>
+    {focusTimer && !compact && <View style={styles.bottom}><FocusTimer /></View>}
+    <View style={[styles.list, !(focusTimer && !compact) && styles.bottom]}>{SECTIONS.filter(s => s.secondary).map(s => trigger(s, variant))}</View>
   </View>
 }
 

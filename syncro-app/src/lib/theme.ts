@@ -49,7 +49,7 @@ export const brand = { amber: '#FFB020', centre: '#FFE4A3' } as const
 
 /** Tag colours shared with the web app (`codigo-fonte/src/lib/palette.ts`); the same in both themes. */
 export const tagColors = {
-  gold: '#d2bd62', sage: '#8bb08b', slate: '#9fb0c0', clay: '#cf7f7f', neutral: '#a4a7a7', error: '#ef4444',
+  gold: '#d2bd62', sage: '#8bb08b', slate: '#9fb0c0', clay: '#cf7f7f', neutral: '#a4a7a7', muted: '#6b7280', error: '#ef4444',
 } as const
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48, xxxl: 64 } as const

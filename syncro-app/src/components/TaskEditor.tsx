@@ -1,15 +1,15 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
-import { Check } from 'lucide-react-native'
+import { StyleSheet, View } from 'react-native'
 import { AppText } from '@/components/AppText'
 import { Button } from '@/components/Button'
+import { Checkbox } from '@/components/Checkbox'
 import { Chip } from '@/components/Chip'
 import { DateField } from '@/components/DateField'
 import { Dialog } from '@/components/Dialog'
 import { EffortChips, PriorityChips } from '@/components/TaskOptions'
 import { TextField } from '@/components/TextField'
-import { useTheme } from '@/hooks/useTheme'
-import { NOTES_MAX, TITLE_MAX, type Validation } from '@/lib/tasks'
+import type { Validation } from '@/lib/records'
+import { NOTES_MAX, TITLE_MAX } from '@/lib/tasks'
 import { spacing } from '@/lib/theme'
 import type { Task, TaskDraft, Workspace } from '@/types/tasks'
 
@@ -18,7 +18,6 @@ export function TaskEditor({ task, workspaces, onSave, onDelete, onClose }: {
   task: Task; workspaces: readonly Workspace[]
   onSave: (draft: TaskDraft) => Validation<unknown>; onDelete: () => void; onClose: () => void
 }) {
-  const { colors } = useTheme()
   const [draft, setDraft] = useState<TaskDraft>({ title: task.title, due: task.due, priority: task.priority, effort: task.effort, workspaceId: task.workspaceId, notes: task.notes, done: task.done })
   const [error, setError] = useState('')
   const set = (change: Partial<TaskDraft>) => { setDraft(d => ({ ...d, ...change })); setError('') }
@@ -39,12 +38,7 @@ export function TaskEditor({ task, workspaces, onSave, onDelete, onClose }: {
       </View>
     </View>
     <TextField label="Notas" value={draft.notes} onChangeText={notes => set({ notes })} maxLength={NOTES_MAX} multiline />
-    <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: draft.done }} onPress={() => set({ done: !draft.done })} style={styles.doneRow}>
-      <View style={[styles.box, { borderColor: draft.done ? colors.success : colors.muted, backgroundColor: draft.done ? colors.success : 'transparent' }]}>
-        {draft.done && <Check size={14} color={colors.onAccent} strokeWidth={3} />}
-      </View>
-      <AppText>Concluída</AppText>
-    </Pressable>
+    <Checkbox label="Concluída" checked={draft.done} onChange={done => set({ done })} />
     {!!error && <AppText variant="caption" tone="error" accessibilityRole="alert">{error}</AppText>}
     <View style={styles.actions}>
       <Button label="Apagar" variant="danger" onPress={() => { onDelete(); onClose() }} />
@@ -58,8 +52,6 @@ export function TaskEditor({ task, workspaces, onSave, onDelete, onClose }: {
 const styles = StyleSheet.create({
   field: { gap: spacing.xs },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  doneRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, alignSelf: 'flex-start' },
-  box: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   spacer: { flex: 1 },
 })

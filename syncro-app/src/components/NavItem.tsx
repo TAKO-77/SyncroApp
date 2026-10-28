@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import type { TabTriggerSlotProps } from 'expo-router/ui'
 import { AppText } from '@/components/AppText'
+import { Avatar } from '@/components/Avatar'
+import { useCloudData } from '@/hooks/useCloudData'
 import { useTheme } from '@/hooks/useTheme'
 import type { Section } from '@/lib/sections'
 import { radius, spacing } from '@/lib/theme'
@@ -13,13 +15,15 @@ export function NavItem({ section, variant, isFocused, ref, ...props }: TabTrigg
   const { colors } = useTheme()
   const [hovered, setHovered] = useState(false)
   const Icon = section.icon
+  const { profile } = useCloudData().data
+  const size = variant === 'bar' ? 22 : 20
   const tint = isFocused ? colors.accent : hovered ? colors.text : colors.muted
   // expo-router/ui types the slot ref as a component ref; at runtime it is the Pressable's.
   return <Pressable ref={ref as never} {...props} accessibilityRole="tab" accessibilityLabel={section.label} accessibilityState={{ selected: isFocused }}
     onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
     style={({ pressed }) => [styles[variant], (isFocused || hovered) && variant !== 'bar' && { backgroundColor: isFocused ? colors.accentSoft : colors.surfaceRaised }, pressed && styles.pressed]}>
     <View style={variant === 'bar' && isFocused ? [styles.barPill, { backgroundColor: colors.accentSoft }] : styles.barPillIdle}>
-      <Icon size={variant === 'bar' ? 22 : 20} color={tint} strokeWidth={1.5} />
+      {section.name === 'perfil' && profile.photo ? <Avatar photo={profile.photo} name={profile.name} size={size} /> : <Icon size={size} color={tint} strokeWidth={1.5} />}
     </View>
     {variant !== 'rail' && <AppText variant="caption" weight={isFocused ? 'semibold' : 'medium'} numberOfLines={1}
       style={[variant === 'bar' && styles.barLabel, { color: tint }]}>{section.label}</AppText>}

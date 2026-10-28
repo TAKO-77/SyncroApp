@@ -1,21 +1,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { X } from 'lucide-react-native'
-import { useEffect, useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
+import { useFocusEffect } from 'expo-router'
+import { useCallback, useEffect, useState } from 'react'
+import { StyleSheet, View } from 'react-native'
 import { AppText } from '@/components/AppText'
-import { Button } from '@/components/Button'
-import { Card } from '@/components/Card'
 import { Chip } from '@/components/Chip'
 import { ConfirmDialog, type ConfirmRequest } from '@/components/ConfirmDialog'
+import { Notice } from '@/components/Notice'
+import { LoadState } from '@/components/LoadState'
 import { Screen } from '@/components/Screen'
 import { SegmentedControl } from '@/components/SegmentedControl'
 import { TaskComposer } from '@/components/TaskComposer'
 import { TaskEditor } from '@/components/TaskEditor'
 import { TaskRow } from '@/components/TaskRow'
+import { WorkspaceNotes } from '@/components/WorkspaceNotes'
 import { WorkspacePicker } from '@/components/WorkspacePicker'
 import { useTasks } from '@/hooks/useTasks'
 import { useTheme } from '@/hooks/useTheme'
-import { GENERAL_WORKSPACE_ID, SORT_OPTIONS, isTaskSort, sortTasks, tasksInWorkspace, toIso } from '@/lib/tasks'
+import { todayIso } from '@/lib/dates'
+import { GENERAL_WORKSPACE_ID, SORT_OPTIONS, isTaskSort, sortTasks, tasksInWorkspace } from '@/lib/tasks'
 import { radius, spacing } from '@/lib/theme'
 import type { TaskSort } from '@/types/tasks'
 
@@ -35,6 +37,9 @@ export default function Tarefas() {
   useEffect(() => {
     AsyncStorage.getItem(SORT_KEY).then(v => { if (isTaskSort(v)) setSort(v) }).catch(() => { /* storage unavailable */ })
   }, [])
+  // Tasks can be created elsewhere (adição rápida, other devices): reload when coming back here.
+  const { refresh } = board
+  useFocusEffect(useCallback(() => { refresh() }, [refresh]))
   const changeSort = (next: TaskSort) => { setSort(next); AsyncStorage.setItem(SORT_KEY, next).catch(() => { /* storage unavailable */ }) }
 
   const workspace = board.workspaces.find(w => w.id === workspaceId) ?? board.workspaces[0]
@@ -42,7 +47,7 @@ export default function Tarefas() {
   const openCount = scoped.filter(t => !t.done).length
   const list = sortTasks(scoped.filter(t => (view === 'open' ? !t.done : t.done)), sort)
   const editing = board.tasks.find(t => t.id === editingId)
-  const today = toIso(new Date())
+  const today = todayIso()
 
   const askDeleteWorkspace = (w: { id: string; name: string }) => setConfirm({
     title: `Eliminar o espaço “${w.name}”?`,
@@ -58,10 +63,7 @@ export default function Tarefas() {
         options={[{ value: 'open', label: `Pendentes ${openCount}` }, { value: 'done', label: `Concluídas ${scoped.length - openCount}` }]} />
     </View>
 
-    {!!board.error && <View accessibilityRole="alert" style={[styles.banner, { borderColor: colors.error, backgroundColor: colors.surface }]}>
-      <AppText variant="caption" tone="error" style={styles.bannerText}>{board.error}</AppText>
-      <Pressable accessibilityRole="button" accessibilityLabel="Fechar aviso" hitSlop={8} onPress={board.dismissError}><X size={16} color={colors.muted} strokeWidth={1.5} /></Pressable>
-    </View>}
+    <Notice message={board.error} onDismiss={board.dismissError} />
 
     <TaskComposer workspaceId={workspace.id} onAdd={draft => { const r = board.addTask(draft); if (r.ok) setView('open'); return r }} />
 
@@ -70,12 +72,7 @@ export default function Tarefas() {
       {SORT_OPTIONS.map(o => <Chip key={o.value} label={o.label} selected={sort === o.value} onPress={() => changeSort(o.value)} />)}
     </View>}
 
-    {board.state === 'loading' ? <View style={styles.center}><ActivityIndicator color={colors.accent} accessibilityLabel="A carregar tarefas" /></View>
-      : board.state === 'error' ? <Card>
-        <AppText weight="semibold">Não foi possível carregar as tarefas</AppText>
-        <AppText variant="caption" tone="muted">Verifica a ligação à Internet e tenta novamente.</AppText>
-        <Button label="Tentar novamente" onPress={board.retry} style={styles.retry} />
-      </Card>
+    {board.state !== 'ready' ? <LoadState state={board.state} what="as tarefas" onRetry={board.retry} />
       : list.length ? <View style={styles.list}>
         {list.map(t => <TaskRow key={t.id} task={t} today={today}
           onToggle={() => board.setDone(t.id, !t.done)}
@@ -87,6 +84,12 @@ export default function Tarefas() {
         <AppText tone="muted">{view === 'open' ? 'Tudo em dia. Adiciona a próxima tarefa acima.' : 'Ainda nada concluído.'}</AppText>
       </View>}
 
+    {board.state === 'ready' && workspace.id !== GENERAL_WORKSPACE_ID && <WorkspaceNotes workspace={workspace}
+      notes={board.notes.filter(n => n.workspaceId === workspace.id)}
+      onAdd={() => board.addNote(workspace.id)}
+      onSave={(id, text) => board.saveNote(id, text)}
+      onDelete={note => note.text ? setConfirm({ title: 'Apagar esta nota?', message: 'Esta ação não pode ser anulada.', confirmLabel: 'Apagar', onConfirm: () => board.deleteNote(note.id) }) : board.deleteNote(note.id)} />}
+
     {editing && <TaskEditor task={editing} workspaces={board.workspaces}
       onSave={draft => board.updateTask(editing.id, draft)}
       onDelete={() => board.deleteTask(editing.id)}
@@ -97,11 +100,7 @@ export default function Tarefas() {
 
 const styles = StyleSheet.create({
   toolbar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
-  banner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm + 4, borderWidth: 1, borderRadius: radius.sm },
-  bannerText: { flex: 1 },
   sort: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm },
-  center: { paddingVertical: spacing.xl, alignItems: 'center' },
-  retry: { alignSelf: 'flex-start' },
   list: { gap: spacing.sm },
   empty: { padding: spacing.lg, alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', borderRadius: radius.md },
 })

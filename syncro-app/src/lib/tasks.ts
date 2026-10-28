@@ -1,7 +1,9 @@
 import type { Effort, Priority, Task, TaskDraft, TaskRow, TaskSort, Workspace, WorkspaceRow } from '../types/tasks'
+import { addDays, isIsoDate, shortDate } from './dates.ts'
+import { str, type Validation } from './records.ts'
 
 // Pure task logic shared by the Tarefas screen and its data layer.
-// Kept free of runtime imports so scripts/test-tasks.ts can run it with Node directly.
+// Only imports other pure modules (with their `.ts` extension) so scripts/test-tasks.ts can run it with Node directly.
 
 export const GENERAL_WORKSPACE_ID = 'geral'
 export const TITLE_MAX = 90
@@ -32,20 +34,8 @@ export const isTaskSort = (v: unknown): v is TaskSort => SORT_OPTIONS.some(o => 
 
 const isPriority = (v: unknown): v is Priority => PRIORITIES.includes(v as Priority)
 const isEffort = (v: unknown): v is Effort => EFFORTS.includes(v as Effort)
-const str = (v: unknown) => (typeof v === 'string' ? v : '')
-
-/** Same id format as the web app (`uid` in codigo-fonte). */
-export const newId = (prefix: string) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)
 
 // ── Dates ──────────────────────────────────────────────────────────────
-
-const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-const p2 = (n: number) => String(n).padStart(2, '0')
-export const toIso = (d: Date) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
-export const parseIso = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d) }
-export const addDays = (s: string, n: number) => { const d = parseIso(s); d.setDate(d.getDate() + n); return toIso(d) }
-export const isIsoDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && toIso(parseIso(s)) === s
-export const shortDate = (s: string) => { const d = parseIso(s); return `${d.getDate()} ${MONTHS[d.getMonth()]}` }
 
 /** Label for a due date relative to `today`, and whether the task is late. */
 export function dueLabel(due: string, today: string): { label: string; late: boolean } {
@@ -99,12 +89,7 @@ export function withGeneralWorkspace(list: readonly Workspace[]): Workspace[] {
     : [{ id: GENERAL_WORKSPACE_ID, name: 'Geral', position: -1 }, ...sorted]
 }
 
-export const nextPosition = (items: readonly { position: number }[]) =>
-  items.reduce((max, i) => Math.max(max, i.position), -1) + 1
-
 // ── Validation ─────────────────────────────────────────────────────────
-
-export type Validation<T> = { ok: true; value: T } | { ok: false; error: string }
 
 /** Trims and checks a task before it is sent to Supabase. */
 export function validateTaskDraft(draft: TaskDraft): Validation<TaskDraft> {

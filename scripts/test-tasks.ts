@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
 import { toRows } from '../codigo-fonte/src/lib/sync/rows.ts'
 import type { AppData } from '../codigo-fonte/src/types.ts'
+import { addDays, isIsoDate } from '../syncro-app/src/lib/dates.ts'
+import { nextPosition } from '../syncro-app/src/lib/records.ts'
+import { noteFromRow, noteToRow, parseInline, parseNote, prefixLines, toggleTaskLine, validateNote, wrapSelection } from '../syncro-app/src/lib/notes.ts'
 import {
-  GENERAL_WORKSPACE_ID, NOTES_MAX, TITLE_MAX, addDays, dueLabel, isIsoDate, nextPosition, nextPriority, sortTasks,
+  GENERAL_WORKSPACE_ID, NOTES_MAX, TITLE_MAX, dueLabel, nextPriority, sortTasks,
   taskFromRow, taskToRow, tasksInWorkspace, validateTaskDraft, validateWorkspaceName, withGeneralWorkspace, workspaceFromRow,
 } from '../syncro-app/src/lib/tasks.ts'
 import type { Task, TaskDraft } from '../syncro-app/src/types/tasks.ts'
@@ -117,6 +120,30 @@ test('sorting keeps the stored order for ties and does not mutate', () => {
   assert.deepEqual(sortTasks(tasks, 'due').map(t => t.id), ['c', 'b', 'a', 'd'])
   assert.deepEqual(sortTasks([...tasks].reverse(), 'custom').map(t => t.id), ['a', 'b', 'c', 'd'])
   assert.equal(JSON.stringify(tasks), before)
+})
+
+test('workspace notes read and write the same rows as the desktop sync', () => {
+  const data = { tasks: [], workspaces: [], ev: [], fin: [], days: [], cats: [], dayCats: [], reset: '', sleep: { bed: '23:30', wake: '07:30', wk: false, bed2: '', wake2: '' },
+    notes: [{ id: 'n1', workspaceId: 'w1', text: '- [ ] rever' }, { id: 'n2', workspaceId: 'w1', text: '' }] } as AppData
+  for (const row of Object.values(toRows(data).workspace_notes)) assert.deepEqual(noteToRow(noteFromRow(row)), row)
+  assert.equal(validateNote('x'.repeat(5001)).ok, false)
+})
+
+test('notes markdown subset', () => {
+  assert.deepEqual(parseNote('## Título\n> citação\n- ponto\n2. dois\n- [x] feito\n\ntexto').map(l => l.kind), ['heading', 'quote', 'bullet', 'numbered', 'task', 'gap', 'paragraph'])
+  assert.deepEqual(parseInline('**a** _b_ `c` veja www.x.pt.'), [
+    { kind: 'bold', text: 'a' }, { kind: 'text', text: ' ' }, { kind: 'italic', text: 'b' }, { kind: 'text', text: ' ' }, { kind: 'code', text: 'c' },
+    { kind: 'text', text: ' veja ' }, { kind: 'link', text: 'www.x.pt', href: 'https://www.x.pt' }, { kind: 'text', text: '.' },
+  ])
+  assert.deepEqual(parseInline('javascript:alert(1)'), [{ kind: 'text', text: 'javascript:alert(1)' }])
+  assert.equal(toggleTaskLine('a\n- [ ] b\n  - [x] c', 1), 'a\n- [x] b\n  - [x] c')
+  assert.equal(toggleTaskLine('a\n- [ ] b\n  - [x] c', 2), 'a\n- [ ] b\n  - [ ] c')
+})
+
+test('note formatting toolbar', () => {
+  assert.deepEqual(wrapSelection('ola mundo', { start: 4, end: 9 }, '**'), { text: 'ola **mundo**', selection: { start: 6, end: 11 } })
+  assert.deepEqual(wrapSelection('', { start: 0, end: 0 }, '_'), { text: '_texto_', selection: { start: 1, end: 6 } })
+  assert.equal(prefixLines('um\ndois\ntres', { start: 1, end: 6 }, '- [ ] ').text, '- [ ] um\n- [ ] dois\ntres')
 })
 
 console.log(`test-tasks: ${results.length} passed\n  ${results.join('\n  ')}`)

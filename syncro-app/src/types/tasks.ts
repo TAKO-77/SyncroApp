@@ -23,6 +23,15 @@ export interface Workspace {
   readonly position: number
 }
 
+/** A notes box of a workspace (not shown for "Geral"). */
+export interface WorkspaceNote {
+  readonly id: string
+  readonly workspaceId: string
+  /** Markdown subset: `## `, `> `, `- `, `1. `, `- [ ] `, **bold**, _italic_, `code` and links. */
+  readonly text: string
+  readonly position: number
+}
+
 /** Fields the user fills in when creating or editing a task. */
 export type TaskDraft = Pick<Task, 'title' | 'due' | 'priority' | 'effort' | 'workspaceId' | 'notes' | 'done'>
 
