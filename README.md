@@ -47,54 +47,6 @@ A interface usa React, TypeScript e Vite. O executável Windows usa WebView2.
 
 A compilação e os testes requerem Node.js 22.18 ou superior (suporte nativo a scripts TypeScript) e o .NET Framework do Windows. O instalador é compilado com Inno Setup.
 
-### Organização do repositório
-
-```text
-docs/                 Requisitos, arquitetura e sistema de design
-codigo-fonte/         Código e configuração da interface
-desktop/              Código e manifesto da aplicação Windows
-  assets/             Ícones da aplicação e do instalador
-  lib/                Bibliotecas WebView2 usadas na compilação
-  installer/          Configuração do instalador Inno Setup
-scripts/              Script de compilação e testes
-supabase/migrations/  Esquema da base de dados (tabelas e políticas RLS)
-dist/windows/         Aplicação Windows pronta a executar
-releases/             Instaladores gerados
-local/                Atalhos locais
-```
-
-As pastas de saída, dependências, atalhos e configurações do editor estão no `.gitignore`. Os artefactos já versionados continuam preservados; novas versões devem ser distribuídas através das GitHub Releases.
-
-### Base de dados (Supabase)
-
-1. Cria um projeto em [supabase.com](https://supabase.com).
-2. No **SQL Editor**, executa o conteúdo de `supabase/migrations/20261025000000_initial_schema.sql`.
-3. Em **Authentication → Sign In / Providers → Email**, mantém **Confirm email** ativo.
-4. Em **Authentication → Emails**, altera os modelos **Confirm signup** e **Reset password** para incluírem o código `{{ .Token }}`. A aplicação pede o código; as ligações dos emails não funcionam dentro da app Windows.
-5. Copia `codigo-fonte/.env.example` para `codigo-fonte/.env` e preenche `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` com os valores de **Project Settings → API**. Nunca uses a chave `service_role`.
-
-O `.env` é lido durante a compilação, por isso volta a executar `npm run build` ou `scripts/build.bat` depois de o alterar. Para testar apenas o mapeamento da sincronização: `node scripts/test-sync.ts`.
-
-Para executar a interface em desenvolvimento:
-
-```powershell
-cd codigo-fonte
-npm install
-npm run dev
-```
-
-Para compilar a aplicação Windows, fecha o Syncro e executa na pasta principal:
-
-```powershell
-.\scripts\build.bat
-```
-
-Este comando compila a interface e prepara `dist/windows/` com o executável e os ficheiros necessários. A compilação do executável requer o compilador C# do .NET Framework.
-
-No final, executa os testes do atualizador contra o executável compilado e confirma que a versão da app coincide com a do instalador. Para repetir apenas esses testes: `node scripts/test-updater.ts`. Os testes usam respostas simuladas e downloads locais; não abrem a app nem executam instaladores.
-
-Para executar diretamente, abre `dist/windows/Syncro.exe`. Mantém os ficheiros dessa pasta juntos. Os ícones originais ficam em `desktop/assets/` e as bibliotecas WebView2 em `desktop/lib/`.
-
 ## Publicar uma versão
 
 A versão preparada é **2.4.2**. Para publicar uma atualização:
