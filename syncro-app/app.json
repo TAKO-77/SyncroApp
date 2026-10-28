@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Syncro",
+    "slug": "syncro",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/images/syncro-icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1C1E1E",
+        "foregroundImage": "./assets/images/syncro-icon.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/images/syncro-icon.png",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/syncro-icon.png",
+          "imageWidth": 160,
+          "backgroundColor": "#1C1E1E",
+          "dark": {
+            "backgroundColor": "#1C1E1E"
+          }
+        }
+      ]
+    ],
+    "scheme": "syncro",
+    "backgroundColor": "#1C1E1E",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

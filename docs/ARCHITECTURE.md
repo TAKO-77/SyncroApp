@@ -11,6 +11,8 @@ Expo + React Native e Supabase continuam a ser a arquitetura pretendida. A migra
 - `scripts/build.bat`: compila a interface e prepara a aplicação em `dist/windows/`.
 - `releases/`: instaladores; `local/`: atalhos específicos da máquina.
 
+A migração para Expo começou em `syncro-app/` (Expo SDK 58, Expo Router). Por agora tem a navegação (barra inferior no telemóvel, barra lateral em tablet e computador), os temas escuro e claro e ecrãs provisórios para cada secção. Segue a estrutura abaixo dentro de `syncro-app/src/`, como recomenda o Expo; os recursos ficam em `syncro-app/assets/`.
+
 As secções seguintes descrevem a arquitetura pretendida para a futura migração.
 # 01 System Overview
 One Codebase (Expo + React Native) → Supabase (Backend, Auth, Database)

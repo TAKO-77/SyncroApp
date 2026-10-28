@@ -6,14 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current stack vs. AGENTS.md
 
-AGENTS.md and `docs/ARCHITECTURE.md` describe the *intended* future stack (Expo + React Native, EAS, Maven). That migration has **not** happened; only Supabase is in use. The code today is:
+AGENTS.md and `docs/ARCHITECTURE.md` describe the *intended* future stack (Expo + React Native, EAS, Maven). That migration has only just started (see `syncro-app/` below); the shipped app is still:
 
 - `codigo-fonte/`: React 18 + TypeScript + Vite web UI, state in Zustand, validation with Zod. Supabase provides auth (email + password, required) and the database, and the UI is local-first over a per-user `localStorage` cache (see "Sync" below).
 - `supabase/migrations/`: SQL schema with one table per entity, primary key `(user_id, id)`, row level security and soft deletes.
 - `desktop/Program.cs`: a single-file C# WinForms host (.NET Framework, compiled with `csc.exe`, not `dotnet`) that embeds the UI in WebView2 and also contains the self-updater. That `csc.exe` only accepts **C# 5**: no string interpolation (`$"..."`), `?.`, `nameof`, `out var` or expression-bodied members.
 - `desktop/installer/Syncro.iss`: an Inno Setup installer that packages `dist/windows/`.
 
-Ignore the Expo, Maven and `.puml` instructions unless the user starts that migration. Supabase config comes from `codigo-fonte/.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`; see `.env.example`). It is baked in at build time. The rules on UI language (European Portuguese), commits and design still apply.
+The Expo migration has started in `syncro-app/` (Expo SDK 58, Expo Router, routes in `src/app/`, `@/*` maps to `src/`). So far it has only the base: responsive navigation (`(tabs)/_layout.tsx` with `expo-router/ui` tabs; bottom bar under 640px, icon rail to 1024px, sidebar above), the design tokens in `src/lib/theme.ts`, a theme provider (`src/hooks/useTheme.tsx`, dark by default, saved under `syncro-theme`) and placeholder screens. Styling is `StyleSheet` with those tokens, not NativeWind. Add packages with `npx expo install`, type-check with `npm run typecheck` and run it with `npx expo start` (`--web` for the PC version). Ignore the Maven and `.puml` instructions. Supabase config comes from `codigo-fonte/.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`; see `.env.example`). It is baked in at build time. The rules on UI language (European Portuguese), commits and design still apply.
 
 ## Commands
 
