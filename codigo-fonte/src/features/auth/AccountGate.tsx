@@ -4,6 +4,7 @@ import { startSync, stopSync, type LegacyChoice } from '../../lib/sync/engine'
 import { initAuth, signOut, useAuth } from '../../store/useAuth'
 import { useStore } from '../../store/useStore'
 import { AuthScreen } from './AuthScreen'
+import { confirmDialog } from '../../store/confirm'
 
 type Phase = { kind: 'loading' } | { kind: 'ready' } | { kind: 'error' } | { kind: 'choose'; resolve: (choice: LegacyChoice) => void }
 
@@ -42,7 +43,7 @@ export function AccountGate({ children }: { children: ReactNode }) {
       <div className="auth-choices">
         <button className="btn pri" onClick={() => pick('merge')}>Juntar os dois</button>
         <button className="btn" onClick={() => pick('cloud')}>Manter só os dados da conta</button>
-        <button className="btn dng" onClick={() => { if (window.confirm('Os dados da conta que não existem neste computador serão eliminados. Continuar?')) pick('local') }}>Substituir pelos dados deste computador</button>
+        <button className="btn dng" onClick={async () => { if (await confirmDialog({ title: 'Substituir pelos dados deste computador?', message: 'Os dados da conta que não existem neste computador serão eliminados.', confirmLabel: 'Substituir', danger: true })) pick('local') }}>Substituir pelos dados deste computador</button>
       </div>
       <p className="mu">Os dados deste computador ficam guardados como cópia de segurança local em qualquer dos casos.</p>
     </Notice>

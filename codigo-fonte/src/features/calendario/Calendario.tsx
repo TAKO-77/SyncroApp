@@ -5,6 +5,8 @@ import { DN, dow, iso, parse } from '../../lib/dates'
 import { Modal, todayIso, uid } from '../../components/common'
 import { CategoryManager } from '../../components/CategoryManager'
 import type { SpecialDay } from '../../types'
+import { DatePicker } from '../../components/DatePicker'
+import { TimePicker } from '../../components/TimePicker'
 
 const NO_CAT = { id: '', name: 'Sem categoria', color: PALETTE.neutral, icon: '📌' }
 type F = Omit<SpecialDay, 'id'> & { id?: string }
@@ -76,9 +78,9 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
       <form className="fgrid" onSubmit={save}>
         <label className="w">Título<input value={f.n} required maxLength={60} autoFocus onChange={e => setF({ ...f, n: e.target.value })} /></label>
         <div className="w cats">{data.dayCats.map(t => <label key={t.id} className="cp"><input type="radio" name="sd" checked={f.ty === t.id} onChange={() => setF({ ...f, ty: t.id, y: !f.id && t.id === 'aniv' ? true : f.y })} /><span style={{ ['--c' as string]: t.color }}>{icon(t)}{t.name}</span></label>)}</div>
-        <label>Início<input type="date" required value={f.s} onChange={e => setF({ ...f, s: e.target.value })} /></label>
-        {!f.y && <label>Fim (opcional)<input type="date" value={f.e} min={f.s} onChange={e => setF({ ...f, e: e.target.value })} /></label>}
-        <label>Hora (opcional)<input type="time" value={f.h} onChange={e => setF({ ...f, h: e.target.value })} /></label>
+        <label>Início<DatePicker required value={f.s} onChange={s => setF({ ...f, s })} /></label>
+        {!f.y && <label>Fim (opcional)<DatePicker value={f.e} min={f.s} onChange={e => setF({ ...f, e })} /></label>}
+        <label>Hora (opcional)<TimePicker value={f.h} onChange={h => setF({ ...f, h })} /></label>
         <label className="ck"><input type="checkbox" checked={f.y} onChange={e => setF({ ...f, y: e.target.checked })} /> Repete todos os anos</label>
         <label className="w">Notas<input value={f.o} maxLength={200} onChange={e => setF({ ...f, o: e.target.value })} /></label>
         <div className="acts w">{f.id && <button type="button" className="btn dng" onClick={() => { const id = f.id; update(d => { d.days = d.days.filter(x => x.id !== id) }); setF(null) }}>Apagar</button>}

@@ -4,6 +4,7 @@ import { parseAppData } from '../../lib/schema'
 import { desktop } from '../../lib/desktop'
 import { flush, pull, useSync, type SyncStatus } from '../../lib/sync/engine'
 import { signOut, useAuth } from '../../store/useAuth'
+import { confirmDialog } from '../../store/confirm'
 
 const SYNC_LABEL: Record<SyncStatus, string> = { idle: 'A preparar a sincronização…', syncing: 'A sincronizar…', synced: 'Sincronizado', offline: 'Sem ligação — as alterações ficam guardadas neste computador', error: 'Não foi possível sincronizar' }
 
@@ -36,8 +37,8 @@ export function Definicoes() {
     setUpdateStatus('A procurar atualizações…')
     desktop.postMessage('syncro:check-for-updates')
   }
-  const leave = () => {
-    if (sync.pending && !window.confirm(`Há ${sync.pending} alteraç${sync.pending === 1 ? 'ão' : 'ões'} por enviar. Se terminares sessão, só serão enviadas quando voltares a entrar neste computador. Continuar?`)) return
+  const leave = async () => {
+    if (sync.pending && !await confirmDialog({ title: 'Terminar sessão?', message: `Há ${sync.pending} alteraç${sync.pending === 1 ? 'ão' : 'ões'} por enviar. Se terminares sessão, só serão enviadas quando voltares a entrar neste computador.`, confirmLabel: 'Terminar sessão', danger: true })) return
     void signOut()
   }
   const file = useRef<HTMLInputElement>(null)

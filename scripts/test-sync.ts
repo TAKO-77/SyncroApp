@@ -18,7 +18,8 @@ const base = (): AppData => ({
   cats: [{ id: 'presencial', name: 'Estudo presencial', color: '#cf7f7f' }, { id: 'exercicio', name: 'Exercício', color: '#8bb08b' }],
   dayCats: [{ id: 'aniv', name: 'Aniversário', color: '#cf7f7f', icon: '🎂' }, { id: 'novo', name: 'Novo', color: '#d2bd62' }],
   sleep: { bed: '23:30', wake: '07:30', wk: false, bed2: '00:30', wake2: '09:30' },
-  name: 'Ana', reset: '2026-10-21', taskNotes: { w1: '- [ ] rever' },
+  name: 'Ana', reset: '2026-10-21',
+  notes: [{ id: 'n1', workspaceId: 'w1', text: '- [ ] rever' }, { id: 'n2', workspaceId: 'w1', text: 'Ideias' }],
 })
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v))
 const results: string[] = []
@@ -30,7 +31,7 @@ test('round trip keeps every synced field', () => {
   const back = fromRows(toRows(d), { ...d, ev: [], tasks: [] })
   assert.deepEqual(back.ev, d.ev)
   assert.deepEqual(back.tasks, d.tasks)
-  assert.deepEqual(back.taskNotes, d.taskNotes)
+  assert.deepEqual(back.notes, d.notes)
   assert.deepEqual(back.dayCats, d.dayCats)
 })
 
@@ -54,13 +55,20 @@ test('reordering tasks updates positions', () => {
 })
 
 test('workspace notes and profile changes map to their rows', () => {
-  const next = base(); next.taskNotes = { w1: 'outra' }; next.name = 'Bia'
-  assert.deepEqual(diffRows(toRows(base()), toRows(next)).map(o => `${o.table}:${o.id}`).sort(), ['profiles:profile', 'workspaces:w1'])
+  const next = base(); next.notes[1].text = 'outra'; next.name = 'Bia'
+  assert.deepEqual(diffRows(toRows(base()), toRows(next)).map(o => `${o.table}:${o.id}`).sort(), ['profiles:profile', 'workspace_notes:n2'])
+})
+
+test('adding and removing notes keeps their order', () => {
+  const next = base(); next.notes = [next.notes[1], { id: 'n3', workspaceId: 'w1', text: 'Nova' }]
+  const ops = diffRows(toRows(base()), toRows(next)).map(o => [o.id, o.deleted, o.row.position])
+  assert.deepEqual(ops, [['n2', false, 0], ['n3', false, 1], ['n1', true, 0]])
+  assert.deepEqual(fromRows(toRows(next), base()).notes.map(n => n.id), ['n2', 'n3'])
 })
 
 test('first upload sends every row', () => {
   const ops = diffRows(emptyRows(), toRows(base()))
-  assert.equal(ops.length, 1 + 2 + 2 + 2 + 2 + 2 + 1 + 1)
+  assert.equal(ops.length, 1 + 2 + 2 + 2 + 2 + 2 + 1 + 1 + 2)
   assert.ok(ops.every(o => !o.deleted))
 })
 

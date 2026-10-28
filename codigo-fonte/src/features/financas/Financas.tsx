@@ -5,6 +5,7 @@ import { MN, parse } from '../../lib/dates'
 import { Modal, todayIso, uid } from '../../components/common'
 import { Donut } from '../../components/Donut'
 import type { Finance } from '../../types'
+import { DatePicker, MonthPicker } from '../../components/DatePicker'
 
 const FC = [{ id: 'alim', name: 'Alimentação', color: PALETTE.gold }, { id: 'transp', name: 'Transportes', color: PALETTE.slate }, { id: 'casa', name: 'Casa', color: PALETTE.gold }, { id: 'saude', name: 'Saúde', color: PALETTE.sage }, { id: 'lazer', name: 'Lazer', color: PALETTE.clay }, { id: 'compras', name: 'Compras', color: PALETTE.sage }, { id: 'educ', name: 'Educação', color: PALETTE.clay }, { id: 'subs', name: 'Subscrições', color: PALETTE.sage }, { id: 'viag', name: 'Viagens', color: PALETTE.slate }, { id: 'outros', name: 'Outros', color: PALETTE.neutral }]
 const fcT = (id: string) => FC.find(c => c.id === id) ?? FC[9]
@@ -76,8 +77,8 @@ export function Financas() {
         <div className="w seg">{(['rec', 'one'] as const).map(v => <button key={v} type="button" aria-pressed={f.k === v} onClick={() => setF({ ...f, k: v })}>{v === 'rec' ? 'Mensal recorrente' : 'Esporádico'}</button>)}</div>
         <label className="w">Descrição<input value={f.n} required maxLength={60} autoFocus onChange={e => setF({ ...f, n: e.target.value })} /></label>
         <label>Valor (€)<input type="number" min="0.01" step="0.01" required inputMode="decimal" value={f.a} onChange={e => setF({ ...f, a: e.target.value })} /></label>
-        <label>{f.k === 'rec' ? 'Começa em' : 'Data'}<input type="date" required value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></label>
-        {f.k === 'rec' && <label className="w">Termina em (opcional)<input type="month" value={f.end} min={f.date.slice(0, 7)} onChange={e => setF({ ...f, end: e.target.value })} /></label>}
+        <label>{f.k === 'rec' ? 'Começa em' : 'Data'}<DatePicker required value={f.date} onChange={date => setF({ ...f, date })} /></label>
+        {f.k === 'rec' && <label className="w">Termina em (opcional)<MonthPicker value={f.end} min={f.date.slice(0, 7)} onChange={end => setF({ ...f, end })} /></label>}
         {f.t === 'out' && <div className="w cats">{FC.map(c => <label key={c.id} className="cp"><input type="radio" name="fc" checked={f.c === c.id} onChange={() => setF({ ...f, c: c.id })} /><span style={{ ['--c' as string]: c.color }}>{c.name}</span></label>)}</div>}
         <div className="acts w">{f.id && <button type="button" className="btn dng" onClick={() => { const id = f.id; update(d => { d.fin = d.fin.filter(x => x.id !== id) }); setF(null) }}>Apagar</button>}<span className="sp" /><button type="button" className="btn" onClick={() => setF(null)}>Cancelar</button><button className="btn pri" type="submit">Guardar</button></div>
       </form></Modal>}

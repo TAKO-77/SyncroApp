@@ -1,7 +1,10 @@
 import { useRef, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { sleepSchedule } from '../../lib/sleep'
+import { mins } from '../../lib/dates'
 import { Dashboard } from './Dashboard'
+import { TimePicker } from '../../components/TimePicker'
+import { Select } from '../../components/Select'
 
 export function Perfil() {
   const { data, update } = useStore()
@@ -55,24 +58,27 @@ export function Perfil() {
       </form>
       <h2 className="sub">Sono</h2>
       <p className="mu">Define a hora de deitar e de acordar para cada dia. As alterações ficam guardadas automaticamente.</p>
-      <div className="sleep-days">{weekdays.map((day, index) => {
-        const schedule = sleepSchedule(data.sleep, index)
-        return <div className="sleep-day" key={day}>
-          <strong>{day}</strong>
-          <label>Deito-me<input type="time" aria-label={`Deito-me — ${day}`} value={schedule.bed} onChange={e => {
-            const value = e.target.value
-            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return
-            update(d => { const daily = weekdays.map((_, i) => ({ ...sleepSchedule(d.sleep, i) })); daily[index].bed = value; d.sleep.daily = daily })
-          }} /></label>
-          <label>Acordo<input type="time" aria-label={`Acordo — ${day}`} value={schedule.wake} onChange={e => {
-            const value = e.target.value
-            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return
-            update(d => { const daily = weekdays.map((_, i) => ({ ...sleepSchedule(d.sleep, i) })); daily[index].wake = value; d.sleep.daily = daily })
-          }} /></label>
-        </div>
-      })}</div>
+      <div className="sleep-week">
+        <div className="sleep-row sleep-head" aria-hidden="true"><span>Dia</span><span>Deito-me</span><span>Acordo</span><span>Duração</span></div>
+        {weekdays.map((day, index) => {
+          const schedule = sleepSchedule(data.sleep, index)
+          const duration = (mins(schedule.wake) - mins(schedule.bed) + 1440) % 1440
+          return <div className={`sleep-row${index >= 5 ? ' weekend' : ''}`} key={day}>
+            <strong title={day}>{day.slice(0, 3)}</strong>
+            <TimePicker required aria-label={`Deito-me — ${day}`} value={schedule.bed} onChange={value => {
+              if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return
+              update(d => { const daily = weekdays.map((_, i) => ({ ...sleepSchedule(d.sleep, i) })); daily[index].bed = value; d.sleep.daily = daily })
+            }} />
+            <TimePicker required aria-label={`Acordo — ${day}`} value={schedule.wake} onChange={value => {
+              if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return
+              update(d => { const daily = weekdays.map((_, i) => ({ ...sleepSchedule(d.sleep, i) })); daily[index].wake = value; d.sleep.daily = daily })
+            }} />
+            <span className="sleep-duration">{duration ? `${Math.floor(duration / 60)}h${duration % 60 ? ` ${String(duration % 60).padStart(2, '0')}` : ''}` : '—'}</span>
+          </div>
+        })}
+      </div>
       <div className="row sleep-sync">
-        <label>Usar o horário de<select value={syncDay} onChange={e => setSyncDay(Number(e.target.value))}>{weekdays.map((day, index) => <option value={index} key={day}>{day}</option>)}</select></label>
+        <label>Usar o horário de<Select value={syncDay} onChange={setSyncDay} options={weekdays.map((day, index) => ({ value: index, label: day }))} /></label>
         <button type="button" className="btn" onClick={() => {
           update(d => { const schedule = sleepSchedule(d.sleep, syncDay); d.sleep.daily = weekdays.map(() => ({ ...schedule })) })
           setMsg('Horário de sono aplicado a todos os dias.')

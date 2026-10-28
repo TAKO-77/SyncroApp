@@ -9,6 +9,9 @@ import { CategoryManager } from '../../components/CategoryManager'
 import { useToast } from '../../store/toast'
 import { useStore as store } from '../../store/useStore'
 import type { PEvent, Rep } from '../../types'
+import { DatePicker } from '../../components/DatePicker'
+import { TimePicker } from '../../components/TimePicker'
+import { Select } from '../../components/Select'
 
 type L = PEvent & { l: number; n: number }
 function lanes(list: PEvent[]): L[] {
@@ -126,7 +129,7 @@ export function Agenda({ anchor, setAnchor }: { anchor: string; setAnchor: (s: s
       <span className="rg">{label}</span>
       <button className="btn sq" onClick={() => move(1)} aria-label="Seguinte">›</button>
       <button className="btn ghost" onClick={() => { setAnchor(td); if (box.current) box.current.scrollTop = Math.max(0, nowM - 90) }}>Hoje</button>
-      <select value={fcat} onChange={e => setFcat(e.target.value)} aria-label="Filtrar por categoria"><option value="">Todas as categorias</option>{data.cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+      <Select value={fcat} onChange={setFcat} aria-label="Filtrar por categoria" options={[{ value: '', label: 'Todas as categorias' }, ...data.cats.map(c => ({ value: c.id, label: c.name, color: c.color }))]} />
       <button className="btn" onClick={() => setCm(true)}>Categorias</button>
       <div className="seg"><button aria-pressed={view === 'week'} onClick={() => setView('week')}>Semana</button><button aria-pressed={view === 'day'} onClick={() => setView('day')}>Dia</button></div>
       <button className="btn pri" onClick={() => openNew(anchor, anchor === td ? Math.min(nowM + 1, 1439) : 540)}>Novo evento</button>
@@ -156,11 +159,11 @@ export function Agenda({ anchor, setAnchor }: { anchor: string; setAnchor: (s: s
     {form && <Modal title={form.id ? 'Editar evento' : 'Novo evento'} onClose={() => setForm(null)}>
       <form className="fgrid" onSubmit={save}>
         <label className="w">Título<input value={form.title} maxLength={80} required autoFocus onChange={e => setForm({ ...form, title: e.target.value })} /></label>
-        <label>Início<input type="time" required value={form.start} onChange={e => setForm({ ...form, start: e.target.value })} /></label>
-        <label>Fim<input type="time" required value={form.end} onChange={e => setForm({ ...form, end: e.target.value })} /></label>
-        <label>Dia<input type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></label>
-        <label>Repetir<select value={form.rep} onChange={e => setForm({ ...form, rep: e.target.value as Rep })}>
-          <option value="none">Não repete</option><option value="daily">Todos os dias</option><option value="weekdays">Dias úteis</option><option value="custom">Dias à escolha</option><option value="weekly">Todas as semanas</option></select></label>
+        <label>Início<TimePicker required value={form.start} onChange={start => setForm({ ...form, start })} /></label>
+        <label>Fim<TimePicker required value={form.end} onChange={end => setForm({ ...form, end })} /></label>
+        <label>Dia<DatePicker required value={form.date} onChange={date => setForm({ ...form, date })} /></label>
+        <label>Repetir<Select<Rep> value={form.rep} onChange={rep => setForm({ ...form, rep })} options={[
+          { value: 'none', label: 'Não repete' }, { value: 'daily', label: 'Todos os dias' }, { value: 'weekdays', label: 'Dias úteis' }, { value: 'custom', label: 'Dias à escolha' }, { value: 'weekly', label: 'Todas as semanas' }]} /></label>
         {form.rep === 'custom' && <div className="w dys">{DN.map((n, i) => <button key={n} type="button" aria-pressed={form.days.includes(i)} onClick={() => setForm({ ...form, days: form.days.includes(i) ? form.days.filter(x => x !== i) : [...form.days, i] })}>{n}</button>)}</div>}
         <div className="w cats">{data.cats.map(c => <label key={c.id} className="cp"><input type="radio" name="cat" checked={form.cat === c.id} onChange={() => setForm({ ...form, cat: c.id })} /><span style={{ ['--c' as string]: c.color }}>{c.name}</span></label>)}</div>
         {err && <p className="w neg" role="alert">{err}</p>}

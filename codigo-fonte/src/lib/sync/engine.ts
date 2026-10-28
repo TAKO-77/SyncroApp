@@ -181,7 +181,7 @@ export function stopSync() {
 }
 
 function hasContent(d: AppData) {
-  return d.ev.length > 0 || d.tasks.length > 0 || d.fin.length > 0 || d.days.length > 0 || !!d.name || !!d.photo || Object.values(d.taskNotes ?? {}).some(Boolean)
+  return d.ev.length > 0 || d.tasks.length > 0 || d.fin.length > 0 || d.days.length > 0 || !!d.name || !!d.photo || d.notes.some(n => n.text) || Object.values(d.taskNotes ?? {}).some(Boolean)
 }
 /** Keeps the pre-account data under another key so it is not offered again. */
 function archiveLegacy() {

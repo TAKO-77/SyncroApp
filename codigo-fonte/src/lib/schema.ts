@@ -40,12 +40,14 @@ const schema = z.object({
   name: z.string().optional(),
   photo: z.string().max(200000).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).optional(),
   reset: z.string().default(''),
+  notes: z.array(z.object({ id: z.string(), workspaceId: z.string(), text: z.string().max(5000) })).default([]),
+  taskNotes: z.record(z.string()).optional(),
 }).passthrough()
 
 export const emptyData = (): AppData => ({
   ev: [], tasks: [], workspaces: [{ id: 'geral', name: 'Geral' }], fin: [], days: [], cats: DEFAULT_CATS.map(c => ({ ...c })),
   dayCats: DEFAULT_DAY_CATS.map(c => ({ ...c })),
-  sleep: { ...DEFAULT_SLEEP }, reset: '',
+  sleep: { ...DEFAULT_SLEEP }, reset: '', notes: [],
 })
 
 /** Aceita tanto o formato exportado pela versão HTML ({app,v,data}) como o objeto direto. */
@@ -61,9 +63,16 @@ export function parseAppData(raw: unknown): AppData | null {
     const { lv, ...rest } = task
     return { ...rest, effort: task.effort ?? lv ?? '', workspaceId: task.workspaceId && workspaceIds.has(task.workspaceId) ? task.workspaceId : 'geral' }
   })
+  // The single legacy note per workspace becomes a note with a fixed id, the same one the database migration uses.
+  const notes = d.notes.filter(n => workspaceIds.has(n.workspaceId))
+  for (const [workspaceId, text] of Object.entries(d.taskNotes ?? {})) {
+    if (text && workspaceIds.has(workspaceId) && !notes.some(n => n.id === `n-${workspaceId}`)) notes.unshift({ id: `n-${workspaceId}`, workspaceId, text })
+  }
   return {
     ...(d as unknown as AppData),
     workspaces,
+    notes,
+    taskNotes: {},
     cats: d.cats.map(category => ({ ...category, color: harmonizeDefaultColor(category.id, category.color) })),
     tasks,
     sleep: { ...DEFAULT_SLEEP, ...(d.sleep as object) },
