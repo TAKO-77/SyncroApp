@@ -12,7 +12,7 @@ AGENTS.md and `docs/ARCHITECTURE.md` describe the *intended* future stack (Expo 
 - `supabase/migrations/`: SQL schema with one table per entity, primary key `(user_id, id)`, row level security and soft deletes.
 - `desktop/Program.cs`: a single-file C# WinForms host (.NET Framework, compiled with `csc.exe`, not `dotnet`) that embeds the UI in WebView2 and also contains the self-updater. That `csc.exe` only accepts **C# 5**: no string interpolation (`$"..."`), `?.`, `nameof`, `out var` or expression-bodied members.
 - `desktop/installer/Syncro.iss`: an Inno Setup installer that packages `dist/windows/`.
-- `syncro-app/`: the Expo app the migration targets. It only has the base so far (see "Expo app" below) and is not shipped.
+- `syncro-app/`: the Expo app the migration targets. It has sign-in and the Tarefas section wired to Supabase; the other sections are placeholders (see "Expo app" below). It is not shipped.
 
 Ignore the Maven and `.puml` instructions. The Vite UI's Supabase config comes from `codigo-fonte/.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`; see `.env.example`) and is baked in at build time. The rules on UI language (European Portuguese), commits and design apply to both apps.
 
@@ -25,7 +25,7 @@ npm run dev      # Vite dev server
 npm run build    # tsc -b && vite build; this is the only type-check/lint step
 ```
 
-There is no lint config and no test runner for the UI. The sync mapping is tested by a plain Node script (`node scripts/test-sync.ts`, from the repo root).
+There is no lint config and no test runner for the UI. The sync mapping is tested by a plain Node script (`node scripts/test-sync.ts`, from the repo root), and the Expo app's task logic by `node scripts/test-tasks.ts`.
 
 Full Windows build (from the repo root; close the running Syncro first or `Syncro.exe` can't be overwritten):
 ```powershell
@@ -80,6 +80,9 @@ npx expo start --lan         # phone, via Expo Go
 ```
 
 - `src/app/(tabs)/_layout.tsx` is the single navigator for all sizes. It uses `expo-router/ui` `Tabs`: a hidden `TabList` declares the routes, and the visible `SideNav`/`BottomNav` (`components/AppNav.tsx`) reuse their `name`s. The bottom bar shows under 640px, the icon rail up to 1024px and the labelled sidebar above (`hooks/useBreakpoint.ts`). The sections are listed in `lib/sections.ts`.
+- Supabase config comes from `syncro-app/.env` (`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`; see `.env.example`). The client (`lib/supabase.ts`) keeps the session in AsyncStorage. `hooks/useAuth.tsx` holds the session, and `app/_layout.tsx` uses `Stack.Protected` to show `entrar.tsx` (same sign-in/OTP flow as the web `AuthScreen`) or the tabs.
+- Unlike the web app, the Expo app talks to the tables directly (no local cache or outbox yet). It writes the same rows as `lib/sync/rows.ts`, so both apps see each other's changes. Tarefas: `lib/tasks.ts` is pure (row mapping, validation, sorting, dates; tested by `scripts/test-tasks.ts`), `lib/tasksApi.ts` has the queries (upsert on `(user_id, id)`, soft deletes), and `hooks/useTasks.ts` applies changes optimistically, reloads on failure, and refreshes on start, on app focus and every 60 s. Workspace notes are not migrated yet.
+- Use `Dialog`/`ConfirmDialog` instead of `Alert.alert` (it does nothing on the web), `DateField` for dates, and `TextField`/`Button`/`Chip` for form controls.
 - Colours, spacing, radius, Inter font families and type scale come from `lib/theme.ts`, which mirrors `docs/DESIGN_SYSTEM.md`. Styling is `StyleSheet` with these tokens, not NativeWind. Use `AppText` rather than `Text`, because React Native needs one font family per weight. `hooks/useTheme.tsx` holds the theme preference (dark by default; `system`/`dark`/`light` saved under `syncro-theme`).
 - Expo Go refuses the project when it is signed in to an Expo account and the CLI isn't. On Windows the default browser `npx expo login` fails (the URL's `&` breaks `cmd /c start`), so set `EXPO_TOKEN` (an access token from expo.dev) in the shell that runs `npx expo start`. If the machine has several network adapters, set `REACT_NATIVE_PACKAGER_HOSTNAME` to the Wi-Fi IP.
 
