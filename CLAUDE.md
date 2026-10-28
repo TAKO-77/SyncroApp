@@ -6,14 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current stack vs. AGENTS.md
 
-AGENTS.md and `docs/ARCHITECTURE.md` describe the *intended* future stack (Expo + React Native, EAS, Maven). That migration has only just started (see `syncro-app/` below); the shipped app is still:
+AGENTS.md and `docs/ARCHITECTURE.md` describe the *intended* future stack (Expo + React Native, EAS, Maven). That migration has only just started. The shipped app is still the first four entries below:
 
 - `codigo-fonte/`: React 18 + TypeScript + Vite web UI, state in Zustand, validation with Zod. Supabase provides auth (email + password, required) and the database, and the UI is local-first over a per-user `localStorage` cache (see "Sync" below).
 - `supabase/migrations/`: SQL schema with one table per entity, primary key `(user_id, id)`, row level security and soft deletes.
 - `desktop/Program.cs`: a single-file C# WinForms host (.NET Framework, compiled with `csc.exe`, not `dotnet`) that embeds the UI in WebView2 and also contains the self-updater. That `csc.exe` only accepts **C# 5**: no string interpolation (`$"..."`), `?.`, `nameof`, `out var` or expression-bodied members.
 - `desktop/installer/Syncro.iss`: an Inno Setup installer that packages `dist/windows/`.
+- `syncro-app/`: the Expo app the migration targets. It only has the base so far (see "Expo app" below) and is not shipped.
 
-The Expo migration has started in `syncro-app/` (Expo SDK 58, Expo Router, routes in `src/app/`, `@/*` maps to `src/`). So far it has only the base: responsive navigation (`(tabs)/_layout.tsx` with `expo-router/ui` tabs; bottom bar under 640px, icon rail to 1024px, sidebar above), the design tokens in `src/lib/theme.ts`, a theme provider (`src/hooks/useTheme.tsx`, dark by default, saved under `syncro-theme`) and placeholder screens. Styling is `StyleSheet` with those tokens, not NativeWind. Add packages with `npx expo install`, type-check with `npm run typecheck` and run it with `npx expo start` (`--web` for the PC version). Ignore the Maven and `.puml` instructions. Supabase config comes from `codigo-fonte/.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`; see `.env.example`). It is baked in at build time. The rules on UI language (European Portuguese), commits and design still apply.
+Ignore the Maven and `.puml` instructions. The Vite UI's Supabase config comes from `codigo-fonte/.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`; see `.env.example`) and is baked in at build time. The rules on UI language (European Portuguese), commits and design apply to both apps.
 
 ## Commands
 
@@ -42,7 +43,7 @@ Installer: compile `desktop/installer/Syncro.iss` with Inno Setup's `ISCC.exe`; 
 
 ## Releasing
 
-The version is defined in two places that must match: `AppVersion` in `desktop/Program.cs` and `#define AppVersion` in `desktop/installer/Syncro.iss`. The updater only accepts stable GitHub Releases on `TAKO-77/SyncroApp`. A release needs a numeric tag (`v2.3.2`) and an asset named exactly `SyncroSetup.exe`. The full checklist is in the README under "Publicar uma versão".
+The version is defined in two places that must match: `AppVersion` in `desktop/Program.cs` and `#define AppVersion` in `desktop/installer/Syncro.iss`. The updater only accepts stable GitHub Releases on `TAKO-77/SyncroApp`. A release needs a numeric tag (`v2.3.2`) and an asset named exactly `SyncroSetup.exe`. The full checklist is in the README under "Publicar uma versão"; the release itself can be created with `gh release create vX.Y.Z releases/SyncroSetup.exe --title "Syncro X.Y.Z" --latest`.
 
 ## UI architecture (`codigo-fonte/src`)
 
@@ -55,7 +56,8 @@ The version is defined in two places that must match: `AppVersion` in `desktop/P
   - Recurring events expand per day via `lib/recurrence.ts`. Per-occurrence edits live in `PEvent.ex[date]` and completion in `PEvent.done[date]`.
   - Events copy their category's `color`.
   - Workspace notes (`notes`) are separate boxes per workspace (`workspaceId`), edited in `features/tarefas/NoteCard.tsx` and rendered as a small markdown subset by `NoteContent.tsx`. The old single `taskNotes` string per workspace is migrated by `parseAppData` into a note with id `n-<workspace id>`.
-- **Styling** is one global `styles.css` with terse class names, and colours are CSS variables on `:root`. Light mode overrides live under `[data-theme=light]` (set on `<html>` from the store). Every new UI element must work in both themes. The shared category colours are in `lib/palette.ts`.
+- **Use the themed controls, not the native ones.** `components/DatePicker.tsx` (`DatePicker`, `MonthPicker`), `TimePicker.tsx` and `Select.tsx` replace `<input type=date|month|time>` and `<select>`. All three are built on `Picker.tsx`, which renders its popover into `body`, so modals and `overflow:hidden` don't clip it. Use `confirmDialog()` from `store/confirm.ts` (rendered by `ConfirmDialog` in `main.tsx`) instead of `window.confirm`, which WebView2 shows as "planner.local diz…".
+- **Styling** is one global `styles.css` with terse class names, and colours are CSS variables on `:root`. Light mode overrides live under `[data-theme=light]` (set on `<html>` from the store). Every new UI element must work in both themes. The shared category colours are in `lib/palette.ts`. Entrance animations use `animation-fill-mode: backwards`, never `both`/`forwards`: a finished animation would otherwise override the inline `transform` that task drag-and-drop writes on `.tk` rows. Completing a task delays the `done` update by `COMPLETE_MS` in `Tarefas.tsx` so the completion animation can play.
 
 ## Auth and sync (`features/auth/`, `store/useAuth.ts`, `lib/sync/`)
 
@@ -64,6 +66,22 @@ The version is defined in two places that must match: `AppVersion` in `desktop/P
 - `lib/sync/engine.ts` keeps an outbox per user in `localStorage` (coalesced by `table:id`, flushed ~600 ms after a change). It uploads with `upsert` on `(user_id, id)` and pulls by `updated_at`, with a 2-minute overlap, on start, on focus, when coming back online and every 60 s. Rows with pending local changes are never overwritten by a pull. Constraint errors (`22xxx`/`23xxx`) are dropped into a `syncro-rejected:<userId>` log; everything else is retried with backoff.
 - Schema changes reach the hosted project with `npx supabase db push` (the repo is linked with `supabase link`). Never run `supabase config push`: `supabase/config.toml` is the CLI default and would overwrite the dashboard's auth settings (SMTP, email templates with `{{ .Token }}`, providers).
 - **Adding a field to `AppData`** means changing four places: add a column in a new migration under `supabase/migrations/`, map it in `toRows`/`fromRows`/`FIELDS`, add a default in `lib/schema.ts`, and extend `scripts/test-sync.ts`.
+
+## Expo app (`syncro-app/`)
+
+Expo SDK 58 with Expo Router. Routes live in `src/app/`, and `@/*` maps to `src/`. Expo changes between SDKs, so check the versioned docs (https://docs.expo.dev/llms.txt) before using an Expo API from memory.
+
+```powershell
+npx expo install <package>   # never npm install: picks SDK-compatible versions
+npm run typecheck            # tsc --noEmit; there is no lint or test setup yet
+npx expo-doctor
+npx expo start --web         # PC version in the browser
+npx expo start --lan         # phone, via Expo Go
+```
+
+- `src/app/(tabs)/_layout.tsx` is the single navigator for all sizes. It uses `expo-router/ui` `Tabs`: a hidden `TabList` declares the routes, and the visible `SideNav`/`BottomNav` (`components/AppNav.tsx`) reuse their `name`s. The bottom bar shows under 640px, the icon rail up to 1024px and the labelled sidebar above (`hooks/useBreakpoint.ts`). The sections are listed in `lib/sections.ts`.
+- Colours, spacing, radius, Inter font families and type scale come from `lib/theme.ts`, which mirrors `docs/DESIGN_SYSTEM.md`. Styling is `StyleSheet` with these tokens, not NativeWind. Use `AppText` rather than `Text`, because React Native needs one font family per weight. `hooks/useTheme.tsx` holds the theme preference (dark by default; `system`/`dark`/`light` saved under `syncro-theme`).
+- Expo Go refuses the project when it is signed in to an Expo account and the CLI isn't. On Windows the default browser `npx expo login` fails (the URL's `&` breaks `cmd /c start`), so set `EXPO_TOKEN` (an access token from expo.dev) in the shell that runs `npx expo start`. If the machine has several network adapters, set `REACT_NATIVE_PACKAGER_HOSTNAME` to the Wi-Fi IP.
 
 ## Desktop host (`desktop/Program.cs`)
 
