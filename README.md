@@ -12,6 +12,7 @@ A aplicação requer o Microsoft Edge WebView2 Runtime. O instalador verifica se
 
 ## Funcionalidades
 
+- **Início:** o ecrã de arranque, com um resumo de todas as abas: quantos eventos e tarefas tens para hoje, a agenda do dia, as tarefas (filtradas por hoje, semana ou todas), o saldo do mês e os próximos dias especiais. Cada cartão abre a aba correspondente e as tarefas podem ser concluídas diretamente no Início.
 - **Agenda:** planeamento diário e semanal, categorias e eventos recorrentes. Podes definir horários ao minuto, arrastar e redimensionar eventos.
 - **Calendário:** dias especiais, aniversários e uma lista com as marcações dos próximos 31 dias.
 - **Tarefas:** prioridades, esforço estimado, datas limite, espaços de trabalho e notas.
@@ -19,7 +20,9 @@ A aplicação requer o Microsoft Edge WebView2 Runtime. O instalador verifica se
 - **Perfil:** nome, foto, horários de sono para cada dia da semana e distribuição do tempo. Podes aplicar o horário de um dia à semana toda.
 - **Definições:** modo claro ou escuro, abertura automática da barra lateral e importação/exportação de cópias de segurança.
 
-A barra lateral pode abrir ao passar o rato ou através do botão manual. Os ícones permitem mudar de aba com a barra fechada. Em ecrãs pequenos, a navegação aparece no fundo.
+A barra lateral pode abrir ao passar o rato ou através do botão manual. Os ícones permitem mudar de aba com a barra fechada. Em ecrãs pequenos, a navegação aparece no fundo. As teclas 1 a 7 mudam de aba (Início, Agenda, Calendário, Tarefas, Finanças, Perfil e Definições) e a tecla / ou Ctrl+K abre a adição rápida.
+
+O Syncro só funciona através da aplicação para Windows. Se a interface for aberta num browser, mostra uma ligação para transferir o instalador.
 
 ## Dados e cópias de segurança
 
@@ -43,7 +46,7 @@ O atualizador usa apenas releases públicas estáveis, com tag numérica (`v2.3.
 
 ## Desenvolvimento
 
-A interface usa React, TypeScript e Vite. O executável Windows usa WebView2.
+A interface usa React, TypeScript e Vite. O executável Windows usa WebView2. O aspeto visual segue `docs/DESIGN_SYSTEM.md`.
 
 A compilação e os testes requerem Node.js 22.18 ou superior (suporte nativo a scripts TypeScript) e o .NET Framework do Windows. O instalador é compilado com Inno Setup.
 
