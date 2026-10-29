@@ -1,4 +1,5 @@
-import { PALETTE } from '../../lib/palette'
+import { FIN_CATS, PALETTE, finCat } from '../../lib/palette'
+import { eur, monthTotals, activeIn, ymAdd } from '../../lib/finance'
 import { useState, type FormEvent } from 'react'
 import { useStore } from '../../store/useStore'
 import { MN, parse } from '../../lib/dates'
@@ -7,16 +8,6 @@ import { Donut } from '../../components/Donut'
 import type { Finance } from '../../types'
 import { DatePicker, MonthPicker } from '../../components/DatePicker'
 
-const FC = [{ id: 'alim', name: 'Alimentação', color: PALETTE.gold }, { id: 'transp', name: 'Transportes', color: PALETTE.slate }, { id: 'casa', name: 'Casa', color: PALETTE.gold }, { id: 'saude', name: 'Saúde', color: PALETTE.sage }, { id: 'lazer', name: 'Lazer', color: PALETTE.clay }, { id: 'compras', name: 'Compras', color: PALETTE.sage }, { id: 'educ', name: 'Educação', color: PALETTE.clay }, { id: 'subs', name: 'Subscrições', color: PALETTE.sage }, { id: 'viag', name: 'Viagens', color: PALETTE.slate }, { id: 'outros', name: 'Outros', color: PALETTE.neutral }]
-const fcT = (id: string) => FC.find(c => c.id === id) ?? FC[9]
-const eur = (n: number) => n.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 2 })
-const ymAdd = (ym: string, k: number) => { const [a, b] = ym.split('-').map(Number), d = new Date(a, b - 1 + k, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }
-const act = (e: Finance, ym: string) => e.k === 'rec' ? ym >= e.date.slice(0, 7) && (!e.end || ym <= e.end) : e.date.slice(0, 7) === ym
-function tot(fin: Finance[], ym: string) {
-  const r = { i: 0, o: 0, rec: 0, one: 0, cat: {} as Record<string, number> }
-  fin.forEach(e => { if (!act(e, ym)) return; if (e.t === 'in') r.i += e.a; else { r.o += e.a; r[e.k] += e.a; r.cat[e.c] = (r.cat[e.c] ?? 0) + e.a } })
-  return r
-}
 interface F { id?: string; t: 'in' | 'out'; k: 'rec' | 'one'; n: string; a: string; date: string; end: string; c: string }
 
 export function Financas() {
@@ -24,15 +15,15 @@ export function Financas() {
   const [ym, setYm] = useState(todayIso().slice(0, 7))
   const [hide, setHide] = useState(true)
   const [f, setF] = useState<F | null>(null)
-  const T = tot(data.fin, ym), bal = T.i - T.o
+  const T = monthTotals(data.fin, ym), bal = T.i - T.o
   const [y, m] = ym.split('-').map(Number)
-  const months = Array.from({ length: 6 }, (_, k) => ymAdd(ym, k - 5)).map(q => ({ q, ...tot(data.fin, q) }))
+  const months = Array.from({ length: 6 }, (_, k) => ymAdd(ym, k - 5)).map(q => ({ q, ...monthTotals(data.fin, q) }))
   const mx = Math.max(1, ...months.flatMap(x => [x.i, x.o]))
-  const cats = FC.map(c => ({ ...c, v: T.cat[c.id] ?? 0 })).filter(c => c.v > 0).sort((a, b) => b.v - a.v)
-  const rows = data.fin.filter(e => act(e, ym))
+  const cats = FIN_CATS.map(c => ({ ...c, v: T.cat[c.id] ?? 0 })).filter(c => c.v > 0).sort((a, b) => b.v - a.v)
+  const rows = data.fin.filter(e => activeIn(e, ym))
   const row = (e: Finance) => <div key={e.id} className="fr" onClick={() => setF({ id: e.id, t: e.t, k: e.k, n: e.n, a: String(e.a), date: e.date, end: e.end, c: e.c || 'alim' })}>
-    <i className="pd" style={{ ['--c' as string]: e.t === 'in' ? PALETTE.sage : fcT(e.c).color }} /><span className="fn">{e.n}</span>
-    <small className="mu">{e.t === 'in' ? 'Ganho' : fcT(e.c).name}{e.k === 'one' ? ` · ${parse(e.date).getDate()} ${MN[parse(e.date).getMonth()]}` : ''}</small>
+    <i className="pd" style={{ ['--c' as string]: e.t === 'in' ? PALETTE.sage : finCat(e.c).color }} /><span className="fn">{e.n}</span>
+    <small className="mu">{e.t === 'in' ? 'Ganho' : finCat(e.c).name}{e.k === 'one' ? ` · ${parse(e.date).getDate()} ${MN[parse(e.date).getMonth()]}` : ''}</small>
     <b className={e.t}>{e.t === 'in' ? '+' : '−'}{eur(e.a)}</b></div>
   const sorted = (k: 'rec' | 'one') => rows.filter(e => e.k === k).sort((a, b) => (a.t === b.t ? 0 : a.t === 'in' ? -1 : 1) || b.a - a.a)
   const open = (e?: F) => setF(e ?? { t: 'out', k: 'one', n: '', a: '', date: ym === todayIso().slice(0, 7) ? todayIso() : ym + '-01', end: '', c: 'alim' })
@@ -79,7 +70,7 @@ export function Financas() {
         <label>Valor (€)<input type="number" min="0.01" step="0.01" required inputMode="decimal" value={f.a} onChange={e => setF({ ...f, a: e.target.value })} /></label>
         <label>{f.k === 'rec' ? 'Começa em' : 'Data'}<DatePicker required value={f.date} onChange={date => setF({ ...f, date })} /></label>
         {f.k === 'rec' && <label className="w">Termina em (opcional)<MonthPicker value={f.end} min={f.date.slice(0, 7)} onChange={end => setF({ ...f, end })} /></label>}
-        {f.t === 'out' && <div className="w cats">{FC.map(c => <label key={c.id} className="cp"><input type="radio" name="fc" checked={f.c === c.id} onChange={() => setF({ ...f, c: c.id })} /><span style={{ ['--c' as string]: c.color }}>{c.name}</span></label>)}</div>}
+        {f.t === 'out' && <div className="w cats">{FIN_CATS.map(c => <label key={c.id} className="cp"><input type="radio" name="fc" checked={f.c === c.id} onChange={() => setF({ ...f, c: c.id })} /><span style={{ ['--c' as string]: c.color }}>{c.name}</span></label>)}</div>}
         <div className="acts w">{f.id && <button type="button" className="btn dng" onClick={() => { const id = f.id; update(d => { d.fin = d.fin.filter(x => x.id !== id) }); setF(null) }}>Apagar</button>}<span className="sp" /><button type="button" className="btn" onClick={() => setF(null)}>Cancelar</button><button className="btn pri" type="submit">Guardar</button></div>
       </form></Modal>}
   </section>

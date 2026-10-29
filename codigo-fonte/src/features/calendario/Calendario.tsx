@@ -5,6 +5,7 @@ import { DN, dow, iso, parse } from '../../lib/dates'
 import { Modal, todayIso, uid } from '../../components/common'
 import { CategoryManager } from '../../components/CategoryManager'
 import type { SpecialDay } from '../../types'
+import { daysLeft, upcomingSpecialDays } from '../../lib/specialDays'
 import { DatePicker } from '../../components/DatePicker'
 import { TimePicker } from '../../components/TimePicker'
 
@@ -21,21 +22,7 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
   const icon = (t: { icon?: string }) => t.icon ? `${t.icon} ` : ''
   const first = parse(m), dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate(), rows = Math.ceil((dow(first) + dim) / 7)
   const sdOn = (ds: string) => data.days.filter(x => x.y ? ds >= x.s && ds.slice(5) === x.s.slice(5) : ds >= x.s && ds <= (x.e || x.s)).sort((a, b) => (a.h || '99').localeCompare(b.h || '99'))
-  const horizon = parse(today)
-  horizon.setDate(horizon.getDate() + 31)
-  const upcomingEnd = iso(horizon)
-  const daysLeft = (date: string) => Math.round((Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)) - Date.UTC(+today.slice(0, 4), +today.slice(5, 7) - 1, +today.slice(8, 10))) / 86400000)
-  const upcoming = data.days.flatMap(item => {
-    if (item.y) {
-      let year = Math.max(+today.slice(0, 4), +item.s.slice(0, 4))
-      let date = `${year}${item.s.slice(4)}`
-      if (date < today) date = `${++year}${item.s.slice(4)}`
-      return date >= item.s && date <= upcomingEnd && iso(parse(date)) === date ? [{ item, date }] : []
-    }
-    const end = item.e || item.s
-    if (end < today || item.s > upcomingEnd) return []
-    return [{ item, date: item.s < today ? today : item.s }]
-  }).sort((a, b) => a.date.localeCompare(b.date) || (a.item.h || '99').localeCompare(b.item.h || '99'))
+  const upcoming = upcomingSpecialDays(data.days, today)
   const shift = (k: number) => { const d = new Date(first); d.setMonth(d.getMonth() + k); setM(iso(d)) }
   const blank = (): F => ({ n: '', ty: data.dayCats.some(t => t.id === 'evento') ? 'evento' : data.dayCats[0]?.id ?? '', s: m.slice(0, 7) === today.slice(0, 7) ? today : m, e: '', h: '', o: '', y: false })
   const save = (ev: FormEvent) => {
@@ -58,7 +45,7 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
     <section className="upcoming upcoming-compact">
       <div className="upcoming-head"><h2>Próximos 31 dias</h2></div>
       {upcoming.length ? <div className="upcoming-list">{upcoming.map(({ item, date }) => {
-        const type = sdT(item), left = daysLeft(date)
+        const type = sdT(item), left = daysLeft(date, today)
         return <div className="upcoming-item" key={item.id} style={{ ['--c' as string]: type.color }}>
           <span className="upcoming-icon">{type.icon}</span><span className="upcoming-name"><b>{item.n}</b><small>{parse(date).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })}{item.h ? ` · ${item.h}` : ''}</small></span>
           <span className="upcoming-count">{left === 0 ? 'Hoje' : `em ${left} ${left === 1 ? 'dia' : 'dias'}`}</span>

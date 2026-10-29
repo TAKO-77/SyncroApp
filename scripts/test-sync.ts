@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { applyRemote, diffRows, emptyRows, fromRows, toRows, type Rows } from '../codigo-fonte/src/lib/sync/rows.ts'
 import type { AppData } from '../codigo-fonte/src/types.ts'
 import { markDone, purgeExpired } from '../codigo-fonte/src/lib/cleanup.ts'
+import { monthTotals, ymAdd } from '../codigo-fonte/src/lib/finance.ts'
+import { daysLeft, upcomingSpecialDays } from '../codigo-fonte/src/lib/specialDays.ts'
 
 // Checks the mapping between the local document and the Supabase rows used by the sync engine.
 const base = (): AppData => ({
@@ -139,6 +141,35 @@ test('nothing to remove reports no change', () => {
   const d = base()
   assert.equal(purgeExpired(d, '2026-10-22'), false)
   assert.deepEqual(d, base())
+})
+
+test('month totals count recurring records until their end month', () => {
+  const fin = [
+    { id: 'a', t: 'in' as const, k: 'rec' as const, n: 'Ordenado', a: 1500, date: '2026-09-01', end: '', c: '' },
+    { id: 'b', t: 'out' as const, k: 'rec' as const, n: 'Ginásio', a: 30, date: '2026-08-15', end: '2026-09', c: 'saude' },
+    { id: 'c', t: 'out' as const, k: 'one' as const, n: 'Jantar', a: 45.5, date: '2026-10-03', end: '', c: 'lazer' },
+  ]
+  assert.deepEqual(monthTotals(fin, '2026-09'), { i: 1500, o: 30, rec: 30, one: 0, cat: { saude: 30 } })
+  assert.deepEqual(monthTotals(fin, '2026-10'), { i: 1500, o: 45.5, rec: 0, one: 45.5, cat: { lazer: 45.5 } })
+  assert.equal(monthTotals(fin, '2026-08').i, 0)
+  assert.equal(ymAdd('2026-10', 3), '2027-01')
+  assert.equal(ymAdd('2026-01', -1), '2025-12')
+})
+
+test('upcoming special days cover yearly, ongoing and future items', () => {
+  const day = (id: string, s: string, e = '', y = false) => ({ id, n: id, ty: 'evento', s, e, h: '', o: '', y })
+  const list = upcomingSpecialDays([
+    day('aniv', '2000-11-05', '', true), day('viagem', '2026-10-25', '2026-11-02'),
+    day('exame', '2026-11-20'), day('longe', '2026-12-15'), day('passado', '2026-10-01'),
+  ], '2026-10-29')
+  assert.deepEqual(list.map(x => [x.item.id, x.date]), [['viagem', '2026-10-29'], ['aniv', '2026-11-05'], ['exame', '2026-11-20']])
+  assert.equal(daysLeft('2026-11-05', '2026-10-29'), 7)
+})
+
+test('yearly special days roll over the new year and skip 29 February in common years', () => {
+  const day = (id: string, s: string) => ({ id, n: id, ty: 'aniv', s, e: '', h: '', o: '', y: true })
+  assert.deepEqual(upcomingSpecialDays([day('ano', '1990-01-10')], '2026-12-20').map(x => x.date), ['2027-01-10'])
+  assert.deepEqual(upcomingSpecialDays([day('bissexto', '2000-02-29')], '2027-02-10'), [])
 })
 
 for (const name of results) console.log(`PASS ${name}`)

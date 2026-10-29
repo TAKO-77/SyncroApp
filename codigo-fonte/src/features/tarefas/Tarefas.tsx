@@ -1,7 +1,5 @@
-import { PALETTE } from '../../lib/palette'
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as RPE } from 'react'
 import { useStore } from '../../store/useStore'
-import { MN, iso, parse } from '../../lib/dates'
 import { Modal, todayIso, uid } from '../../components/common'
 import type { Effort, Priority, Task } from '../../types'
 import { NoteCard } from './NoteCard'
@@ -10,24 +8,15 @@ import { DatePicker } from '../../components/DatePicker'
 import { confirmDialog } from '../../store/confirm'
 import { Select } from '../../components/Select'
 import { markDone } from '../../lib/cleanup'
+import { LK, LV, PC, PN, dueLabel } from '../../lib/tasks'
 
-const PC: Record<Priority, string> = { urgente: PALETTE.error, alta: PALETTE.clay, media: PALETTE.gold, baixa: PALETTE.sage }
-const PN: Record<Priority, string> = { urgente: 'Urgente', alta: 'Alta', media: 'Média', baixa: 'Baixa' }
 const NX: Record<Priority, Priority> = { urgente: 'alta', alta: 'media', media: 'baixa', baixa: 'urgente' }
-const LV: Record<Effort, { n: string; t: string; c: string }> = { rel: { n: 'Muito Rápido', t: 'até 15 min', c: PALETTE.sage }, lig: { n: 'Rápido', t: 'cerca de 30 min', c: PALETTE.slate }, cui: { n: 'Moderado', t: '1 a 2 horas', c: PALETTE.neutral }, exi: { n: 'Demorado', t: 'várias horas', c: PALETTE.clay }, pro: { n: 'Projeto', t: 'várias etapas', c: PALETTE.gold } }
-const LK = Object.keys(LV) as Effort[]
 type SortBy = 'priority' | 'effort' | 'due' | 'custom'
 const SORT_KEY = 'syncro-task-sort'
 const COMPLETE_MS = 1300
 const BURST = Array.from({ length: 10 }, (_, i) => i * 36)
 const readSort = (): SortBy => {
   try { const v = localStorage.getItem(SORT_KEY); return v === 'effort' || v === 'due' || v === 'custom' ? v : 'priority' } catch { return 'priority' }
-}
-
-function due(d: string, today: string): [string, boolean] {
-  if (!d) return ['', false]; if (d < today) return ['Atrasada', true]; if (d === today) return ['Hoje', false]
-  const t = new Date(); t.setDate(t.getDate() + 1); if (d === iso(t)) return ['Amanhã', false]
-  const x = parse(d); return [`${x.getDate()} ${MN[x.getMonth()]}`, false]
 }
 
 export function Tarefas() {
@@ -134,7 +123,7 @@ export function Tarefas() {
         <DatePicker value={du} aria-label="Data limite" onChange={setDu} className="auto" /><button className="btn pri sp-l" type="submit">Adicionar</button></div>
     </form>
     {list.length > 1 && <div className="tsub"><label>Ordenar por<Select<SortBy> value={sortBy} onChange={setSortBy} options={[{ value: 'priority', label: 'Relevância' }, { value: 'effort', label: 'Tempo estimado' }, { value: 'due', label: 'Data limite' }, { value: 'custom', label: 'Customizado' }]} /></label></div>}
-    <div className="tasks-list" ref={listRef}>{list.length ? list.map(t => { const [lbl, late] = due(t.due, today)
+    <div className="tasks-list" ref={listRef}>{list.length ? list.map(t => { const [lbl, late] = dueLabel(t.due, today)
       const done = completing.includes(t.id)
       return <div key={t.id} data-id={t.id} className={'tk' + (t.d ? ' dn' : '') + (done ? ' completing' : '')} style={{ ['--c' as string]: PC[t.p] }}>
         {open && <span className="hnd" title="Arrastar" onPointerDown={e => dragStart(e, t.id)}>⋮⋮</span>}
