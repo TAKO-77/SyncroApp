@@ -12,6 +12,7 @@ import { QuickAdd } from './components/QuickAdd'
 import { Toast } from './components/Toast'
 import { useStore } from './store/useStore'
 import { LogoFilter, todayIso, useNow } from './components/common'
+import { cleanUpNoteImages } from './lib/noteImages'
 const syncroSymbol = new URL('./assets/syncro-symbol.png', import.meta.url).href
 const syncroLogo = new URL('./assets/syncro-logo.png', import.meta.url).href
 
@@ -26,6 +27,11 @@ export default function App() {
   const { data, sidebarAutoOpen, focusTimer, theme } = useStore()
   useEffect(() => { setSidebarOpen(false) }, [sidebarAutoOpen])
   useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
+  useEffect(() => {
+    // Once per session, after start-up sync has had time to run.
+    const timer = setTimeout(() => { const { data: current, history } = useStore.getState(); void cleanUpNoteImages([JSON.stringify(current.notes), ...history]).catch(() => undefined) }, 15000)
+    return () => clearTimeout(timer)
+  }, [])
   const now = useNow(10000), h = now.getHours()
   const g = h < 6 ? 'Boa noite' : h < 13 ? 'Bom dia' : h < 20 ? 'Boa tarde' : 'Boa noite'
   useEffect(() => {

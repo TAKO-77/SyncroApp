@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { IMAGE_LINE } from '../../lib/noteImages'
+import { NoteImage } from './NoteImage'
 
 const INLINE = /(\*\*[^*\n]+\*\*|`[^`\n]+`|https?:\/\/[^\s<>"]+|www\.[^\s<>"]+|_[^_\s](?:[^_\n]*[^_\s])?_)/g
 const TRAILING = /[.,;:!?)\]]+$/
@@ -30,6 +32,8 @@ export function toggleTaskLine(note: string, index: number): string {
 
 export function NoteContent({ text, onToggle }: { text: string; onToggle: (lineIndex: number) => void }) {
   return <>{text.split('\n').map((line, i) => {
+    const image = line.match(IMAGE_LINE)
+    if (image) return <NoteImage key={i} file={image[2]} alt={image[1] || 'Imagem da nota'} />
     const task = line.match(TASK)
     if (task) {
       const done = task[2] !== ' '
