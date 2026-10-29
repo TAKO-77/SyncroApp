@@ -9,6 +9,7 @@ import { NoteGrid } from './NoteGrid'
 import { DatePicker } from '../../components/DatePicker'
 import { confirmDialog } from '../../store/confirm'
 import { Select } from '../../components/Select'
+import { markDone } from '../../lib/cleanup'
 
 const PC: Record<Priority, string> = { urgente: PALETTE.error, alta: PALETTE.clay, media: PALETTE.gold, baixa: PALETTE.sage }
 const PN: Record<Priority, string> = { urgente: 'Urgente', alta: 'Alta', media: 'Média', baixa: 'Baixa' }
@@ -49,11 +50,11 @@ export function Tarefas() {
     const timers = completionTimers.current
     if (!done || !open) {
       if (timers.has(id)) { clearTimeout(timers.get(id)); timers.delete(id); setCompleting(c => c.filter(x => x !== id)); return }
-      patch(id, x => { x.d = done }); return
+      patch(id, x => markDone(x, done)); return
     }
     setCompleting(c => [...c, id])
     timers.set(id, window.setTimeout(() => {
-      timers.delete(id); setCompleting(c => c.filter(x => x !== id)); patch(id, x => { x.d = true })
+      timers.delete(id); setCompleting(c => c.filter(x => x !== id)); patch(id, x => markDone(x, true))
     }, COMPLETE_MS))
   }
   const listRef = useRef<HTMLDivElement>(null)

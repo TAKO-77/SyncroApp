@@ -13,6 +13,7 @@ import { Toast } from './components/Toast'
 import { useStore } from './store/useStore'
 import { LogoFilter, todayIso, useNow } from './components/common'
 import { cleanUpNoteImages } from './lib/noteImages'
+import { purgeExpired } from './lib/cleanup'
 const syncroSymbol = new URL('./assets/syncro-symbol.png', import.meta.url).href
 const syncroLogo = new URL('./assets/syncro-logo.png', import.meta.url).href
 
@@ -27,6 +28,16 @@ export default function App() {
   const { data, sidebarAutoOpen, focusTimer, theme } = useStore()
   useEffect(() => { setSidebarOpen(false) }, [sidebarAutoOpen])
   useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
+  useEffect(() => {
+    // Removes old completed tasks and past one-off events at start-up and then every hour.
+    const purge = () => {
+      const { data: current, update: commit } = useStore.getState(), today = todayIso()
+      if (purgeExpired(structuredClone(current), today)) commit(d => { purgeExpired(d, today) })
+    }
+    purge()
+    const timer = setInterval(purge, 60 * 60 * 1000)
+    return () => clearInterval(timer)
+  }, [])
   useEffect(() => {
     // Once per session, after start-up sync has had time to run.
     const timer = setTimeout(() => { const { data: current, history } = useStore.getState(); void cleanUpNoteImages([JSON.stringify(current.notes), ...history]).catch(() => undefined) }, 15000)

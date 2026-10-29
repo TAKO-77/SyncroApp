@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { applyRemote, diffRows, emptyRows, fromRows, toRows, type Rows } from '../codigo-fonte/src/lib/sync/rows.ts'
 import type { AppData } from '../codigo-fonte/src/types.ts'
+import { markDone, purgeExpired } from '../codigo-fonte/src/lib/cleanup.ts'
 
 // Checks the mapping between the local document and the Supabase rows used by the sync engine.
 const base = (): AppData => ({
@@ -10,7 +11,7 @@ const base = (): AppData => ({
   ],
   tasks: [
     { id: 't1', t: 'Relatório', due: '2026-10-30', p: 'alta', d: false, effort: 'cui', workspaceId: 'w1', n: 'Ver anexos' },
-    { id: 't2', t: 'Compras', due: '', p: 'media', d: true, effort: '', workspaceId: 'geral' },
+    { id: 't2', t: 'Compras', due: '', p: 'media', d: true, doneAt: '2026-10-21', effort: '', workspaceId: 'geral' },
   ],
   workspaces: [{ id: 'geral', name: 'Geral' }, { id: 'w1', name: 'Projeto' }],
   fin: [{ id: 'f1', t: 'out', k: 'rec', n: 'Renda', a: 450.5, date: '2026-10-01', end: '', c: 'casa' }],
@@ -99,6 +100,45 @@ test('optional fields stay absent after a round trip', () => {
   const d = base(), back = fromRows(toRows(d), d)
   assert.ok(!('days' in back.ev[0]) && !('color' in back.ev[1]) && !('n' in back.tasks[1]) && !('icon' in back.dayCats[1]))
   assert.equal(clone(back).photo, undefined)
+})
+
+test('completing a task records the day and reopening clears it', () => {
+  const t = clone(base().tasks[0])
+  markDone(t, true, '2026-10-29')
+  assert.equal(t.doneAt, '2026-10-29')
+  markDone(t, false)
+  assert.equal(t.d, false)
+  assert.equal('doneAt' in t, false)
+})
+
+test('completed tasks are removed two days after completion', () => {
+  const d = base()
+  d.tasks.push({ id: 't3', t: 'Ontem', due: '', p: 'baixa', d: true, doneAt: '2026-10-28' }, { id: 't4', t: 'Anteontem', due: '', p: 'baixa', d: true, doneAt: '2026-10-27' })
+  assert.equal(purgeExpired(d, '2026-10-29'), true)
+  assert.deepEqual(d.tasks.map(t => t.id), ['t1', 't3'])
+})
+
+test('completed tasks without a date start counting today', () => {
+  const d = base()
+  delete d.tasks[1].doneAt
+  assert.equal(purgeExpired(d, '2026-10-29'), true)
+  assert.equal(d.tasks[1].doneAt, '2026-10-29')
+  assert.equal(d.tasks.length, 2)
+})
+
+test('one-off events older than two months are removed, recurring ones stay', () => {
+  const d = base()
+  const once = (id: string, date: string) => ({ id, title: id, start: '10:00', end: '11:00', date, rep: 'none' as const, cat: 'lazer', done: {} })
+  d.ev.push(once('old', '2026-08-28'), once('edge', '2026-08-29'), once('soon', '2026-11-02'))
+  d.ev[0].date = '2025-01-06'
+  purgeExpired(d, '2026-10-29')
+  assert.deepEqual(d.ev.map(e => e.id), ['e1', 'e2', 'edge', 'soon'])
+})
+
+test('nothing to remove reports no change', () => {
+  const d = base()
+  assert.equal(purgeExpired(d, '2026-10-22'), false)
+  assert.deepEqual(d, base())
 })
 
 for (const name of results) console.log(`PASS ${name}`)

@@ -13,7 +13,7 @@ export const PROFILE_ID = 'profile'
 const FIELDS: Record<Table, readonly string[]> = {
   profiles: ['name', 'photo', 'sleep', 'reset'],
   workspaces: ['id', 'name', 'notes', 'position'],
-  tasks: ['id', 'title', 'due', 'priority', 'done', 'effort', 'workspace_id', 'notes', 'position'],
+  tasks: ['id', 'title', 'due', 'priority', 'done', 'done_at', 'effort', 'workspace_id', 'notes', 'position'],
   event_categories: ['id', 'name', 'color', 'position'],
   day_categories: ['id', 'name', 'color', 'icon', 'position'],
   events: ['id', 'title', 'date', 'start_time', 'end_time', 'rep', 'days', 'category_id', 'color', 'done', 'exceptions', 'position'],
@@ -36,7 +36,7 @@ export function toRows(d: AppData): Rows {
   return {
     profiles: { [PROFILE_ID]: canonical('profiles', { name: d.name ?? '', photo: d.photo ?? null, sleep: d.sleep, reset: d.reset ?? '' }) },
     workspaces: byId('workspaces', d.workspaces, (w, position) => ({ ...w, notes: d.taskNotes?.[w.id] ?? '', position })),
-    tasks: byId('tasks', d.tasks, (t, position) => ({ id: t.id, title: t.t, due: t.due || null, priority: t.p, done: t.d, effort: t.effort || null, workspace_id: t.workspaceId ?? 'geral', notes: t.n ?? '', position })),
+    tasks: byId('tasks', d.tasks, (t, position) => ({ id: t.id, title: t.t, due: t.due || null, priority: t.p, done: t.d, done_at: t.doneAt || null, effort: t.effort || null, workspace_id: t.workspaceId ?? 'geral', notes: t.n ?? '', position })),
     event_categories: byId('event_categories', d.cats, (c, position) => ({ ...c, position })),
     day_categories: byId('day_categories', d.dayCats, (c, position) => ({ ...c, icon: c.icon ?? null, position })),
     events: byId('events', d.ev, (e, position) => ({ id: e.id, title: e.title, date: e.date, start_time: e.start, end_time: e.end, rep: e.rep, days: e.days ?? null, category_id: e.cat, color: e.color ?? null, done: e.done ?? {}, exceptions: e.ex ?? null, position })),
@@ -62,7 +62,7 @@ export function fromRows(rows: Rows, base: AppData): AppData {
     reset: p ? str(p.reset) : base.reset,
     workspaces: workspaces.map(w => ({ id: str(w.id), name: str(w.name) })),
     taskNotes: Object.fromEntries(workspaces.filter(w => w.notes).map(w => [str(w.id), str(w.notes)])),
-    tasks: ordered(rows.tasks).map(t => ({ id: str(t.id), t: str(t.title), due: str(t.due), p: t.priority as Priority, d: Boolean(t.done), effort: (t.effort ?? '') as Effort | '', workspaceId: str(t.workspace_id) || 'geral', ...(t.notes ? { n: str(t.notes) } : {}) })),
+    tasks: ordered(rows.tasks).map(t => ({ id: str(t.id), t: str(t.title), due: str(t.due), p: t.priority as Priority, d: Boolean(t.done), effort: (t.effort ?? '') as Effort | '', workspaceId: str(t.workspace_id) || 'geral', ...(t.done_at ? { doneAt: str(t.done_at) } : {}), ...(t.notes ? { n: str(t.notes) } : {}) })),
     cats: ordered(rows.event_categories).map(c => ({ id: str(c.id), name: str(c.name), color: str(c.color) })),
     dayCats: ordered(rows.day_categories).map(c => ({ id: str(c.id), name: str(c.name), color: str(c.color), ...(c.icon ? { icon: str(c.icon) } : {}) })),
     ev: ordered(rows.events).map(e => ({ id: str(e.id), title: str(e.title), date: str(e.date), start: str(e.start_time), end: str(e.end_time), rep: e.rep as Rep, cat: str(e.category_id), done: (e.done ?? {}) as Record<string, boolean>, ...(e.days ? { days: e.days as number[] } : {}), ...(e.color ? { color: str(e.color) } : {}), ...(e.exceptions ? { ex: e.exceptions as AppData['ev'][number]['ex'] } : {}) })),

@@ -7,7 +7,7 @@ export interface PEvent {
 }
 export type Priority = 'urgente' | 'alta' | 'media' | 'baixa'
 export type Effort = 'rel' | 'lig' | 'cui' | 'exi' | 'pro'
-export interface Task { id: string; t: string; due: string; p: Priority; d: boolean; effort?: Effort | ''; lv?: Effort | ''; n?: string; workspaceId?: string }
+export interface Task { id: string; t: string; due: string; p: Priority; d: boolean; doneAt?: string; effort?: Effort | ''; lv?: Effort | ''; n?: string; workspaceId?: string }
 export interface TaskWorkspace { id: string; name: string }
 export interface WorkspaceNote { id: string; workspaceId: string; text: string }
 export interface Finance { id: string; t: 'in' | 'out'; k: 'rec' | 'one'; n: string; a: number; date: string; end: string; c: string }
