@@ -49,7 +49,7 @@ A compilação e os testes requerem Node.js 22.18 ou superior (suporte nativo a 
 
 ## Publicar uma versão
 
-A versão preparada é **2.4.2**. Para publicar uma atualização:
+A versão preparada é **2.5.0**. Para publicar uma atualização:
 
 1. Define o mesmo novo número em `desktop/Program.cs` (`AppVersion`) e `desktop/installer/Syncro.iss` (`AppVersion`).
 2. Fecha o Syncro e executa `scripts/build.bat`.

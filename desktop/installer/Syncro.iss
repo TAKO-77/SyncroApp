@@ -1,5 +1,5 @@
 #define AppName "Syncro"
-#define AppVersion "2.4.2"
+#define AppVersion "2.5.0"
 #define AppExe "Syncro.exe"
 
 #if !FileExists(AddBackslash(SourcePath) + "..\..\dist\windows\Syncro.exe")
