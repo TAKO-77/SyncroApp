@@ -7,6 +7,7 @@ import { Financas } from './features/financas/Financas'
 import { Perfil } from './features/perfil/Perfil'
 import { Definicoes } from './features/perfil/Definicoes'
 import { Foco } from './features/foco/Foco'
+import { ProfileButton } from './features/perfil/ProfileButton'
 import { QuickAdd } from './components/QuickAdd'
 import { Toast } from './components/Toast'
 import { useStore } from './store/useStore'
@@ -40,7 +41,7 @@ export default function App() {
     <aside id="sidebar" className="sb" onMouseEnter={() => { if (sidebarAutoOpen) setSidebarOpen(true) }} onMouseLeave={() => { if (sidebarAutoOpen) setSidebarOpen(false) }} onFocus={() => { if (sidebarAutoOpen) setSidebarOpen(true) }} onBlur={e => { if (sidebarAutoOpen && !e.currentTarget.contains(e.relatedTarget as Node | null)) setSidebarOpen(false) }}>
       {!sidebarAutoOpen && <button className="sidebar-toggle" type="button" aria-label={sidebarOpen ? 'Fechar barra lateral' : 'Abrir barra lateral'} title={sidebarOpen ? 'Fechar barra lateral' : 'Abrir barra lateral'} aria-expanded={sidebarOpen} aria-controls="sidebar" onClick={() => setSidebarOpen(open => !open)}><PanelLeft size={20} strokeWidth={1.5} aria-hidden="true" /></button>}
       <div className="brand"><img src={syncroSymbol} alt="Syncro" width={162} height={178} /><span aria-hidden="true">SYNCRO</span></div>
-      <nav className="nav">{SECTIONS.filter(s => s.id !== 'definicoes').map(s => <button key={s.id} title={s.label} aria-label={s.label} aria-current={sec === s.id ? 'page' : undefined} onClick={() => setSec(s.id)}>{s.id === 'perfil' && data.photo ? <img className="nav-avatar" src={data.photo} alt="" /> : <s.icon size={20} strokeWidth={1.5} aria-hidden="true" />}<span>{s.label}</span></button>)}</nav>
+      <nav className="nav">{SECTIONS.filter(s => s.id !== 'definicoes' && s.id !== 'perfil').map(s => <button key={s.id} title={s.label} aria-label={s.label} aria-current={sec === s.id ? 'page' : undefined} onClick={() => setSec(s.id)}><s.icon size={20} strokeWidth={1.5} aria-hidden="true" /><span>{s.label}</span></button>)}</nav>
       {focusTimer && <Foco />}
       <nav className="nav settings-nav" aria-label="Definições"><button title="Definições" aria-label="Definições" aria-current={sec === 'definicoes' ? 'page' : undefined} onClick={() => setSec('definicoes')}><Settings size={20} strokeWidth={1.5} aria-hidden="true" /><span>Definições</span></button></nav>
     </aside>
@@ -48,7 +49,7 @@ export default function App() {
       <div className="mobile-brand"><img src={syncroLogo} alt="Syncro" width={607} height={222} /></div>
       <div className="top"><div>{sec === 'agenda' && <div className="hello">{g}{data.name ? ', ' : '.'}{data.name && <span className="nm">{data.name}</span>}</div>}
         <div className="mu cap">{now.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</div></div>
-        <button className="btn" onClick={() => setQa(true)} title="Adição rápida ( / )">⚡ Adição rápida</button></div>
+        <div className="top-actions"><button className="btn" onClick={() => setQa(true)} title="Adição rápida ( / )">⚡ Adição rápida</button><ProfileButton active={sec === 'perfil'} onClick={() => setSec('perfil')} /></div></div>
       {sec === 'agenda' && <Agenda anchor={anchor} setAnchor={setAnchor} />}
       {sec === 'calendario' && <Calendario onOpenDay={ds => { setAnchor(ds); setSec('agenda') }} />}
       {sec === 'tarefas' && <Tarefas />}
