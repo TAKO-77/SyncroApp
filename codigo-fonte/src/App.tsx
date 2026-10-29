@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { CalendarDays, CalendarClock, ListTodo, Wallet, UserRound, PanelLeft, Settings } from 'lucide-react'
+import { CalendarDays, CalendarClock, House, ListTodo, Wallet, UserRound, PanelLeft, Plus, Settings } from 'lucide-react'
+import { Inicio, TodaySummary } from './features/inicio/Inicio'
+import { DN, MN, dow } from './lib/dates'
 import { Agenda } from './features/agenda/Agenda'
 import { Calendario } from './features/calendario/Calendario'
 import { Tarefas } from './features/tarefas/Tarefas'
@@ -17,11 +19,11 @@ import { purgeExpired } from './lib/cleanup'
 const syncroSymbol = new URL('./assets/syncro-symbol.png', import.meta.url).href
 const syncroLogo = new URL('./assets/syncro-logo.png', import.meta.url).href
 
-const SECTIONS = [{ id: 'agenda', label: 'Agenda', icon: CalendarClock }, { id: 'calendario', label: 'Calendário', icon: CalendarDays }, { id: 'tarefas', label: 'Tarefas', icon: ListTodo }, { id: 'financas', label: 'Finanças', icon: Wallet }, { id: 'perfil', label: 'Perfil', icon: UserRound }, { id: 'definicoes', label: 'Definições', icon: Settings }] as const
+const SECTIONS = [{ id: 'inicio', label: 'Início', icon: House }, { id: 'agenda', label: 'Agenda', icon: CalendarClock }, { id: 'calendario', label: 'Calendário', icon: CalendarDays }, { id: 'tarefas', label: 'Tarefas', icon: ListTodo }, { id: 'financas', label: 'Finanças', icon: Wallet }, { id: 'perfil', label: 'Perfil', icon: UserRound }, { id: 'definicoes', label: 'Definições', icon: Settings }] as const
 type Id = typeof SECTIONS[number]['id']
 
 export default function App() {
-  const [sec, setSec] = useState<Id>('agenda')
+  const [sec, setSec] = useState<Id>('inicio')
   const [anchor, setAnchor] = useState(todayIso())
   const [qa, setQa] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -49,7 +51,7 @@ export default function App() {
     const k = (e: KeyboardEvent) => {
       const typing = /INPUT|SELECT|TEXTAREA/.test((document.activeElement?.tagName) ?? '')
       if ((e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !typing)) { e.preventDefault(); setQa(true); return }
-      if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey && !qa && '123456'.includes(e.key) && e.key) setSec(SECTIONS[+e.key - 1].id)
+      if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey && !qa && '1234567'.includes(e.key) && e.key) setSec(SECTIONS[+e.key - 1].id)
     }
     addEventListener('keydown', k); return () => removeEventListener('keydown', k)
   }, [qa])
@@ -64,9 +66,11 @@ export default function App() {
     </aside>
     <main>
       <div className="mobile-brand"><img src={syncroLogo} alt="Syncro" width={607} height={222} /></div>
-      <div className="top"><div>{sec === 'agenda' && <div className="hello">{g}{data.name ? ', ' : '.'}{data.name && <span className="nm">{data.name}</span>}</div>}
-        <div className="mu cap">{now.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</div></div>
-        <div className="top-actions"><button className="btn" onClick={() => setQa(true)} title="Adição rápida ( / )">⚡ Adição rápida</button><ProfileButton active={sec === 'perfil'} onClick={() => setSec('perfil')} /></div></div>
+      <div className="top"><div>{sec === 'inicio' && <><div className="hello">{g}{data.name ? ', ' : '.'}{data.name && <span className="nm">{data.name}</span>}</div><TodaySummary /></>}</div>
+        <div className="top-actions"><button type="button" className="date-pill" title={`${now.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Abrir calendário`} onClick={() => setSec('calendario')}>
+          <span>{DN[dow(now)]}, {now.getDate()} {MN[now.getMonth()]}</span><span className="mu num">{now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span><span className="date-pill-ic"><CalendarDays size={16} strokeWidth={1.5} aria-hidden="true" /></span></button>
+          <button className="btn pri" onClick={() => setQa(true)} title="Adição rápida ( / )"><Plus size={16} strokeWidth={2} aria-hidden="true" />Adição rápida</button><ProfileButton active={sec === 'perfil'} onClick={() => setSec('perfil')} /></div></div>
+      {sec === 'inicio' && <Inicio go={setSec} />}
       {sec === 'agenda' && <Agenda anchor={anchor} setAnchor={setAnchor} />}
       {sec === 'calendario' && <Calendario onOpenDay={ds => { setAnchor(ds); setSec('agenda') }} />}
       {sec === 'tarefas' && <Tarefas />}

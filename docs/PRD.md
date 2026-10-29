@@ -16,6 +16,7 @@ Establish a seamless, cross-platform productivity ecosystem that allows users to
 - Individuals seeking a centralized system to organize their daily routines and future goals.
 
 # 05 Core Features (Version 1)
+- **Home:** The start screen, with a summary of every tab: today's agenda, the most urgent tasks, this month's balance and the next special days, each linking to its tab.
 - **Calendar:** A centralized view to schedule, manage, and visualize upcoming events and appointments.
 - **Agenda:** A dedicated daily and weekly breakdown of scheduled activities and time-blocks.
 - **To-do Tasks:** A task tracking system supporting effort levels, priority tags, and due dates categorized by workspaces.
