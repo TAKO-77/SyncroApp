@@ -24,6 +24,8 @@ let outbox: Record<string, QueuedOp> = {}
 let seq = 0
 let flushing: Promise<void> | null = null
 let pulling: Promise<void> | null = null
+// Set when a pull is requested (or discarded) while another runs, so a newer change is not missed.
+let pullAgain = false
 // Bumped after every upload so a pull that overlapped one does not apply rows older than the upload.
 let uploads = 0
 let flushTimer: number | undefined
@@ -150,7 +152,11 @@ const latest = (changes: { row: Row }[], fallback: string | null) =>
   changes.reduce<string | null>((max, { row }) => { const t = String(row.updated_at ?? ''); return !max || t > max ? t : max }, fallback)
 
 export function pull(): Promise<void> {
-  if (!pulling) pulling = runPull().finally(() => { pulling = null })
+  if (pulling) { pullAgain = true; return pulling }
+  pulling = runPull().finally(() => {
+    pulling = null
+    if (pullAgain) { pullAgain = false; void pull() }
+  })
   return pulling
 }
 
@@ -163,7 +169,8 @@ async function runPull() {
   const from = since ? new Date(new Date(since).getTime() - PULL_OVERLAP_MS).toISOString() : null
   try {
     const changes = await fetchChanges(from)
-    if (gen !== generation || uploads !== uploadsBefore) return
+    if (gen !== generation) return
+    if (uploads !== uploadsBefore) { pullAgain = true; return }
     write(keys(uid).pulled, latest(changes, since))
     if (!Object.keys(outbox).length && !useSync.getState().rejected) useSync.setState({ status: 'synced', lastSync: new Date().toISOString() })
     if (!changes.length) return
