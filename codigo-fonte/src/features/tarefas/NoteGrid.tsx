@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react'
 
 const ROW = 2, GAP = 10
 
-/** Two-column masonry: each note spans as many thin grid rows as its height, so short notes fill the space beside tall ones. */
+/** Masonry: columns stretch to fill the free width, and each note spans as many thin grid rows as its height, so short notes fill the space beside tall ones. */
 export function NoteGrid({ children }: { children: ReactNode }) {
   const grid = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
