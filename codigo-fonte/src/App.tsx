@@ -26,6 +26,7 @@ export default function App() {
   const [sec, setSec] = useState<Id>('inicio')
   const [anchor, setAnchor] = useState(todayIso())
   const [agendaView, setAgendaView] = useState<AgendaView>('week')
+  const [workspaceId, setWorkspaceId] = useState('geral')
   const [qa, setQa] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { data, sidebarAutoOpen, focusTimer, theme } = useStore()
@@ -74,7 +75,7 @@ export default function App() {
       {sec === 'inicio' && <Inicio go={setSec} />}
       {sec === 'agenda' && <Agenda anchor={anchor} setAnchor={setAnchor} view={agendaView} setView={setAgendaView} />}
       {sec === 'calendario' && <Calendario onOpenDay={ds => { setAnchor(ds); setSec('agenda') }} />}
-      {sec === 'tarefas' && <Tarefas />}
+      {sec === 'tarefas' && <Tarefas workspaceId={workspaceId} setWorkspaceId={setWorkspaceId} />}
       {sec === 'financas' && <Financas />}
       {sec === 'perfil' && <Perfil />}
       {sec === 'definicoes' && <Definicoes />}

@@ -19,13 +19,12 @@ const readSort = (): SortBy => {
   try { const v = localStorage.getItem(SORT_KEY); return v === 'effort' || v === 'due' || v === 'custom' ? v : 'priority' } catch { return 'priority' }
 }
 
-export function Tarefas() {
+export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; setWorkspaceId: (id: string) => void }) {
   const { data, update } = useStore()
   const today = todayIso()
   const [open, setOpen] = useState(true)
   const [txt, setTxt] = useState(''); const [p, setP] = useState<Priority>('media'); const [du, setDu] = useState(''); const [effort, setEffort] = useState<Effort | ''>('')
   const [ed, setEd] = useState<Task | null>(null)
-  const [workspaceId, setWorkspaceId] = useState('geral')
   const [workspaceMenu, setWorkspaceMenu] = useState(false)
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
   const [sortBy, setSortBy] = useState<SortBy>(readSort)
