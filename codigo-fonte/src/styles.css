@@ -144,12 +144,14 @@ textarea{width:100%;resize:vertical}
 .agenda-special{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:2px 3px 0;padding:2px 6px;border-left:2px solid var(--ac-fill);border-radius:4px;background:var(--accent-soft);color:var(--ac);font-size:10px;font-weight:600;text-align:left}
 
 /* Dialogs and overlays */
-.ov{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(8px);display:flex;padding:14px;z-index:50;overflow-y:auto}
+.ov{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(8px);display:flex;padding:calc(14px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));z-index:50;overflow-y:auto}
 .dl{margin:auto;width:100%;max-width:440px;background:var(--s1);border:1px solid var(--l2);border-radius:20px;padding:24px;box-shadow:var(--shadow)}.dl h2{font-size:20px;margin-bottom:16px}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.w{grid-column:1/-1}.acts{display:flex;gap:8px;flex-wrap:wrap}.neg{color:var(--error)}
 .ov.qa{align-items:flex-start;padding-top:14vh}.qb{margin:0 auto;width:100%;max-width:560px;background:var(--s1);border:1px solid var(--l2);border-radius:20px;box-shadow:var(--shadow)}.qb input{width:100%;border:0;background:none;box-shadow:none;font-size:20px;padding:19px;outline:0}.qp{padding:0 19px 16px;font-size:13px}
 .confirm-ov{z-index:80}.confirm-dl{max-width:380px;display:grid;gap:10px}.confirm-dl h2{margin:0;font-size:18px}.confirm-dl p{margin:0;line-height:1.5}.confirm-dl .acts{margin-top:8px}
-.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:60;background:var(--s1);color:var(--tx);border:1px solid var(--l2);border-radius:999px;padding:10px 18px;display:flex;gap:16px;align-items:center;box-shadow:var(--shadow)}.toast button{background:none;border:0;font:inherit;font-weight:700;cursor:pointer;color:var(--ac);text-decoration:underline}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:60;background:var(--s1);color:var(--tx);border:1px solid var(--l2);border-radius:999px;padding:10px 18px;display:flex;gap:16px;align-items:center;box-shadow:var(--shadow)}.update-banner{position:fixed;top:calc(12px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:65;display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);padding:8px 8px 8px 18px;border:1px solid var(--l2);border-radius:999px;background:var(--s1);color:var(--tx);box-shadow:var(--shadow);white-space:nowrap}
+.update-banner .btn{padding:6px 14px}.update-banner-close{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:none;color:var(--mu);cursor:pointer}.update-banner-close:hover{background:var(--s2);color:var(--tx)}
+.toast button{background:none;border:0;font:inherit;font-weight:700;cursor:pointer;color:var(--ac);text-decoration:underline}
 .catrow{display:grid;grid-template-columns:minmax(0,1fr) 54px auto;gap:9px;align-items:center;margin:8px 0}.catrow.with-icon{grid-template-columns:54px minmax(0,1fr) 54px auto}.catrow .cat-icon{text-align:center;font-size:18px;padding-left:0;padding-right:0}.catrow input[type=color]{width:54px;height:38px;padding:3px;cursor:pointer}
 
 /* Calendar month grid and upcoming special days */
@@ -385,8 +387,9 @@ textarea{width:100%;resize:vertical}
 /* Short desktop screens: compact the sidebar so Settings stays visible; it scrolls as a last resort. */
 @media(min-width:761px) and (max-height:820px){.sb{padding-top:14px;padding-bottom:12px;gap:14px}.brand{height:40px}.brand img{width:32px;height:36px}.nav{gap:2px}.nav button{min-height:38px}.sb .pomo{padding:12px}.sb .pq{font-size:28px}}
 @media(max-width:760px){
-  .app,.app.sidebar-open{display:block;padding:12px 12px 96px}
-  .sb{position:fixed;inset:auto 12px 12px 12px;top:auto;height:auto;flex-direction:row;gap:0;padding:6px;z-index:30;border:1px solid var(--l2);box-shadow:var(--shadow)}
+  /* env(safe-area-inset-*) keeps content clear of the notch and the iPhone home indicator when installed as an app. */
+  .app,.app.sidebar-open{display:block;padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(96px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
+  .sb{position:fixed;inset:auto calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));top:auto;height:auto;flex-direction:row;gap:0;padding:6px;z-index:30;border:1px solid var(--l2);box-shadow:var(--shadow)}
   .sb .sidebar-toggle,.sb .brand,.sb>.btn,.sb .pomo{display:none}
   .sb>.nav{flex:5;min-width:0;flex-direction:row}.sb>.settings-nav{flex:1;min-height:0;padding-top:0;border-top:0}
   .nav button,.app:not(.sidebar-open) .nav button{flex:1;width:auto;flex-direction:column;justify-content:center;gap:3px;text-align:center;padding:6px 2px;font-size:10px}
@@ -399,6 +402,7 @@ textarea{width:100%;resize:vertical}
   input,select,textarea{font-size:16px}
   .evo{gap:4px}.evc{min-width:0}.bars i{width:auto;flex:1;max-width:22px}
   .wide-only{display:none}
+  .toast{bottom:calc(96px + env(safe-area-inset-bottom))}
   .mobile-brand{display:block;width:150px;margin-bottom:12px;overflow:hidden;border-radius:8px}.mobile-brand img{display:block;width:100%;height:auto}
   .fk,.fg2,.home-fin{grid-template-columns:1fr}.mc{min-height:56px}.tt{height:calc(100vh - 300px)}
   .kpis{gap:10px}

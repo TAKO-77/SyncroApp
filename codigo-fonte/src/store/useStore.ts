@@ -29,6 +29,11 @@ const persist = (userId: string | null, d: AppData) => {
 }
 
 type Theme = 'dark' | 'light'
+// Applies the theme to <html> and to the browser/PWA status bar colour (the --bg token of each theme).
+export function applyTheme(theme: Theme) {
+  document.documentElement.dataset.theme = theme
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#e9e9e5' : '#0c0d0d')
+}
 function loadTheme(): Theme {
   try { return localStorage.getItem('syncro-theme') === 'light' ? 'light' : 'dark' } catch { return 'dark' }
 }

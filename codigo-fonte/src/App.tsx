@@ -12,7 +12,7 @@ import { Foco } from './features/foco/Foco'
 import { ProfileButton } from './features/perfil/ProfileButton'
 import { QuickAdd } from './components/QuickAdd'
 import { Toast } from './components/Toast'
-import { useStore } from './store/useStore'
+import { applyTheme, useStore } from './store/useStore'
 import { LogoFilter, todayIso, useNow } from './components/common'
 import { cleanUpNoteImages } from './lib/noteImages'
 import { purgeExpired } from './lib/cleanup'
@@ -31,7 +31,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { data, sidebarAutoOpen, focusTimer, theme } = useStore()
   useEffect(() => { setSidebarOpen(false) }, [sidebarAutoOpen])
-  useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
+  useEffect(() => applyTheme(theme), [theme])
   useEffect(() => {
     // Removes old completed tasks and past one-off events at start-up and then every hour.
     const purge = () => {

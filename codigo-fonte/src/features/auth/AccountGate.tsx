@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { supabaseConfigured } from '../../lib/supabase'
 import { startSync, stopSync, type LegacyChoice } from '../../lib/sync/engine'
 import { initAuth, signOut, useAuth } from '../../store/useAuth'
-import { useStore } from '../../store/useStore'
+import { applyTheme, useStore } from '../../store/useStore'
 import { AuthScreen } from './AuthScreen'
 import { confirmDialog } from '../../store/confirm'
 
@@ -19,7 +19,7 @@ export function AccountGate({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
   const [attempt, setAttempt] = useState(0)
   useEffect(() => { initAuth() }, [])
-  useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
+  useEffect(() => applyTheme(theme), [theme])
   useEffect(() => {
     if (!user) return
     let active = true
