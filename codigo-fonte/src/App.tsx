@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { CalendarDays, CalendarClock, House, ListTodo, Wallet, UserRound, PanelLeft, Plus, Settings } from 'lucide-react'
 import { Inicio, TodaySummary } from './features/inicio/Inicio'
 import { DN, MN, dow } from './lib/dates'
-import { Agenda } from './features/agenda/Agenda'
+import { Agenda, type AgendaView } from './features/agenda/Agenda'
 import { Calendario } from './features/calendario/Calendario'
 import { Tarefas } from './features/tarefas/Tarefas'
 import { Financas } from './features/financas/Financas'
@@ -25,6 +25,7 @@ type Id = typeof SECTIONS[number]['id']
 export default function App() {
   const [sec, setSec] = useState<Id>('inicio')
   const [anchor, setAnchor] = useState(todayIso())
+  const [agendaView, setAgendaView] = useState<AgendaView>('week')
   const [qa, setQa] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { data, sidebarAutoOpen, focusTimer, theme } = useStore()
@@ -71,7 +72,7 @@ export default function App() {
           <span>{DN[dow(now)]}, {now.getDate()} {MN[now.getMonth()]}</span><span className="mu num">{now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span><span className="date-pill-ic"><CalendarDays size={16} strokeWidth={1.5} aria-hidden="true" /></span></button>
           <button className="btn pri" onClick={() => setQa(true)} title="Adição rápida ( / )"><Plus size={16} strokeWidth={2} aria-hidden="true" />Adição rápida</button><ProfileButton active={sec === 'perfil'} onClick={() => setSec('perfil')} /></div></div>
       {sec === 'inicio' && <Inicio go={setSec} />}
-      {sec === 'agenda' && <Agenda anchor={anchor} setAnchor={setAnchor} />}
+      {sec === 'agenda' && <Agenda anchor={anchor} setAnchor={setAnchor} view={agendaView} setView={setAgendaView} />}
       {sec === 'calendario' && <Calendario onOpenDay={ds => { setAnchor(ds); setSec('agenda') }} />}
       {sec === 'tarefas' && <Tarefas />}
       {sec === 'financas' && <Financas />}

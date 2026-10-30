@@ -27,9 +27,10 @@ function lanes(list: PEvent[]): L[] {
 const dur = (e: PEvent) => Math.max(0, mins(e.end) - mins(e.start))
 interface Form { id?: string; ds: string; title: string; start: string; end: string; date: string; rep: Rep; days: number[]; cat: string }
 
-export function Agenda({ anchor, setAnchor }: { anchor: string; setAnchor: (s: string) => void }) {
+export type AgendaView = 'week' | 'day'
+
+export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; setAnchor: (s: string) => void; view: AgendaView; setView: (v: AgendaView) => void }) {
   const { data, update } = useStore()
-  const [view, setView] = useState<'week' | 'day'>(innerWidth < 700 ? 'day' : 'week')
   const [fcat, setFcat] = useState('')
   const [form, setForm] = useState<Form | null>(null)
   const [err, setErr] = useState('')
