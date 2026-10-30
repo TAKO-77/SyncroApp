@@ -1,7 +1,7 @@
 // Cloudflare Workers static site for the web/PWA build (the Windows app does not use it).
 // Workers Builds runs `npm run build` in codigo-fonte/ and then `npx wrangler deploy`.
 {
-  "name": "syncro",
+  "name": "app",
   "compatibility_date": "2026-10-30",
   "assets": {
     "directory": "./dist",
