@@ -40,7 +40,8 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
   useEffect(() => { if (box.current) box.current.scrollTop = Math.max(0, nowM - 90) }, []) // eslint-disable-line
 
   const A = parse(anchor), N = view === 'week' ? 7 : 1
-  const first = new Date(A); if (N === 7) first.setDate(first.getDate() - dow(A))
+  // Agenda weeks run Sunday to Saturday.
+  const first = new Date(A); if (N === 7) first.setDate(first.getDate() - A.getDay())
   const days = Array.from({ length: N }, (_, i) => { const d = new Date(first); d.setDate(d.getDate() + i); return d })
   const last = days[N - 1]
   const specialDaysOn = (ds: string) => data.days
