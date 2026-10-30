@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { applyRemote, diffRows, emptyRows, fromRows, toRows, type Rows } from '../codigo-fonte/src/lib/sync/rows.ts'
+import { applyRemote, coalesce, diffRows, emptyRows, fromRows, mergeWithServer, toRows, type Rows, type SyncOp } from '../codigo-fonte/src/lib/sync/rows.ts'
 import type { AppData } from '../codigo-fonte/src/types.ts'
 import { markDone, purgeExpired } from '../codigo-fonte/src/lib/cleanup.ts'
 import { monthTotals, ymAdd } from '../codigo-fonte/src/lib/finance.ts'
@@ -45,6 +45,57 @@ test('editing one task touches only that row', () => {
   const ops = diffRows(toRows(base()), toRows(next))
   assert.deepEqual(ops.map(o => [o.table, o.id, o.deleted]), [['tasks', 't1', false]])
   assert.equal(ops[0].row.done, true)
+})
+
+test('updates list the changed columns; new rows and deletes are sent whole', () => {
+  const next = base(); next.tasks[0].d = true; next.tasks[0].n = 'Outra nota'; next.fin = []; next.days.push({ id: 'd2', n: 'Exame', ty: 'novo', s: '2026-11-04', e: '', h: '', o: '', y: false })
+  const ops = diffRows(toRows(base()), toRows(next))
+  assert.deepEqual(ops.map(o => [o.id, o.fields]), [['t1', ['done', 'notes']], ['f1', undefined], ['d2', undefined]])
+})
+
+test('queued operations for the same row keep every changed column', () => {
+  const row = toRows(base()).tasks.t1
+  const edit = (fields: string[]) => ({ table: 'tasks' as const, id: 't1', row, deleted: false, fields })
+  assert.deepEqual(coalesce(edit(['done']), edit(['notes'])).fields, ['done', 'notes'])
+  assert.equal(coalesce({ table: 'tasks', id: 't1', row, deleted: false }, edit(['notes'])).fields, undefined, 'a row not yet sent stays whole')
+  assert.equal(coalesce({ table: 'tasks', id: 't1', row, deleted: true }, edit(['notes'])).fields, undefined, 'a restored row is sent whole')
+  const del = coalesce(edit(['done']), { table: 'tasks', id: 't1', row, deleted: true })
+  assert.equal(del.deleted, true)
+  assert.equal(del.fields, undefined)
+})
+
+test('uploads keep columns changed on another device', () => {
+  const local = toRows(base()).tasks.t1
+  const server = { ...local, user_id: 'u', notes: 'Escrita no telemóvel', title: 'Relatório final', deleted: false, updated_at: 'x' }
+  const row = mergeWithServer({ table: 'tasks', id: 't1', row: { ...local, priority: 'urgente' }, deleted: false, fields: ['priority'] }, server)
+  assert.equal(row.priority, 'urgente')
+  assert.equal(row.notes, 'Escrita no telemóvel')
+  assert.equal(row.title, 'Relatório final')
+  assert.equal('updated_at' in row || 'user_id' in row || 'deleted' in row, false)
+  assert.equal(mergeWithServer({ table: 'tasks', id: 't1', row: local, deleted: false, fields: ['priority'] }, undefined), local, 'without a server row the local row is sent')
+  assert.equal(mergeWithServer({ table: 'tasks', id: 't1', row: local, deleted: false }, server), local, 'whole-row operations ignore the server row')
+})
+
+test('object columns merge key by key with the server', () => {
+  // PC ticks 26 Oct and unticks 19 Oct; meanwhile the phone ticked 2 Nov and edited an exception.
+  const next = base(); next.ev[0].done = { '2026-10-26': true }; next.ev[0].ex = { '2026-10-26': { x: 1 }, '2026-11-09': { x: 1 } }
+  const [op] = diffRows(toRows(base()), toRows(next))
+  assert.deepEqual(op.maps, { done: { set: { '2026-10-26': true }, del: ['2026-10-19'] }, exceptions: { set: { '2026-11-09': { x: 1 } }, del: [] } })
+  const server = { ...toRows(base()).events.e1, done: { '2026-10-19': true, '2026-11-02': true }, exceptions: { '2026-10-26': { start: '10:00' } } }
+  const row = mergeWithServer(op, server)
+  assert.deepEqual(row.done, { '2026-11-02': true, '2026-10-26': true })
+  assert.deepEqual(row.exceptions, { '2026-10-26': { start: '10:00' }, '2026-11-09': { x: 1 } }, 'keys not edited locally keep the server value')
+  assert.deepEqual(server.done, { '2026-10-19': true, '2026-11-02': true }, 'server row must not be mutated')
+})
+
+test('queued key-level changes accumulate', () => {
+  const r = toRows(base()).events.e1
+  const op = (maps: SyncOp['maps']) => ({ table: 'events' as const, id: 'e1', row: r, deleted: false, fields: ['done'], maps })
+  const a = op({ done: { set: { d1: true }, del: ['d0'] } }), b = op({ done: { set: { d0: true }, del: ['d1'] } })
+  assert.deepEqual(coalesce(a, b).maps, { done: { set: { d0: true }, del: ['d1'] } })
+  assert.equal(coalesce(a, { ...b, maps: undefined }).maps, undefined, 'a whole-value change wins over key changes')
+  assert.equal(coalesce({ ...a, maps: undefined }, b).maps, undefined, 'an earlier whole-value change still sends the whole value')
+  assert.deepEqual(coalesce(a, { ...b, fields: ['title'], maps: undefined }).maps, { done: { set: { d1: true }, del: ['d0'] } }, 'untouched columns keep their key changes')
 })
 
 test('removing an item becomes a soft delete', () => {

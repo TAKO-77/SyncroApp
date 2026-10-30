@@ -7,7 +7,13 @@ export const TABLES = ['profiles', 'workspaces', 'tasks', 'event_categories', 'd
 export type Table = typeof TABLES[number]
 export type Row = Record<string, unknown>
 export type Rows = Record<Table, Record<string, Row>>
-export interface SyncOp { table: Table; id: string; row: Row; deleted: boolean }
+/** Keys set and removed in an object column. */
+export interface MapPatch { set: Record<string, unknown>; del: string[] }
+/**
+ * `fields` lists the columns changed locally; without it (new rows, deletes) the whole row is sent.
+ * `maps` holds the key-level change of object columns, so edits to other keys elsewhere are kept.
+ */
+export interface SyncOp { table: Table; id: string; row: Row; deleted: boolean; fields?: string[]; maps?: Record<string, MapPatch> }
 
 export const PROFILE_ID = 'profile'
 const FIELDS: Record<Table, readonly string[]> = {
@@ -77,10 +83,65 @@ export function diffRows(prev: Rows, next: Rows): SyncOp[] {
   const ops: SyncOp[] = []
   for (const table of TABLES) {
     const a = prev[table], b = next[table]
-    for (const [id, row] of Object.entries(b)) if (!a[id] || JSON.stringify(a[id]) !== JSON.stringify(row)) ops.push({ table, id, row, deleted: false })
+    for (const [id, row] of Object.entries(b)) {
+      if (!a[id]) { ops.push({ table, id, row, deleted: false }); continue }
+      const fields = FIELDS[table].filter(f => JSON.stringify(a[id][f]) !== JSON.stringify(row[f]))
+      if (!fields.length) continue
+      const maps: Record<string, MapPatch> = {}
+      for (const f of fields) { const p = mapPatch(a[id][f], row[f]); if (p) maps[f] = p }
+      ops.push({ table, id, row, deleted: false, fields, ...(Object.keys(maps).length ? { maps } : {}) })
+    }
     for (const [id, row] of Object.entries(a)) if (!b[id]) ops.push({ table, id, row, deleted: true })
   }
   return ops
+}
+
+const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+/** Key-level change of an object column (e.g. events.done by date), or undefined when the column is not an object. */
+function mapPatch(prev: unknown, next: unknown): MapPatch | undefined {
+  if (!isMap(next) || (prev != null && !isMap(prev))) return undefined
+  const before = (prev ?? {}) as Record<string, unknown>
+  const set: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(next)) if (JSON.stringify(before[k]) !== JSON.stringify(v)) set[k] = v
+  return { set, del: Object.keys(before).filter(k => !(k in next)) }
+}
+
+/** Combines a queued operation with a newer one for the same row, keeping every changed column. */
+export function coalesce(prev: SyncOp | undefined, next: SyncOp): SyncOp {
+  if (!prev || !next.fields) return next
+  // A row created (or deleted) locally and not yet sent must still be sent whole.
+  if (!prev.fields || prev.deleted) return { table: next.table, id: next.id, row: next.row, deleted: false }
+  const fields = [...new Set([...prev.fields, ...next.fields])]
+  const maps: Record<string, MapPatch> = {}
+  for (const f of fields) {
+    // undefined: the operation did not touch the column; null: it replaced the whole value.
+    const a = prev.fields.includes(f) ? prev.maps?.[f] ?? null : undefined
+    const b = next.fields.includes(f) ? next.maps?.[f] ?? null : undefined
+    if (a === null || b === null) continue
+    if (!a || !b) { maps[f] = (a ?? b)!; continue }
+    const set = { ...a.set, ...b.set }
+    for (const k of b.del) delete set[k]
+    maps[f] = { set, del: [...new Set([...a.del.filter(k => !(k in b.set)), ...b.del])] }
+  }
+  return { table: next.table, id: next.id, row: next.row, deleted: false, fields, ...(Object.keys(maps).length ? { maps } : {}) }
+}
+
+/**
+ * Row to upload: the current server values with only the locally changed columns replaced,
+ * so edits made on another device to other columns of the same row are kept. Object columns
+ * only change the keys edited locally.
+ */
+export function mergeWithServer(op: SyncOp, server: Row | undefined): Row {
+  if (!op.fields || !server) return op.row
+  const out = canonical(op.table, server)
+  for (const f of op.fields) {
+    const patch = op.maps?.[f]
+    if (!patch) { out[f] = op.row[f]; continue }
+    const merged: Record<string, unknown> = isMap(out[f]) ? { ...out[f] } : {}
+    for (const k of patch.del) delete merged[k]
+    out[f] = Object.assign(merged, patch.set)
+  }
+  return out
 }
 
 export const emptyRows = (): Rows => Object.fromEntries(TABLES.map(t => [t, {}])) as unknown as Rows

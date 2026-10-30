@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { emptyData, parseAppData } from '../schema'
 import { LEGACY_KEY, cacheKey, readData, setCommitListener, useStore } from '../../store/useStore'
 import type { AppData } from '../../types'
-import { TABLES, applyRemote, diffRows, emptyRows, fromRows, toRows, type Row, type Rows, type SyncOp, type Table } from './rows'
+import { PROFILE_ID, TABLES, applyRemote, coalesce, diffRows, emptyRows, fromRows, mergeWithServer, toRows, type Row, type Rows, type SyncOp, type Table } from './rows'
 
 // Local-first sync: every change is applied to the local cache immediately and queued in
 // an outbox that is uploaded in the background. Remote changes are pulled by updated_at.
@@ -47,7 +47,7 @@ function saveOutbox() {
 
 function enqueue(ops: SyncOp[]) {
   if (!ops.length) return
-  for (const op of ops) outbox[opKey(op)] = { ...op, seq: ++seq }
+  for (const op of ops) outbox[opKey(op)] = { ...coalesce(outbox[opKey(op)], op), seq: ++seq }
   saveOutbox()
   clearTimeout(flushTimer)
   flushTimer = window.setTimeout(() => void flush(), 600)
@@ -61,8 +61,24 @@ const conflictTarget = (table: Table) => (table === 'profiles' ? 'user_id' : 'us
 // Invalid data (constraint or type errors) will never succeed; anything else is retried later.
 const isPermanent = (code?: string) => !!code && /^(22|23)/.test(code)
 
+/** Current server rows for the operations that change only some columns; null when they cannot be read. */
+async function serverRows(table: Table, ops: QueuedOp[], uid: string): Promise<Map<string, Row> | null> {
+  const ids = ops.filter(op => op.fields).map(op => op.id)
+  const out = new Map<string, Row>()
+  for (let i = 0; i < ids.length; i += 100) {
+    const q = supabase.from(table).select('*').eq('user_id', uid)
+    const { data, error } = await (table === 'profiles' ? q : q.in('id', ids.slice(i, i + 100)))
+    if (error) return null
+    for (const row of data as Row[]) out.set(table === 'profiles' ? PROFILE_ID : String(row.id), row)
+  }
+  return out
+}
+
 async function upload(table: Table, ops: QueuedOp[], uid: string): Promise<{ done: QueuedOp[]; rejected: QueuedOp[]; retry: boolean }> {
-  const { error } = await supabase.from(table).upsert(ops.map(op => toServer(op, uid)), { onConflict: conflictTarget(table) })
+  const server = await serverRows(table, ops, uid)
+  if (!server) return { done: [], rejected: [], retry: true }
+  const rows = ops.map(op => toServer({ ...op, row: mergeWithServer(op, server.get(op.id)) }, uid))
+  const { error } = await supabase.from(table).upsert(rows, { onConflict: conflictTarget(table) })
   uploads++
   if (!error) return { done: ops, rejected: [], retry: false }
   if (!isPermanent(error.code) || ops.length === 1) return isPermanent(error.code) ? { done: [], rejected: ops, retry: false } : { done: [], rejected: [], retry: true }
@@ -105,6 +121,8 @@ async function runFlush() {
   useSync.setState({ status: useSync.getState().rejected ? 'error' : 'synced', lastSync: new Date().toISOString() })
   // Changes made while this flush was running.
   if (Object.keys(outbox).length) window.setTimeout(() => void flush(), 0)
+  // Merged rows may carry columns changed on another device; fetch them now instead of waiting for the next pull.
+  else if (batch.some(op => op.fields)) window.setTimeout(() => void pull(), 0)
 }
 
 export function flush(): Promise<void> {
