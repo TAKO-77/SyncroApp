@@ -10,6 +10,15 @@ O Syncro reúne a agenda, o calendário, as tarefas e as finanças numa aplicaç
 
 A aplicação requer o Microsoft Edge WebView2 Runtime. O instalador verifica se está disponível e indica como o instalar, caso seja necessário.
 
+### No telemóvel
+
+O Syncro também pode ser instalado como app web (PWA):
+
+- **Android (Chrome):** abre o endereço do Syncro e escolhe **⋮ → Instalar app**.
+- **iPhone (Safari):** abre o endereço do Syncro e escolhe **Partilhar → Adicionar ao ecrã principal**.
+
+A app web abre sem ligação com os dados guardados no dispositivo e sincroniza com a mesma conta da aplicação Windows.
+
 ## Funcionalidades
 
 - **Início:** o ecrã de arranque, com um resumo de todas as abas: quantos eventos e tarefas tens para hoje, a agenda do dia, as tarefas (filtradas por hoje, semana ou todas), o saldo do mês e os próximos dias especiais. Cada cartão abre a aba correspondente e as tarefas podem ser concluídas diretamente no Início.
@@ -22,7 +31,7 @@ A aplicação requer o Microsoft Edge WebView2 Runtime. O instalador verifica se
 
 A barra lateral pode abrir ao passar o rato ou através do botão manual. Os ícones permitem mudar de aba com a barra fechada. Em ecrãs pequenos, a navegação aparece no fundo. As teclas 1 a 7 mudam de aba (Início, Agenda, Calendário, Tarefas, Finanças, Perfil e Definições) e a tecla / ou Ctrl+K abre a adição rápida.
 
-O Syncro funciona na aplicação para Windows e também num navegador. No navegador não há procura de atualizações: a página serve sempre a versão publicada.
+O Syncro funciona na aplicação para Windows e também num navegador, onde pode ser instalado como app (PWA).
 
 ## Dados e cópias de segurança
 
@@ -41,6 +50,8 @@ Ao iniciar, o Syncro verifica se existe uma versão mais recente publicada neste
 Em **Definições → Atualizações**, podes consultar a versão instalada, procurar atualizações manualmente e abrir a página de releases. A procura manual mostra o resultado e eventuais erros. A app só fecha depois de descarregar, validar e conseguir abrir o instalador, que reutiliza a pasta de instalação atual.
 
 O atualizador usa apenas releases públicas estáveis, com tag numérica (`v2.3.2` ou `V2.3.2`) e um anexo chamado **SyncroSetup.exe**. Confirma o tamanho do download e, quando fornecido pelo GitHub, o SHA-256. As falhas ficam registadas em `%LOCALAPPDATA%\Syncro\updates.log`.
+
+Na app web, quando é publicada uma versão nova aparece o aviso **Nova versão disponível**; a versão nova só é aplicada quando escolhes **Recarregar**.
 
 **Versões 2.3.0 e 2.3.1:** têm um erro na leitura dos anexos da release. É necessário descarregar e instalar manualmente a versão 2.3.2 uma vez, por cima da instalação existente, sem desinstalar. As atualizações futuras passam a usar o atualizador corrigido.
 

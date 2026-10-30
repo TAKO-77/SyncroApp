@@ -3,6 +3,7 @@
 - **Product Name:** Syncro
 - **Tagline:** Organize your life across all your devices from one unified workspace.
 - **Description:** Syncro is a cross-platform application (available natively on PC and mobile) designed to help users schedule events, track time-sensitive tasks, and capture future ideas. It consolidates productivity tools into a single, elegant interface to facilitate a more organized and pleasant life.
+- **Platforms:** a Windows desktop app and an installable web app (PWA) for phones, both sharing the same account and data.
 
 # 02 Problem
 Users currently fragment their daily planning across multiple disconnected apps—using one tool for calendars, another for daily to-do lists, and yet another for project ideation. This creates friction, especially when switching between mobile devices and desktop computers.
