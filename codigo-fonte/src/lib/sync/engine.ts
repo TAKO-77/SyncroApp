@@ -162,10 +162,13 @@ async function runPull() {
 const sync = () => { void flush().then(pull) }
 const onFocus = () => sync()
 const onOnline = () => { retryDelay = 5000; sync() }
+// Phones rarely fire focus when an installed app returns from the background, and timers pause meanwhile.
+const onVisible = () => { if (document.visibilityState === 'visible') sync() }
 
 function startLoops() {
   addEventListener('focus', onFocus)
   addEventListener('online', onOnline)
+  document.addEventListener('visibilitychange', onVisible)
   pullTimer = window.setInterval(sync, PULL_INTERVAL_MS)
   sync()
 }
@@ -173,6 +176,7 @@ function startLoops() {
 export function stopSync() {
   removeEventListener('focus', onFocus)
   removeEventListener('online', onOnline)
+  document.removeEventListener('visibilitychange', onVisible)
   clearInterval(pullTimer); clearTimeout(flushTimer); clearTimeout(retryTimer)
   generation++
   userId = null; outbox = {}
