@@ -392,11 +392,22 @@ textarea{width:100%;resize:vertical}
   .nav button,.app:not(.sidebar-open) .nav button{flex:1;width:auto;flex-direction:column;justify-content:center;gap:3px;text-align:center;padding:6px 2px;font-size:10px}
   .nav button span,.app:not(.sidebar-open) .nav button span{display:inline}
   .nav button svg{width:20px;height:20px}
-  main{padding:4px 2px 0}
+  main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;align-content:start;padding:4px 2px 0}main>*{grid-column:1/-1}
+  /* The logo and the top actions share the first row, so every tab gains a line of space. */
+  main>.mobile-brand{grid-column:1}main>.top{display:contents}.top>.top-actions{grid-column:2;grid-row:1;margin-bottom:12px}.top>div:first-child{grid-column:1/-1}.top>div:first-child:not(:empty){margin-bottom:18px}
+  /* Safari on iOS zooms into fields with text under 16px. */
+  input,select,textarea{font-size:16px}
+  .evo{gap:4px}.evc{min-width:0}.bars i{width:auto;flex:1;max-width:22px}
+  .wide-only{display:none}
   .mobile-brand{display:block;width:150px;margin-bottom:12px;overflow:hidden;border-radius:8px}.mobile-brand img{display:block;width:100%;height:auto}
   .fk,.fg2,.home-fin{grid-template-columns:1fr}.mc{min-height:56px}.tt{height:calc(100vh - 300px)}
   .kpis{gap:10px}
-  .schedule-layout main{padding-bottom:84px}.schedule-layout .mobile-brand{width:110px;margin-bottom:8px}.calendar-page .mh{padding:6px}.calendar-page .mc{padding:4px}
+  /* On phones the schedule pages scroll as a whole, so the controls above can no longer squeeze the timetable. */
+  .schedule-layout{height:auto;overflow:visible}.schedule-layout main{display:grid;height:auto;overflow:visible;padding-bottom:0}.schedule-layout .mobile-brand{width:110px;margin-bottom:8px}
+  .schedule-layout .bar{gap:6px;padding:8px}
+  .agenda-page .tt{flex:none;height:70dvh;min-height:420px}
+  .calendar-page .mg{flex:none}.calendar-page .mh{padding:6px}.calendar-page .mc{min-height:64px;padding:4px}
+  .calendar-page .upcoming-compact .upcoming-list{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.calendar-page .upcoming-compact .upcoming-item{flex:none;max-width:none}
 }
 @media(max-width:640px){.note-grid{grid-template-columns:1fr}.note-card-tools{opacity:1}}
 @media(max-width:480px){.date-pill{display:none}.kpis{grid-template-columns:minmax(0,1fr)}.fgrid{grid-template-columns:1fr}.sleep-row{grid-template-columns:38px repeat(2,minmax(0,1fr));gap:8px;padding:5px 10px}.sleep-row>:last-child{display:none}.sleep-sync>*{width:100%}.hl-row .tag{display:none}}
