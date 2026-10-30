@@ -6,7 +6,7 @@ import { flush, pull, useSync, type SyncStatus } from '../../lib/sync/engine'
 import { signOut, useAuth } from '../../store/useAuth'
 import { confirmDialog } from '../../store/confirm'
 
-const SYNC_LABEL: Record<SyncStatus, string> = { idle: 'A preparar a sincronização…', syncing: 'A sincronizar…', synced: 'Sincronizado', offline: 'Sem ligação — as alterações ficam guardadas neste computador', error: 'Não foi possível sincronizar' }
+const SYNC_LABEL: Record<SyncStatus, string> = { idle: 'A preparar a sincronização…', syncing: 'A sincronizar…', synced: 'Sincronizado', offline: 'Sem ligação — as alterações ficam guardadas neste dispositivo', error: 'Não foi possível sincronizar' }
 
 export function Definicoes() {
   const { data, replace, sidebarAutoOpen, setSidebarAutoOpen, focusTimer, setFocusTimer, theme, setTheme } = useStore()
@@ -38,7 +38,7 @@ export function Definicoes() {
     desktop.postMessage('syncro:check-for-updates')
   }
   const leave = async () => {
-    if (sync.pending && !await confirmDialog({ title: 'Terminar sessão?', message: `Há ${sync.pending} alteraç${sync.pending === 1 ? 'ão' : 'ões'} por enviar. Se terminares sessão, só serão enviadas quando voltares a entrar neste computador.`, confirmLabel: 'Terminar sessão', danger: true })) return
+    if (sync.pending && !await confirmDialog({ title: 'Terminar sessão?', message: `Há ${sync.pending} alteraç${sync.pending === 1 ? 'ão' : 'ões'} por enviar. Se terminares sessão, só serão enviadas quando voltares a entrar neste dispositivo.`, confirmLabel: 'Terminar sessão', danger: true })) return
     void signOut()
   }
   const file = useRef<HTMLInputElement>(null)
@@ -63,7 +63,7 @@ export function Definicoes() {
     <h2>Definições</h2>
     <h2 className="sub">Conta</h2>
     <p>{user?.email}</p>
-    <p className="mu" role="status" aria-live="polite">{offline ? 'Sessão sem ligação — a usar os dados guardados neste computador.' : SYNC_LABEL[sync.status]}{sync.pending ? ` · ${sync.pending} por enviar` : ''}{sync.lastSync && sync.status === 'synced' ? ` · ${new Date(sync.lastSync).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>
+    <p className="mu" role="status" aria-live="polite">{offline ? 'Sessão sem ligação — a usar os dados guardados neste dispositivo.' : SYNC_LABEL[sync.status]}{sync.pending ? ` · ${sync.pending} por enviar` : ''}{sync.lastSync && sync.status === 'synced' ? ` · ${new Date(sync.lastSync).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>
     {sync.rejected > 0 && <p className="mu">{sync.rejected} alteraç{sync.rejected === 1 ? 'ão foi recusada' : 'ões foram recusadas'} pelo servidor por conterem dados inválidos.</p>}
     <div className="row">
       <button className="btn" disabled={sync.status === 'syncing'} onClick={() => { void flush().then(pull) }}>Sincronizar agora</button>
@@ -74,7 +74,7 @@ export function Definicoes() {
       <p className="mu">{version ? `Versão instalada: ${version}` : 'A obter a versão instalada…'}</p>
       <button className="btn" disabled={checkingUpdates} onClick={checkUpdates}>{checkingUpdates ? 'A verificar…' : 'Procurar atualizações'}</button>
       <p className="mu" role="status" aria-live="polite">{updateStatus}</p>
-    </> : <p className="mu">A procura de atualizações está disponível na aplicação Windows.</p>}
+    </> : <p className="mu">No navegador, o Syncro está sempre na versão mais recente: basta recarregar a página. A procura de atualizações só existe na aplicação Windows.</p>}
     <p><a className="btn" href="https://github.com/TAKO-77/SyncroApp/releases/latest" target="_blank" rel="noreferrer">Descarregar a versão mais recente no GitHub</a></p>
     <h2 className="sub">Aparência</h2>
     <label className="ck"><input type="checkbox" checked={theme === 'light'} onChange={e => setTheme(e.target.checked ? 'light' : 'dark')} /> Modo claro</label>

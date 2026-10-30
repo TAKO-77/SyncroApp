@@ -4,7 +4,7 @@
 
 Expo + React Native e Supabase continuam a ser a arquitetura pretendida. A migração ainda não foi realizada. A implementação atual usa React/TypeScript com Vite em `codigo-fonte/` e um anfitrião Windows WebView2 em `desktop/Program.cs`. O Supabase já é usado para autenticação (email e palavra-passe) e base de dados, com tabelas por entidade protegidas por RLS (`supabase/migrations/`). A interface é local-first: lê e escreve numa cache local por utilizador, envia as alterações em segundo plano através de uma fila (`codigo-fonte/src/lib/sync/`) e recebe alterações de outros dispositivos por `updated_at`, com eliminações lógicas (`deleted`).
 
-A interface só arranca dentro do anfitrião Windows: `main.tsx` verifica a ponte do WebView2 (`lib/desktop.ts`) e, num browser normal, mostra apenas o ecrã `features/auth/DesktopOnly.tsx`. O servidor de desenvolvimento do Vite continua a funcionar no browser. A página Início (`features/inicio/`) resume as restantes abas usando os mesmos módulos que elas (`lib/finance.ts`, `lib/specialDays.ts` e `lib/tasks.ts`), para que os números coincidam.
+A interface arranca tanto dentro do anfitrião Windows como num navegador normal. A ponte do WebView2 (`lib/desktop.ts`) só existe no anfitrião; sem ela, as funções exclusivas do Windows (versão instalada e procura de atualizações) ficam escondidas. A página Início (`features/inicio/`) resume as restantes abas usando os mesmos módulos que elas (`lib/finance.ts`, `lib/specialDays.ts` e `lib/tasks.ts`), para que os números coincidam.
 
 - `docs/`: documentação do produto e design.
 - `codigo-fonte/src/`: componentes (`components/`), uma pasta por aba (`features/`), estado (`store/`) e utilitários e lógica partilhada (`lib/`).

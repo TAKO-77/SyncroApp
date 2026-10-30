@@ -22,7 +22,7 @@ A aplicação requer o Microsoft Edge WebView2 Runtime. O instalador verifica se
 
 A barra lateral pode abrir ao passar o rato ou através do botão manual. Os ícones permitem mudar de aba com a barra fechada. Em ecrãs pequenos, a navegação aparece no fundo. As teclas 1 a 7 mudam de aba (Início, Agenda, Calendário, Tarefas, Finanças, Perfil e Definições) e a tecla / ou Ctrl+K abre a adição rápida.
 
-O Syncro só funciona através da aplicação para Windows. Se a interface for aberta num browser, mostra uma ligação para transferir o instalador.
+O Syncro funciona na aplicação para Windows e também num navegador. No navegador não há procura de atualizações: a página serve sempre a versão publicada.
 
 ## Dados e cópias de segurança
 
