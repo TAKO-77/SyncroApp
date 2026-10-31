@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useStore } from '../../store/useStore'
+import { flushSync } from 'react-dom'
+import { applyTheme, useStore } from '../../store/useStore'
 import { parseAppData } from '../../lib/schema'
 import { desktop } from '../../lib/desktop'
 import { flush, pull, useSync, type SyncStatus } from '../../lib/sync/engine'
@@ -13,6 +14,17 @@ export function Definicoes() {
   const { user, offline } = useAuth()
   const sync = useSync()
   const [msg, setMsg] = useState('')
+  /** Changes the theme with a circle that grows from the switch over the old screen (View Transitions). */
+  const switchTheme = (next: 'dark' | 'light', from: HTMLElement) => {
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => { ready: Promise<void> } }
+    if (!doc.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) { setTheme(next); return }
+    const r = from.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2
+    const end = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
+    doc.startViewTransition(() => { flushSync(() => setTheme(next)); applyTheme(next) }).ready.then(() => {
+      document.documentElement.animate({ clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${end}px at ${x}px ${y}px)`] },
+        { duration: 600, easing: 'cubic-bezier(.4,0,.2,1)', pseudoElement: '::view-transition-new(root)' })
+    }).catch(() => undefined)
+  }
   const [version, setVersion] = useState('')
   const [updateStatus, setUpdateStatus] = useState('')
   const [checkingUpdates, setCheckingUpdates] = useState(false)
@@ -77,12 +89,12 @@ export function Definicoes() {
     </> : <p className="mu">No navegador, o Syncro está sempre na versão mais recente: basta recarregar a página. A procura de atualizações só existe na aplicação Windows.</p>}
     <p><a className="btn" href="https://github.com/TAKO-77/SyncroApp/releases/latest" target="_blank" rel="noreferrer">Descarregar a versão mais recente no GitHub</a></p>
     <h2 className="sub">Aparência</h2>
-    <label className="ck"><input type="checkbox" checked={theme === 'light'} onChange={e => setTheme(e.target.checked ? 'light' : 'dark')} /> Modo claro</label>
+    <label className="ck"><input type="checkbox" className="sw" role="switch" checked={theme === 'light'} onChange={e => switchTheme(e.target.checked ? 'light' : 'dark', e.currentTarget)} /> Modo claro</label>
     <div className="wide-only">
       <h2 className="sub">Barra lateral</h2>
-      <label className="ck"><input type="checkbox" checked={sidebarAutoOpen} onChange={e => setSidebarAutoOpen(e.target.checked)} aria-describedby="sidebar-preference-description" /> Abrir automaticamente ao passar o rato</label>
+      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={sidebarAutoOpen} onChange={e => setSidebarAutoOpen(e.target.checked)} aria-describedby="sidebar-preference-description" /> Abrir automaticamente ao passar o rato</label>
       <p id="sidebar-preference-description" className="mu">{sidebarAutoOpen ? 'Ativo — a barra abre automaticamente ao passar o rato.' : 'Desativado — usa os ícones para mudar de aba ou o botão no topo da barra para abrir e fechar manualmente.'}</p>
-      <label className="ck"><input type="checkbox" checked={focusTimer} onChange={e => setFocusTimer(e.target.checked)} /> Mostrar temporizador de foco</label>
+      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={focusTimer} onChange={e => setFocusTimer(e.target.checked)} /> Mostrar temporizador de foco</label>
     </div>
     <h2 className="sub">Dados e cópia de segurança</h2>
     <div className="row">

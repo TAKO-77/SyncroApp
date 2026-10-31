@@ -97,7 +97,7 @@ One family: **Manrope** (400, 500, 600, 700), loaded from Google Fonts in `codig
 
 # 06 Components
 ## Shell
-- **Sidebar:** floating panel (`--s1`, 20px radius) beside the page; 72px collapsed, 240px expanded, with optional auto-open on hover. Active item: accent-soft gradient fading to the right, 1px inner border, icon in `--ac`. Settings sits at the bottom above a divider. The focus timer is a card with an amber glow.
+- **Sidebar:** floating panel (`--s1`, 20px radius) beside the page; 72px collapsed, 240px expanded, with optional auto-open on hover. Active item: accent-soft gradient fading to the right, 1px inner border, icon in `--ac`. Settings sits at the bottom above a divider. The focus timer is a card with an amber glow and an orb (`.orb`) beside the time: it breathes when idle, pulses while running, bounces when done and turns slate for a break.
 - **Top bar:** greeting (Início only) and the date on the left; "Adição rápida" primary pill and the round profile button on the right.
 - **Início hero (`.top.hero`):** on Início the top bar is a card (`--s1`, 20px radius) with a slow amber/slate aurora (`--hero-1..3`, blurred radial gradients, 22s loop) and film grain (`--hero-grain`) behind it; both are tuned per theme. On mobile the card wraps only the greeting. Pure CSS, static under reduced motion.
 - **Mobile (≤ 760px):** the sidebar becomes a floating bottom bar inset 12px from the edges, with a shadow.
@@ -109,6 +109,7 @@ One family: **Manrope** (400, 500, 600, 700), loaded from Google Fonts in `codig
 - **Segmented control (`.seg`):** pill track on `--s2`; the selected option is a raised pill (`--s3` with an accent-soft tint and inner border). With a `Glider` child (and in the sidebar nav) that pill is one element that slides between options, stretching over both on the way.
 - **Motion:** sections fade in on open (`page-in`); the Início greeting reveals letter by letter out of a blur (`RevealText`). Everything respects `prefers-reduced-motion`.
 - **Chips (`.chip`, `.cp`):** outlined pills with an 8px colour dot from `--c`; selected state uses the category colour as border and a 14% tint.
+- **Switch (`.ck input.sw`, role=switch):** 40×22 pill, amber when on; the thumb stretches while pressed and overshoots on a spring. Toggling the light theme grows the new theme in a circle from the switch (View Transitions).
 - **Scrollbars:** 10px wide (8px in pickers, selects and textareas), no arrow buttons, transparent track, pill thumb in `--mu` at 30% (55% on hover, a deeper amber, `--ac-fill` mixed 70% with black, while dragging). Styled with `::-webkit-scrollbar`, so don't set `scrollbar-width` or `scrollbar-color` on an element unless you want to hide its scrollbar (Chromium ignores the pseudo-elements once those are set).
 - **Pickers (`DatePicker`, `TimePicker`, `Select`):** popover (`.pop`, 16px radius); the selected day is an amber fill, today has an amber ring.
 
