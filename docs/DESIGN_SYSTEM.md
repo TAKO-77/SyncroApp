@@ -131,7 +131,8 @@ One family: **Manrope** (400, 500, 600, 700), loaded from Google Fonts in `codig
 - **Dialog (`Modal`):** `--s1`, 1px `--l2`, 20px radius, `--shadow`, backdrop of the shell colour at 78% with an 8px blur.
 - **Confirmation dialog:** max-width 380px, `.dng-solid` confirm button.
 - **Quick add:** command-style dialog, max-width 560px, 20px input text.
-- **Toast:** pill at the bottom centre, `--s1`, action link in `--ac`.
+- **Toast:** pill at the bottom centre, `--s1`, action link in `--ac`; a 2px amber countdown line empties along the bottom (paused on hover) and the toast slides down when it closes.
+- **Picker motion:** a new month in the date picker slides in from the side it came from; `Select` options fade in one after another.
 
 ## Screens
 - **Início (`features/inicio/Inicio.tsx`):** four KPI cards (agenda, tasks, month balance, special days), then a two-column grid with today's agenda, the most urgent tasks, a six-month finance chart with the top expense categories, and the next special days.

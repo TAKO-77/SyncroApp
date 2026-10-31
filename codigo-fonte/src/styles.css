@@ -195,6 +195,18 @@ textarea{width:100%;resize:vertical}
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:60;background:var(--s1);color:var(--tx);border:1px solid var(--l2);border-radius:999px;padding:10px 18px;display:flex;gap:16px;align-items:center;box-shadow:var(--shadow)}.update-banner{position:fixed;top:calc(12px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:65;display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);padding:8px 8px 8px 18px;border:1px solid var(--l2);border-radius:999px;background:var(--s1);color:var(--tx);box-shadow:var(--shadow);white-space:nowrap}
 .update-banner .btn{padding:6px 14px}.update-banner-close{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:none;color:var(--mu);cursor:pointer}.update-banner-close:hover{background:var(--s2);color:var(--tx)}
 .toast button{background:none;border:0;font:inherit;font-weight:700;cursor:pointer;color:var(--ac);text-decoration:underline}
+/* Toast countdown: an amber line that empties until the toast closes; it pauses while hovered. */
+.toast-bar{position:absolute;left:18px;right:18px;bottom:-1px;height:2px;border-radius:999px;background:var(--ac-fill);opacity:.7;transform-origin:left;animation:toast-bar linear forwards}
+.toast:hover .toast-bar{animation-play-state:paused}
+.toast.out{animation:toast-out .2s ease forwards;pointer-events:none}
+@keyframes toast-bar{to{transform:scaleX(0)}}
+@keyframes toast-out{to{opacity:0;transform:translate(-50%,16px) scale(.96)}}
+/* Pickers: a new month slides in from the side it came from; list options fade in one after another. */
+.cal-grid.next .pk-opt,.cal-head strong.next{animation:cal-next .24s cubic-bezier(.2,.75,.25,1) backwards}
+.cal-grid.prev .pk-opt,.cal-head strong.prev{animation:cal-prev .24s cubic-bezier(.2,.75,.25,1) backwards}
+@keyframes cal-next{from{opacity:0;transform:translateX(14px)}}
+@keyframes cal-prev{from{opacity:0;transform:translateX(-14px)}}
+.sel-opt{animation:fade-up .22s cubic-bezier(.2,.75,.25,1) backwards;animation-delay:calc(var(--i,0) * 18ms)}
 .catrow{display:grid;grid-template-columns:minmax(0,1fr) 54px auto;gap:9px;align-items:center;margin:8px 0}.catrow.with-icon{grid-template-columns:54px minmax(0,1fr) 54px auto}.catrow .cat-icon{text-align:center;font-size:18px;padding-left:0;padding-right:0}.catrow input[type=color]{width:54px;height:38px;padding:3px;cursor:pointer}
 
 /* Calendar month grid and upcoming special days */

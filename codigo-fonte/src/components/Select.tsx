@@ -15,7 +15,7 @@ export function Select<T extends string | number>({ value, options, onChange, cl
     text={current?.label ?? 'Escolher'}
     panel={close => <div className="sel-list" role="listbox" aria-label={label}
       onKeyDown={e => moveFocus(e, { ArrowUp: -1, ArrowDown: 1, Home: -999, End: 999 })}>
-      {options.map(o => <button key={String(o.value)} type="button" role="option" className="sel-opt" aria-selected={o.value === value}
+      {options.map((o, k) => <button key={String(o.value)} type="button" role="option" className="sel-opt" aria-selected={o.value === value} style={{ ['--i' as string]: Math.min(k, 10) }}
         tabIndex={o === initial ? 0 : -1} data-initial={o === initial || undefined} onClick={() => { onChange(o.value); close() }}>
         {o.color && <span className="sel-dot" style={{ ['--c' as string]: o.color }} aria-hidden="true" />}
         <span className="sel-text">{o.label}{o.hint && <small>{o.hint}</small>}</span>

@@ -29,6 +29,10 @@ function Calendar({ value, min, required, onPick }: { value: string; min?: strin
     fromKeyboard.current = false
   }, [cursor])
 
+  // Which way the days slide in: forward when moving to a later month, back to an earlier one.
+  const ym = cursor.slice(0, 7), slide = useRef({ ym, dir: '' })
+  if (slide.current.ym !== ym) slide.current = { ym, dir: ym > slide.current.ym ? 'next' : 'prev' }
+
   const shown = parse(cursor), first = new Date(shown.getFullYear(), shown.getMonth(), 1)
   const start = addDays(iso(first), -dow(first))
   const weeks = Math.ceil((dow(first) + new Date(shown.getFullYear(), shown.getMonth() + 1, 0).getDate()) / 7)
@@ -37,10 +41,10 @@ function Calendar({ value, min, required, onPick }: { value: string; min?: strin
   return <>
     <div className="cal-head">
       <button type="button" className="cal-nav" aria-label="Mês anterior" onClick={() => setCursor(addMonths(cursor, -1))}>‹</button>
-      <strong>{MONTHS[shown.getMonth()]} {shown.getFullYear()}</strong>
+      <strong key={ym} className={slide.current.dir}>{MONTHS[shown.getMonth()]} {shown.getFullYear()}</strong>
       <button type="button" className="cal-nav" aria-label="Mês seguinte" onClick={() => setCursor(addMonths(cursor, 1))}>›</button>
     </div>
-    <div className="cal-grid" ref={grid} onKeyDown={e => {
+    <div key={ym} className={'cal-grid ' + slide.current.dir} ref={grid} onKeyDown={e => {
       const move = DAY_KEYS[e.key]
       if (!move) return
       e.preventDefault(); fromKeyboard.current = true; setCursor(move(cursor))
