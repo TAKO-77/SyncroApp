@@ -12,6 +12,7 @@ import type { PEvent, Rep } from '../../types'
 import { DatePicker } from '../../components/DatePicker'
 import { TimePicker } from '../../components/TimePicker'
 import { Select } from '../../components/Select'
+import { Glider } from '../../components/Glider'
 
 type L = PEvent & { l: number; n: number }
 function lanes(list: PEvent[]): L[] {
@@ -133,7 +134,7 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
       <button className="btn ghost" onClick={() => { setAnchor(td); if (box.current) box.current.scrollTop = Math.max(0, nowM - 90) }}>Hoje</button>
       <Select value={fcat} onChange={setFcat} aria-label="Filtrar por categoria" options={[{ value: '', label: 'Todas as categorias' }, ...data.cats.map(c => ({ value: c.id, label: c.name, color: c.color }))]} />
       <button className="btn" onClick={() => setCm(true)}>Categorias</button>
-      <div className="seg"><button aria-pressed={view === 'week'} onClick={() => setView('week')}>Semana</button><button aria-pressed={view === 'day'} onClick={() => setView('day')}>Dia</button></div>
+      <div className="seg"><button aria-pressed={view === 'week'} onClick={() => setView('week')}>Semana</button><button aria-pressed={view === 'day'} onClick={() => setView('day')}>Dia</button><Glider /></div>
       <button className="btn pri" onClick={() => openNew(anchor, anchor === td ? Math.min(nowM + 1, 1439) : 540)}>Novo evento</button>
     </div>
     <div className="tt" ref={box} tabIndex={0} role="region" aria-label="Horário da agenda">

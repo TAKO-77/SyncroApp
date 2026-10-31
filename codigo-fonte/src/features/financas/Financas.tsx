@@ -11,6 +11,7 @@ import { CountUp } from '../../components/CountUp'
 import { Sparkline } from '../../components/Sparkline'
 import { EmptyState } from '../../components/EmptyState'
 import { Wallet } from 'lucide-react'
+import { Glider } from '../../components/Glider'
 
 interface F { id?: string; t: 'in' | 'out'; k: 'rec' | 'one'; n: string; a: string; date: string; end: string; c: string }
 
@@ -69,8 +70,8 @@ export function Financas() {
     </div>
     {f && <Modal title={f.id ? 'Editar registo' : 'Novo registo'} onClose={() => setF(null)}>
       <form className="fgrid" onSubmit={save}>
-        <div className="w seg">{(['in', 'out'] as const).map(v => <button key={v} type="button" aria-pressed={f.t === v} onClick={() => setF({ ...f, t: v })}>{v === 'in' ? 'Ganho' : 'Despesa'}</button>)}</div>
-        <div className="w seg">{(['rec', 'one'] as const).map(v => <button key={v} type="button" aria-pressed={f.k === v} onClick={() => setF({ ...f, k: v })}>{v === 'rec' ? 'Mensal recorrente' : 'Esporádico'}</button>)}</div>
+        <div className="w seg">{(['in', 'out'] as const).map(v => <button key={v} type="button" aria-pressed={f.t === v} onClick={() => setF({ ...f, t: v })}>{v === 'in' ? 'Ganho' : 'Despesa'}</button>)}<Glider /></div>
+        <div className="w seg">{(['rec', 'one'] as const).map(v => <button key={v} type="button" aria-pressed={f.k === v} onClick={() => setF({ ...f, k: v })}>{v === 'rec' ? 'Mensal recorrente' : 'Esporádico'}</button>)}<Glider /></div>
         <label className="w">Descrição<input value={f.n} required maxLength={60} autoFocus onChange={e => setF({ ...f, n: e.target.value })} /></label>
         <label>Valor (€)<input type="number" min="0.01" step="0.01" required inputMode="decimal" value={f.a} onChange={e => setF({ ...f, a: e.target.value })} /></label>
         <label>{f.k === 'rec' ? 'Começa em' : 'Data'}<DatePicker required value={f.date} onChange={date => setF({ ...f, date })} /></label>

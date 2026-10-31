@@ -6,6 +6,7 @@ import { eventsOn } from '../../lib/recurrence'
 import { sleepIv } from '../../lib/sleep'
 import { todayIso } from '../../components/common'
 import { Donut, type Slice } from '../../components/Donut'
+import { Glider } from '../../components/Glider'
 
 export function Dashboard() {
   const { data } = useStore()
@@ -23,7 +24,7 @@ export function Dashboard() {
   const plan = cr.reduce((q, r) => q + r.v, 0), P = Math.max(days * 1440, plan)
   const rows: Slice[] = [...cr, ...(sl ? [{ id: 'sono', name: 'Sono', color: PALETTE.slate, v: sl }] : []), { id: 'free', name: 'Tempo livre', color: PALETTE.muted, v: Math.max(0, P - plan - sl) }]
   return <>
-    <div className="seg dsw"><button aria-pressed={per === 'week'} onClick={() => setPer('week')}>Semana</button><button aria-pressed={per === 'month'} onClick={() => setPer('month')}>Mês</button></div>
+    <div className="seg dsw"><button aria-pressed={per === 'week'} onClick={() => setPer('week')}>Semana</button><button aria-pressed={per === 'month'} onClick={() => setPer('month')}>Mês</button><Glider /></div>
     {plan ? <Donut rows={rows} P={P} fv={fmt} center={fmt(plan)} label="planeadas" /> : <p className="mu">Ainda não há eventos neste período.</p>}
   </>
 }

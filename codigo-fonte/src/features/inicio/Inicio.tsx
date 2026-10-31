@@ -13,6 +13,7 @@ import { CountUp } from '../../components/CountUp'
 import { Sparkline } from '../../components/Sparkline'
 import { EmptyState } from '../../components/EmptyState'
 import type { PEvent, Priority } from '../../types'
+import { Glider } from '../../components/Glider'
 
 export type HomeTarget = 'agenda' | 'calendario' | 'tarefas' | 'financas'
 const LIMIT = 5
@@ -113,7 +114,7 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
 
       <article className="card">
         <div className="card-h"><h3>Tarefas</h3>
-          <span className="card-acts"><span className="seg sm" role="group" aria-label="Período das tarefas">{RANGES.map(x => <button key={x.id} type="button" aria-pressed={range === x.id} onClick={() => setRange(x.id)}>{x.label}</button>)}</span>{more('tarefas', 'Ver tarefas')}</span></div>
+          <span className="card-acts"><span className="seg sm" role="group" aria-label="Período das tarefas">{RANGES.map(x => <button key={x.id} type="button" aria-pressed={range === x.id} onClick={() => setRange(x.id)}>{x.label}</button>)}<Glider /></span>{more('tarefas', 'Ver tarefas')}</span></div>
         {shown.length ? <div className="hl">{shown.slice(0, LIMIT).map(t => {
           const [lbl, isLate] = dueLabel(t.due, today)
           return <label key={t.id} className="hl-row task-row">

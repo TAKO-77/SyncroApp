@@ -9,6 +9,7 @@ import { confirmDialog } from '../../store/confirm'
 import { Select } from '../../components/Select'
 import { markDone } from '../../lib/cleanup'
 import { LK, LV, PC, PN, dueLabel } from '../../lib/tasks'
+import { Glider } from '../../components/Glider'
 
 const NX: Record<Priority, Priority> = { urgente: 'alta', alta: 'media', media: 'baixa', baixa: 'urgente' }
 type SortBy = 'priority' | 'effort' | 'due' | 'custom'
@@ -104,7 +105,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
   const deleteNote = (id: string) => update(d => { d.notes = d.notes.filter(n => n.id !== id) })
 
   return <section className="page tasks-page"><div className="tasks-main">
-    <div className="head2"><h2>Tarefas</h2><div className="seg"><button aria-pressed={open} onClick={() => setOpen(true)}>Pendentes {nOpen}</button><button aria-pressed={!open} onClick={() => setOpen(false)}>Concluídas {scoped.length - nOpen}</button></div></div>
+    <div className="head2"><h2>Tarefas</h2><div className="seg"><button aria-pressed={open} onClick={() => setOpen(true)}>Pendentes {nOpen}</button><button aria-pressed={!open} onClick={() => setOpen(false)}>Concluídas {scoped.length - nOpen}</button><Glider /></div></div>
     <div className="workspace-bar"><div className="workspace-picker">
       <button className="workspace-current" type="button" aria-expanded={workspaceMenu} onClick={() => setWorkspaceMenu(!workspaceMenu)}><span className="workspace-mark">▦</span><span><small>ESPAÇO DE TRABALHO</small><b>{workspace?.name ?? 'Geral'}</b></span><span className="workspace-chevron">⌄</span></button>
       {workspaceMenu && <div className="workspace-menu">

@@ -106,7 +106,8 @@ One family: **Manrope** (400, 500, 600, 700), loaded from Google Fonts in `codig
 - **Primary button (`.btn.pri`):** amber pill (`--ac-fill`), `--accent-text`, weight 700; lifts 1px with a glow on hover.
 - **Button (`.btn`):** `--s2` pill with 1px `--l2` border, 13px/600; border turns amber on hover; scales to 95% when pressed. Variants: `.ghost`, `.dng` (error text), `.dng-solid` (solid error), `.sq` (36px icon button), `.sm` (30px).
 - **Inputs, selects, textareas, picker fields:** `--s2`, 1px `--l2`, 12px radius; amber border and a 3px accent-soft halo on focus.
-- **Segmented control (`.seg`):** pill track on `--s2`; the selected option is a raised pill (`--s3` with an accent-soft tint and inner border).
+- **Segmented control (`.seg`):** pill track on `--s2`; the selected option is a raised pill (`--s3` with an accent-soft tint and inner border). With a `Glider` child (and in the sidebar nav) that pill is one element that slides between options, stretching over both on the way.
+- **Motion:** sections fade in on open (`page-in`); the Início greeting reveals letter by letter out of a blur (`RevealText`). Everything respects `prefers-reduced-motion`.
 - **Chips (`.chip`, `.cp`):** outlined pills with an 8px colour dot from `--c`; selected state uses the category colour as border and a 14% tint.
 - **Scrollbars:** 10px wide (8px in pickers, selects and textareas), no arrow buttons, transparent track, pill thumb in `--mu` at 30% (55% on hover, a deeper amber, `--ac-fill` mixed 70% with black, while dragging). Styled with `::-webkit-scrollbar`, so don't set `scrollbar-width` or `scrollbar-color` on an element unless you want to hide its scrollbar (Chromium ignores the pseudo-elements once those are set).
 - **Pickers (`DatePicker`, `TimePicker`, `Select`):** popover (`.pop`, 16px radius); the selected day is an amber fill, today has an amber ring.
