@@ -73,6 +73,20 @@ main{padding:4px 8px 40px;min-width:0}
 .hello-sub{margin:4px 0 0;color:var(--mu);font-size:15px}
 .date-pill{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 5px 0 16px;border:1px solid var(--l1);border-radius:999px;background:var(--s1);color:var(--tx);font:600 13px var(--font);cursor:pointer;transition:border-color .15s}
 .date-pill:hover{border-color:var(--ac-fill)}
+/* Início hero: the top bar becomes a panel with a slow amber aurora and film grain behind the greeting.
+   On phones .top is display:contents, so the panel moves to the greeting block (see the 760px block). */
+.hero,.hero>div:first-child{--hero-1:rgba(255,176,32,.34);--hero-2:rgba(255,120,40,.2);--hero-3:rgba(159,176,192,.16);--hero-grain:.09}
+:root[data-theme=light] .hero,:root[data-theme=light] .hero>div:first-child{--hero-1:rgba(255,176,32,.32);--hero-2:rgba(255,140,60,.16);--hero-3:rgba(120,140,170,.14);--hero-grain:.05}
+.top.hero{position:relative;isolation:isolate;overflow:hidden;min-height:132px;padding:26px 28px;border:1px solid var(--l1);border-radius:20px;background:var(--s1);animation:fade-in .5s ease backwards}
+.hero::before,.hero>div:first-child::before{content:"";position:absolute;inset:-60% -20%;z-index:-1;pointer-events:none;
+  background:radial-gradient(32% 48% at 18% 40%,var(--hero-1),transparent 70%),radial-gradient(28% 42% at 62% 72%,var(--hero-2),transparent 70%),radial-gradient(30% 46% at 88% 22%,var(--hero-3),transparent 70%);
+  filter:blur(36px);animation:aurora 22s ease-in-out infinite alternate}
+.hero::after,.hero>div:first-child::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:var(--hero-grain);mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.hero>div:first-child::before,.hero>div:first-child::after{display:none}
+.hero .hello{font-size:clamp(28px,3vw,38px)}
+.hero .date-pill{background:color-mix(in srgb,var(--s1) 70%,transparent);backdrop-filter:blur(8px)}
+@keyframes aurora{0%{transform:translate3d(-4%,0,0) rotate(0) scale(1)}50%{transform:translate3d(3%,4%,0) rotate(6deg) scale(1.08)}100%{transform:translate3d(6%,-3%,0) rotate(-4deg) scale(1.02)}}
 .date-pill-ic{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--s2);color:var(--ac)}
 
 /* Focus timer card in the sidebar */
@@ -398,6 +412,8 @@ textarea{width:100%;resize:vertical}
   main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;align-content:start;padding:4px 2px 0}main>*{grid-column:1/-1}
   /* The logo and the top actions share the first row, so every tab gains a line of space. */
   main>.mobile-brand{grid-column:1}main>.top{display:contents}.top>.top-actions{grid-column:2;grid-row:1;margin-bottom:12px}.top>div:first-child{grid-column:1/-1}.top>div:first-child:not(:empty){margin-bottom:18px}
+  .top.hero{padding:0;border:0;min-height:0;animation:none}.hero::before,.hero::after{display:none}.hero>div:first-child::before,.hero>div:first-child::after{display:block}
+  .hero>div:first-child{position:relative;isolation:isolate;overflow:hidden;padding:20px;border:1px solid var(--l1);border-radius:20px;background:var(--s1)}
   /* Safari on iOS zooms into fields with text under 16px. */
   input,select,textarea{font-size:16px}
   .evo{gap:4px}.evc{min-width:0}.bars i{width:auto;flex:1;max-width:22px}

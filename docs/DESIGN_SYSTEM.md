@@ -99,6 +99,7 @@ One family: **Manrope** (400, 500, 600, 700), loaded from Google Fonts in `codig
 ## Shell
 - **Sidebar:** floating panel (`--s1`, 20px radius) beside the page; 72px collapsed, 240px expanded, with optional auto-open on hover. Active item: accent-soft gradient fading to the right, 1px inner border, icon in `--ac`. Settings sits at the bottom above a divider. The focus timer is a card with an amber glow.
 - **Top bar:** greeting (Início only) and the date on the left; "Adição rápida" primary pill and the round profile button on the right.
+- **Início hero (`.top.hero`):** on Início the top bar is a card (`--s1`, 20px radius) with a slow amber/slate aurora (`--hero-1..3`, blurred radial gradients, 22s loop) and film grain (`--hero-grain`) behind it; both are tuned per theme. On mobile the card wraps only the greeting. Pure CSS, static under reduced motion.
 - **Mobile (≤ 760px):** the sidebar becomes a floating bottom bar inset 12px from the edges, with a shadow.
 
 ## Controls

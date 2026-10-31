@@ -68,7 +68,7 @@ export default function App() {
     </aside>
     <main>
       <div className="mobile-brand"><img src={syncroLogo} alt="Syncro" width={607} height={222} /></div>
-      <div className="top"><div>{sec === 'inicio' && <><div className="hello">{g}{data.name ? ', ' : '.'}{data.name && <span className="nm">{data.name}</span>}</div><TodaySummary /></>}</div>
+      <div className={'top' + (sec === 'inicio' ? ' hero' : '')}><div>{sec === 'inicio' && <><div className="hello">{g}{data.name ? ', ' : '.'}{data.name && <span className="nm">{data.name}</span>}</div><TodaySummary /></>}</div>
         <div className="top-actions"><button type="button" className="date-pill" title={`${now.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Abrir calendário`} onClick={() => setSec('calendario')}>
           <span>{DN[dow(now)]}, {now.getDate()} {MN[now.getMonth()]}</span><span className="mu num">{now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span><span className="date-pill-ic"><CalendarDays size={16} strokeWidth={1.5} aria-hidden="true" /></span></button>
           <button className="btn pri" onClick={() => setQa(true)} title="Adição rápida ( / )"><Plus size={16} strokeWidth={2} aria-hidden="true" />Adição rápida</button><ProfileButton active={sec === 'perfil'} onClick={() => setSec('perfil')} /></div></div>
