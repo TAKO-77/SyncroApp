@@ -7,6 +7,10 @@ import { Modal, todayIso, uid } from '../../components/common'
 import { Donut } from '../../components/Donut'
 import type { Finance } from '../../types'
 import { DatePicker, MonthPicker } from '../../components/DatePicker'
+import { CountUp } from '../../components/CountUp'
+import { Sparkline } from '../../components/Sparkline'
+import { EmptyState } from '../../components/EmptyState'
+import { Wallet } from 'lucide-react'
 
 interface F { id?: string; t: 'in' | 'out'; k: 'rec' | 'one'; n: string; a: string; date: string; end: string; c: string }
 
@@ -46,13 +50,14 @@ export function Financas() {
       <button className="btn sq" onClick={() => setYm(ymAdd(ym, 1))} aria-label="Mês seguinte">›</button>
       <button className="btn ghost" onClick={() => setYm(todayIso().slice(0, 7))}>Hoje</button></div>
     <div className={'fwrap' + mask}>
-      {!data.fin.length ? <div className="tem">Ainda não há registos. Começa por adicionar o teu ordenado (ganho mensal recorrente) e as despesas fixas.</div> : <>
+      {!data.fin.length ? <div className="fc"><EmptyState icon={<Wallet size={22} strokeWidth={1.5} />} title="Ainda não há registos" text="Começa por adicionar o teu ordenado (ganho mensal recorrente) e as despesas fixas." action={<button className="btn pri" onClick={() => open()}>Novo registo</button>} /></div> : <>
         <div className="fk">
-          <div className="fc"><span className="fl">Saldo do mês</span><b className={'fv big ' + (bal < 0 ? 'neg' : 'pos')}>{bal > 0 ? '+' : ''}{eur(bal)}</b><small>{T.i ? (bal >= 0 ? `Taxa de poupança de ${Math.round(bal / T.i * 100)}%` : 'Despesas acima dos ganhos') : 'Sem ganhos registados neste mês'}</small></div>
-          <div className="fc"><span className="fl">Ganhos</span><b className="fv">{eur(T.i)}</b></div>
-          <div className="fc"><span className="fl">Despesas</span><b className="fv">{eur(T.o)}</b></div></div>
+          <div className="fc"><span className="fl">Saldo do mês</span><span className="kpi-row"><b className={'fv big ' + (bal < 0 ? 'neg' : 'pos')}>{bal > 0 ? '+' : ''}<CountUp value={bal} format={eur} /></b><Sparkline values={months.map(x => x.i - x.o)} color={bal >= 0 ? 'var(--success)' : 'var(--error)'} label="Saldo dos últimos 6 meses" /></span><small>{T.i ? (bal >= 0 ? `Taxa de poupança de ${Math.round(bal / T.i * 100)}%` : 'Despesas acima dos ganhos') : 'Sem ganhos registados neste mês'}</small></div>
+          <div className="fc"><span className="fl">Ganhos</span><b className="fv"><CountUp value={T.i} format={eur} /></b></div>
+          <div className="fc"><span className="fl">Despesas</span><b className="fv"><CountUp value={T.o} format={eur} /></b></div></div>
         <div className="fc"><span className="fl">Evolução · últimos 6 meses</span>
-          <div className="evo">{months.map(x => <button key={x.q} className="evc" aria-pressed={x.q === ym} onClick={() => setYm(x.q)} title={`Ganhos ${eur(x.i)} · Despesas ${eur(x.o)}`}>
+          <div className="evo">{months.map((x, k) => <button key={x.q} className="evc" aria-pressed={x.q === ym} onClick={() => setYm(x.q)} aria-label={`${MN[+x.q.slice(5) - 1]}: ganhos ${eur(x.i)}, despesas ${eur(x.o)}`} style={{ ['--i' as string]: k }}>
+            <span className="ctip"><b>{MN[+x.q.slice(5) - 1]}</b><span><i style={{ background: PALETTE.sage }} />Ganhos {eur(x.i)}</span><span><i style={{ background: PALETTE.clay }} />Despesas {eur(x.o)}</span><span className={x.i - x.o < 0 ? 'neg' : ''}>Saldo {eur(x.i - x.o)}</span></span>
             <span className="bars"><i style={{ height: `${x.i / mx * 100}%`, background: PALETTE.sage }} /><i style={{ height: `${x.o / mx * 100}%`, background: PALETTE.clay }} /></span><small>{MN[+x.q.slice(5) - 1]}</small></button>)}</div></div>
         <div className="fg2">
           <div className="fc"><span className="fl">Despesas por categoria</span>{cats.length ? <Donut rows={cats.map(c => ({ id: c.id, name: c.name, color: c.color, v: c.v }))} P={T.o} fv={eur} center={eur(T.o)} label="total" /> : <p className="mu">Sem despesas neste mês.</p>}</div>

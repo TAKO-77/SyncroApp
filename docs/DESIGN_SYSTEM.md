@@ -113,7 +113,9 @@ One family: **Manrope** (400, 500, 600, 700), loaded from Google Fonts in `codig
 
 ## Content
 - **Card (`.card`, `.fc`, `.upcoming`, `.tadd`, `.task-notes`):** `--s1`, 1px `--l1`, 20px radius, 18px × 20px padding. Header row (`.card-h`) with a 15px title and a muted link with an arrow (`.link-btn`).
-- **KPI card (`.kpi`):** label, trend badge, large value and a muted footnote; the whole card is a button to its tab and lifts on hover.
+- **KPI card (`.kpi`):** label, trend badge, large value and a muted footnote; the whole card is a button to its tab and lifts on hover. Values count up (`CountUp`); under the value a 6px strip (`.kpi-strip`) shows today's events (06:00–24:00 with a now tick), pending tasks by priority or the next 31 days, and the balance card has a `Sparkline` of six months.
+- **Charts:** bars grow in staggered by `--i`, sparklines and the donut draw themselves, and bar columns show a `.ctip` tooltip (`--s1`, 12px radius, `--shadow-sm`) on hover.
+- **Empty state (`EmptyState`):** amber icon tile (`--accent-soft`), title, muted hint and an optional action; `compact` is a `--s2` row inside Início cards.
 - **Badges (`.trend`):** pills — `.up` success tint, `.down` error tint, `.acc` accent tint.
 - **Tags (`.tag`):** pill with a dot and a 14% tint of `--c`.
 - **List rows (`.hl-row`):** `--s2`, 14px radius, 52px min height; the current event has an amber border and an accent gradient; past events are dimmed.

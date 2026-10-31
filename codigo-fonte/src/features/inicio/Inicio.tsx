@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowUpRight, Eye, EyeOff } from 'lucide-react'
+import { ArrowUpRight, CalendarHeart, CalendarPlus, CheckCheck, Eye, EyeOff, Wallet } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { FIN_CATS, PALETTE } from '../../lib/palette'
 import { MN, fmt, iso, mins, parse } from '../../lib/dates'
@@ -9,12 +9,18 @@ import { daysLeft, upcomingSpecialDays } from '../../lib/specialDays'
 import { PC, PN, dueLabel, tasksDueBy, urgentTasks } from '../../lib/tasks'
 import { markDone } from '../../lib/cleanup'
 import { todayIso, useNow } from '../../components/common'
-import type { PEvent } from '../../types'
+import { CountUp } from '../../components/CountUp'
+import { Sparkline } from '../../components/Sparkline'
+import { EmptyState } from '../../components/EmptyState'
+import type { PEvent, Priority } from '../../types'
 
 export type HomeTarget = 'agenda' | 'calendario' | 'tarefas' | 'financas'
 const LIMIT = 5
 const inDays = (n: number) => n === 0 ? 'Hoje' : n === 1 ? 'Amanhã' : `em ${n} dias`
 const count = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+const PRIOS: Priority[] = ['urgente', 'alta', 'media', 'baixa']
+/** Position of a time of day on the Agenda KPI strip, which spans 06:00–24:00. */
+const dayPos = (m: number) => Math.min(100, Math.max(0, (m - 360) / 1080 * 100))
 type Range = 'hoje' | 'semana' | 'todas'
 const RANGES: { id: Range; label: string; empty: string }[] = [
   { id: 'hoje', label: 'Hoje', empty: 'Nada para hoje.' },
@@ -58,6 +64,7 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
   const upcoming = upcomingSpecialDays(data.days, today)
   const dayType = (ty: string) => data.dayCats.find(t => t.id === ty)
   const first = upcoming[0]
+  const marked = new Map(upcoming.map(x => [daysLeft(x.date, today), dayType(x.item.ty)?.color ?? PALETTE.neutral]))
 
   const complete = (id: string) => update(d => { const t = d.tasks.find(x => x.id === id); if (t) markDone(t, true) })
   const more = (target: HomeTarget, label: string) => <button type="button" className="link-btn" onClick={() => go(target)}>{label}<ArrowUpRight size={14} strokeWidth={1.5} aria-hidden="true" /></button>
@@ -66,22 +73,26 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
     <div className="kpis">
       <button type="button" className="card kpi" onClick={() => go('agenda')}>
         <span className="card-h"><span className="kpi-l">Agenda de hoje</span>{planned > 0 && <span className="trend acc">{fmt(planned)}</span>}</span>
-        <b className="kpi-v num">{events.length} <small>{events.length === 1 ? 'evento' : 'eventos'}</small></b>
+        <b className="kpi-v num"><CountUp value={events.length} /> <small>{events.length === 1 ? 'evento' : 'eventos'}</small></b>
+        <span className="kpi-strip day-strip" aria-hidden="true">{events.map(e => <i key={e.id} style={{ left: `${dayPos(mins(e.start))}%`, width: `${Math.max(1.2, dayPos(mins(e.end)) - dayPos(mins(e.start)))}%`, ['--c' as string]: color(e) }} />)}<b style={{ left: `${dayPos(nowM)}%` }} /></span>
         <span className="kpi-f">{next ? `${mins(next.start) <= nowM ? 'Agora' : `Às ${next.start}`} · ${next.title}` : events.length ? 'Sem mais eventos hoje' : 'Dia livre'}</span>
       </button>
       <button type="button" className="card kpi" onClick={() => go('tarefas')}>
         <span className="card-h"><span className="kpi-l">Tarefas pendentes</span>{late ? <span className="trend down">{late} {late === 1 ? 'atrasada' : 'atrasadas'}</span> : pending.length ? <span className="trend up">Em dia</span> : null}</span>
-        <b className="kpi-v num">{pending.length}</b>
+        <b className="kpi-v num"><CountUp value={pending.length} /></b>
+        <span className="kpi-strip prio-strip" aria-hidden="true">{PRIOS.map(p => { const k = pending.filter(t => t.p === p).length; return k ? <i key={p} style={{ flexGrow: k, ['--c' as string]: PC[p] }} /> : null })}</span>
         <span className="kpi-f">{dueToday ? `${dueToday} para hoje` : 'Nenhuma para hoje'}</span>
       </button>
       <button type="button" className="card kpi" onClick={() => go('financas')}>
         <span className="card-h"><span className="kpi-l cap">Saldo de {new Date(+ym.slice(0, 4), +ym.slice(5) - 1, 1).toLocaleDateString('pt-PT', { month: 'long' })}</span>{T.i > 0 && <span className={'trend ' + (bal >= 0 ? 'up' : 'down') + money}>{bal >= 0 ? `Poupas ${Math.round(bal / T.i * 100)}%` : 'Acima dos ganhos'}</span>}</span>
-        <b className={'kpi-v num' + money}>{bal > 0 ? '+' : ''}{eur(bal)}</b>
+        <span className="kpi-row"><b className={'kpi-v num' + money}>{bal > 0 ? '+' : ''}<CountUp value={bal} format={eur} /></b>
+          {data.fin.length > 0 && <span className={money.trim()}><Sparkline values={months.map(x => x.i - x.o)} color={bal >= 0 ? 'var(--success)' : 'var(--error)'} label="Saldo dos últimos 6 meses" /></span>}</span>
         <span className={'kpi-f' + money}>Ganhos {eur(T.i)} · Despesas {eur(T.o)}</span>
       </button>
       <button type="button" className="card kpi" onClick={() => go('calendario')}>
         <span className="card-h"><span className="kpi-l">Próximos 31 dias</span>{first && <span className="trend acc">{inDays(daysLeft(first.date, today))}</span>}</span>
-        <b className="kpi-v num">{upcoming.length} <small>{upcoming.length === 1 ? 'dia especial' : 'dias especiais'}</small></b>
+        <b className="kpi-v num"><CountUp value={upcoming.length} /> <small>{upcoming.length === 1 ? 'dia especial' : 'dias especiais'}</small></b>
+        <span className="kpi-strip month-strip" aria-hidden="true">{Array.from({ length: 31 }, (_, k) => <i key={k} className={k === 0 ? 'today' : undefined} data-on={marked.has(k) || undefined} style={marked.has(k) ? { ['--c' as string]: marked.get(k) } : undefined} />)}</span>
         <span className="kpi-f">{first ? `${dayType(first.item.ty)?.icon ?? '📌'} ${first.item.n}` : 'Nada marcado'}</span>
       </button>
     </div>
@@ -97,7 +108,7 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
             {catName(e) && <span className="tag">{catName(e)}</span>}
           </div>
         })}{events.length > 6 && <p className="mu hl-more">Mais {events.length - 6} na agenda.</p>}</div>
-          : <p className="mu home-empty">Sem eventos hoje. Abre a agenda para planear o dia.</p>}
+          : <EmptyState compact icon={<CalendarPlus size={18} strokeWidth={1.5} />} title="Sem eventos hoje" text="Abre a agenda para planear o dia." />}
       </article>
 
       <article className="card">
@@ -111,19 +122,20 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
             <span className="prio" title={`Prioridade ${PN[t.p].toLowerCase()}`} style={{ ['--c' as string]: PC[t.p] }} />
           </label>
         })}{shown.length > LIMIT && <p className="mu hl-more">Mais {shown.length - LIMIT} por fazer.</p>}</div>
-          : <p className="mu home-empty">{pending.length ? RANGES.find(x => x.id === range)?.empty : RANGES[2].empty}</p>}
+          : <EmptyState compact icon={<CheckCheck size={18} strokeWidth={1.5} />} title={pending.length ? 'Nada neste período' : 'Tudo em dia'} text={pending.length ? RANGES.find(x => x.id === range)?.empty : 'Não há tarefas pendentes.'} />}
       </article>
 
       <article className="card">
         <div className="card-h"><h3>Finanças · últimos 6 meses</h3>
           <span className="card-acts">{data.fin.length > 0 && <button type="button" className="btn ghost sm" aria-pressed={!hide} onClick={() => setHide(!hide)}>{hide ? <Eye size={15} strokeWidth={1.5} aria-hidden="true" /> : <EyeOff size={15} strokeWidth={1.5} aria-hidden="true" />}{hide ? 'Mostrar valores' : 'Ocultar valores'}</button>}{more('financas', 'Ver finanças')}</span></div>
         {data.fin.length ? <div className={'home-fin' + money}>
-          <div className="mini-bars" role="img" aria-label="Ganhos e despesas dos últimos 6 meses">{months.map(x => <span key={x.q} className={x.q === ym ? 'on' : ''} title={`Ganhos ${eur(x.i)} · Despesas ${eur(x.o)}`}>
+          <div className="mini-bars" role="img" aria-label="Ganhos e despesas dos últimos 6 meses">{months.map((x, k) => <span key={x.q} className={x.q === ym ? 'on' : ''} style={{ ['--i' as string]: k }}>
+            <span className="ctip"><b>{MN[+x.q.slice(5) - 1]}</b><span><i style={{ background: PALETTE.sage }} />Ganhos {eur(x.i)}</span><span><i style={{ background: PALETTE.clay }} />Despesas {eur(x.o)}</span></span>
             <span className="mb"><i style={{ height: `${x.i / mx * 100}%`, background: PALETTE.sage }} /><i style={{ height: `${x.o / mx * 100}%`, background: PALETTE.clay }} /></span><small>{MN[+x.q.slice(5) - 1]}</small></span>)}</div>
-          <div className="spend">{spend.length ? spend.map(c => <div key={c.id} className="spend-row" style={{ ['--c' as string]: c.color }}>
+          <div className="spend">{spend.length ? spend.map((c, k) => <div key={c.id} className="spend-row" style={{ ['--c' as string]: c.color, ['--i' as string]: k }}>
             <span className="spend-h"><span>{c.name}</span><b className="num">{eur(c.v)}</b></span><span className="spend-bar"><i style={{ width: `${c.v / spend[0].v * 100}%` }} /></span></div>)
             : <p className="mu">Sem despesas este mês.</p>}</div>
-        </div> : <p className="mu home-empty">Ainda não há registos. Começa pelo teu ordenado e pelas despesas fixas.</p>}
+        </div> : <EmptyState compact icon={<Wallet size={18} strokeWidth={1.5} />} title="Ainda não há registos" text="Começa pelo teu ordenado e pelas despesas fixas." />}
       </article>
 
       <article className="card">
@@ -135,7 +147,7 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
             <span className="hl-main"><b>{item.n}</b><small>{d.getDate()} {MN[d.getMonth()]}{item.h ? ` · ${item.h}` : ''}</small></span>
             <span className="tag">{inDays(daysLeft(date, today))}</span>
           </div>
-        })}</div> : <p className="mu home-empty">Sem dias especiais nos próximos 31 dias.</p>}
+        })}</div> : <EmptyState compact icon={<CalendarHeart size={18} strokeWidth={1.5} />} title="Nada marcado" text="Sem dias especiais nos próximos 31 dias." />}
       </article>
     </div>
   </section>
