@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from '../lib/supabase'
 import { cacheKey } from './useStore'
+import { disablePush } from '../lib/push'
 
 export interface AuthUser { id: string; email: string }
 interface AuthState {
@@ -46,6 +47,8 @@ export function initAuth() {
 }
 
 export async function signOut() {
+  // While the session still allows it: this device must stop receiving this account's reminders.
+  await disablePush().catch(() => undefined)
   remember(null)
   await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
   useAuth.setState({ user: null, offline: false })

@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import { applyTheme, useStore } from '../../store/useStore'
 import { parseAppData } from '../../lib/schema'
 import { desktop } from '../../lib/desktop'
+import { PushSetting } from './PushSetting'
 import { flush, pull, useSync, type SyncStatus } from '../../lib/sync/engine'
 import { signOut, useAuth } from '../../store/useAuth'
 import { confirmDialog } from '../../store/confirm'
@@ -88,6 +89,7 @@ export function Definicoes() {
       <p className="mu" role="status" aria-live="polite">{updateStatus}</p>
     </> : <p className="mu">No navegador, o Syncro está sempre na versão mais recente: basta recarregar a página. A procura de atualizações só existe na aplicação Windows.</p>}
     <p><a className="btn" href="https://github.com/TAKO-77/SyncroApp/releases/latest" target="_blank" rel="noreferrer">Descarregar a versão mais recente no GitHub</a></p>
+    {!desktop && <PushSetting />}
     {desktop && <>
       <h2 className="sub">Notificações</h2>
       <label className="ck"><input type="checkbox" className="sw" role="switch" checked={notifications} onChange={e => setNotifications(e.target.checked)} /> Avisar sobre tarefas com hora limite</label>

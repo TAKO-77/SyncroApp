@@ -18,6 +18,7 @@ import { cleanUpNoteImages } from './lib/noteImages'
 import { purgeExpired } from './lib/cleanup'
 import { desktop } from './lib/desktop'
 import { startReminders } from './lib/notifications'
+import { refreshPush, takeOpenRequest } from './lib/push'
 import { Glider } from './components/Glider'
 import { RevealText } from './components/RevealText'
 const syncroSymbol = new URL('./assets/syncro-symbol.png', import.meta.url).href
@@ -27,7 +28,7 @@ const SECTIONS = [{ id: 'inicio', label: 'Início', icon: House }, { id: 'agenda
 type Id = typeof SECTIONS[number]['id']
 
 export default function App() {
-  const [sec, setSec] = useState<Id>('inicio')
+  const [sec, setSec] = useState<Id>(() => takeOpenRequest() ? 'tarefas' : 'inicio')
   const [anchor, setAnchor] = useState(todayIso())
   const [agendaView, setAgendaView] = useState<AgendaView>('week')
   const [workspaceId, setWorkspaceId] = useState('geral')
@@ -52,13 +53,14 @@ export default function App() {
     return () => clearTimeout(timer)
   }, [])
   useEffect(startReminders, [])
+  useEffect(() => { void refreshPush() }, [])
   useEffect(() => {
-    // Clicking a notification on Windows opens the tasks.
-    const bridge = desktop
-    if (!bridge) return
-    const onMessage = (event: MessageEvent) => { if ((event.data as { type?: string } | null)?.type === 'syncro:open-tasks') setSec('tarefas') }
-    bridge.addEventListener('message', onMessage)
-    return () => bridge.removeEventListener('message', onMessage)
+    // Clicking a notification opens the tasks; the message comes from the Windows host or the service worker.
+    const source = desktop ?? ('serviceWorker' in navigator ? navigator.serviceWorker : null)
+    if (!source) return
+    const onMessage = (event: Event) => { if (((event as MessageEvent).data as { type?: string } | null)?.type === 'syncro:open-tasks') setSec('tarefas') }
+    source.addEventListener('message', onMessage)
+    return () => source.removeEventListener('message', onMessage)
   }, [])
   const now = useNow(10000), h = now.getHours()
   const g = h < 6 ? 'Boa noite' : h < 13 ? 'Bom dia' : h < 20 ? 'Boa tarde' : 'Boa noite'

@@ -8,6 +8,7 @@ import { dueForTime, dueKey, isOverdue } from '../codigo-fonte/src/lib/taskDue.t
 import { parseQ } from '../codigo-fonte/src/lib/quick.ts'
 import { eventsOn } from '../codigo-fonte/src/lib/recurrence.ts'
 import { reminderText, remindersBetween } from '../codigo-fonte/src/lib/reminders.ts'
+import { expirySeconds, isPushEndpoint, localMinutes, reminderText as serverText, remindersAt } from '../supabase/functions/send-reminders/rules.ts'
 
 // Checks the mapping between the local document and the Supabase rows used by the sync engine.
 const base = (): AppData => ({
@@ -353,6 +354,47 @@ test('reminders of one check become a single notification', () => {
   const many = reminderText(remindersBetween(tasks, at(17, 59), at(18, 0)))
   assert.equal(many.title, '5 avisos de tarefas')
   assert.equal(many.body, 'T0 · terminou às 18:00\nT1 · terminou às 18:00\nT2 · terminou às 18:00\ne mais 2')
+})
+
+const row = { id: 'r', title: 'Relatório', due: '2026-11-04', due_time: '18:00' }
+const wall = (hour: number, minute = 0, day = 4) => Date.UTC(2026, 10, day, hour, minute) / 60000
+const kinds = (now: number, tasks = [row]) => remindersAt(tasks, now).map(r => r.kind)
+
+test('the server reminds one hour before and at the limit, within a short window', () => {
+  assert.deepEqual(kinds(wall(16, 59)), [])
+  assert.deepEqual(kinds(wall(17, 0)), ['soon'])
+  assert.deepEqual(kinds(wall(17, 4)), ['soon'])
+  assert.deepEqual(kinds(wall(17, 5)), [])
+  assert.deepEqual(kinds(wall(18, 0)), ['due'])
+  assert.deepEqual(kinds(wall(18, 4)), ['due'])
+  assert.deepEqual(kinds(wall(18, 5)), [])
+})
+
+test('the server reads the time on the clock of the device', () => {
+  const instant = new Date(Date.UTC(2026, 10, 4, 18, 0))
+  assert.equal(localMinutes(instant, 'Europe/Lisbon'), wall(18, 0))
+  assert.equal(localMinutes(instant, 'Asia/Tokyo'), wall(3, 0, 5))
+  assert.equal(localMinutes(instant, 'America/New_York'), wall(13, 0))
+  assert.equal(localMinutes(new Date(Date.UTC(2026, 6, 4, 17, 0)), 'Europe/Lisbon'), Date.UTC(2026, 6, 4, 18, 0) / 60000, 'summer time')
+  assert.equal(localMinutes(new Date(Date.UTC(2026, 10, 4, 0, 30)), 'Europe/Lisbon'), wall(0, 30), 'midnight is hour 0')
+  assert.throws(() => localMinutes(instant, 'Nowhere/Land'))
+})
+
+test('a sleeping phone gets "soon" only until the limit and "due" for one more hour', () => {
+  const [soon] = remindersAt([row], wall(17, 0)), [due] = remindersAt([row], wall(18, 0))
+  assert.equal(expirySeconds([soon]), 3300)
+  assert.equal(expirySeconds([due]), 3600)
+  assert.equal(expirySeconds([soon, due]), 3600)
+})
+
+test('server and Windows app write the same notification text', () => {
+  const kind = (k: 'soon' | 'due', i: number) => ({ taskId: `t${i}`, kind: k, title: `T${i}`, time: '18:00', due: '2026-11-04' })
+  for (const list of [[kind('soon', 0)], [kind('due', 0)], [kind('soon', 0), kind('due', 1)], [0, 1, 2, 3, 4].map(i => kind('due', i))]) assert.deepEqual(serverText(list), reminderText(list))
+})
+
+test('the server only calls known push services', () => {
+  for (const ok of ['https://fcm.googleapis.com/fcm/send/abc', 'https://web.push.apple.com/abc', 'https://updates.push.services.mozilla.com/wpush/v2/abc', 'https://wns2-par02p.notify.windows.com/w/?token=abc']) assert.equal(isPushEndpoint(ok), true, ok)
+  for (const bad of ['http://fcm.googleapis.com/fcm/send/abc', 'https://evil.example/fcm.googleapis.com', 'https://fcm.googleapis.com.evil.example/x', 'https://notpush.apple.com/x', 'http://169.254.169.254/latest', 'não é url']) assert.equal(isPushEndpoint(bad), false, bad)
 })
 
 for (const name of results) console.log(`PASS ${name}`)
