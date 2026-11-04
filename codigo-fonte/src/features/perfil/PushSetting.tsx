@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { disablePush, enablePush, pushState, type PushState } from '../../lib/push'
 
 const NOTE: Partial<Record<PushState, string>> = {
-  install: 'No iPhone, os avisos só funcionam com o Syncro instalado: em Safari, usa Partilhar → Adicionar ao ecrã principal e abre-o a partir daí.',
+  install: 'No iPhone, instala primeiro o Syncro: em Safari, Partilhar → Adicionar ao ecrã principal.',
   unsupported: 'Este navegador não permite notificações.',
-  denied: 'As notificações estão bloqueadas para o Syncro. Podes permiti-las nas definições do telemóvel ou do navegador.',
+  denied: 'Notificações bloqueadas. Permite-as nas definições do telemóvel ou do navegador.',
 }
 
 /** Notifications switch of the web/PWA build: reminders arrive through Web Push, even with the app closed. */
@@ -26,7 +26,7 @@ export function PushSetting() {
     <h2 className="sub">Notificações</h2>
     {note ? <p className="mu">{note}</p> : <>
       <label className="ck"><input type="checkbox" className="sw" role="switch" checked={state === 'on'} disabled={busy} onChange={e => void toggle(e.target.checked)} /> Avisar sobre tarefas com hora limite</label>
-      <p className="mu">Avisa 1 hora antes e quando a hora chega, mesmo com a app fechada. Vale só para este dispositivo.</p>
+      <p className="mu">1 hora antes e à hora limite, mesmo com a app fechada. Só neste dispositivo.</p>
       {error && <p className="neg" role="alert">{error}</p>}
     </>}
   </>

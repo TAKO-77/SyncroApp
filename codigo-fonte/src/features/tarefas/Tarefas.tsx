@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as RPE } from 'react'
 import { useStore } from '../../store/useStore'
-import { Modal, todayIso, uid, useNow } from '../../components/common'
+import { Modal, todayIso, uid, useIsPhone, useNow } from '../../components/common'
 import type { Effort, Priority, Task } from '../../types'
 import { NoteCard } from './NoteCard'
 import { NoteGrid } from './NoteGrid'
@@ -18,6 +18,9 @@ const NX: Record<Priority, Priority> = { urgente: 'alta', alta: 'media', media: 
 type SortBy = 'priority' | 'effort' | 'due' | 'custom'
 const SORT_KEY = 'syncro-task-sort'
 const COMPLETE_MS = 1300
+const PRIORITIES: Priority[] = ['urgente', 'alta', 'media', 'baixa']
+const PRIORITY_OPTIONS = PRIORITIES.map(k => ({ value: k, label: PN[k], color: PC[k] }))
+const EFFORT_OPTIONS: { value: Effort | ''; label: string; hint?: string; color?: string }[] = [{ value: '', label: 'Sem definir' }, ...LK.map(k => ({ value: k, label: LV[k].n, hint: LV[k].t, color: LV[k].c }))]
 const BURST = Array.from({ length: 10 }, (_, i) => i * 36)
 const readSort = (): SortBy => {
   try { const v = localStorage.getItem(SORT_KEY); return v === 'effort' || v === 'due' || v === 'custom' ? v : 'priority' } catch { return 'priority' }
@@ -25,6 +28,7 @@ const readSort = (): SortBy => {
 
 export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; setWorkspaceId: (id: string) => void }) {
   const { data, update } = useStore()
+  const phone = useIsPhone()
   const now = useNow(), today = todayIso(), nowTime = hm(now.getHours() * 60 + now.getMinutes())
   const [open, setOpen] = useState(true)
   const [txt, setTxt] = useState(''); const [p, setP] = useState<Priority>('media'); const [du, setDu] = useState(''); const [duTime, setDuTime] = useState(''); const [effort, setEffort] = useState<Effort | ''>('')
@@ -115,6 +119,9 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
   const saveNote = (id: string, text: string) => update(d => { const n = d.notes.find(x => x.id === id); if (n) n.text = text })
   const deleteNote = (id: string) => update(d => { d.notes = d.notes.filter(n => n.id !== id) })
 
+  const dueDate = <DatePicker value={du} aria-label="Data limite" onChange={v => { setDu(v); if (!v) setDuTime('') }} className={phone ? undefined : 'auto'} />
+  const dueClock = <TimePicker value={duTime} aria-label="Hora limite" onChange={v => { setDuTime(v); setDu(dueForTime(du, v, today)) }} className={phone ? undefined : 'auto'} />
+
   return <section className="page tasks-page"><div className="tasks-main">
     <div className="head2"><h2>Tarefas</h2><div className="seg"><button aria-pressed={open} onClick={() => setOpen(true)}>Pendentes {nOpen}</button><button aria-pressed={!open} onClick={() => setOpen(false)}>Concluídas {scoped.length - nOpen}</button><Glider /></div></div>
     <div className="workspace-bar"><div className="workspace-picker">
@@ -129,10 +136,18 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
     </div></div>
     <form className="tadd" onSubmit={add}>
       <input value={txt} maxLength={90} placeholder="Nova tarefa…" aria-label="Nova tarefa" required autoComplete="off" onChange={e => setTxt(e.target.value)} />
+      {phone ? <div className="tadd-fields">
+        <label>Esforço<Select<Effort | ''> value={effort} onChange={setEffort} options={EFFORT_OPTIONS} /></label>
+        <label>Prioridade<Select<Priority> value={p} onChange={setP} options={PRIORITY_OPTIONS} /></label>
+        <label>Data limite{dueDate}</label>
+        <label>Hora limite{dueClock}</label>
+        <button className="btn pri" type="submit">Adicionar</button>
+      </div> : <>
       <div className="chips"><span className="mu">Esforço</span>{LK.map(k => <button key={k} type="button" className="chip" aria-pressed={effort === k} title={LV[k].t} style={{ ['--c' as string]: LV[k].c }} onClick={() => setEffort(effort === k ? '' : k)}>{LV[k].n}</button>)}</div>
-      <div className="chips"><span className="mu">Prioridade</span>{(['urgente', 'alta', 'media', 'baixa'] as Priority[]).map(k => <button key={k} type="button" className="chip" aria-pressed={p === k} style={{ ['--c' as string]: PC[k] }} onClick={() => setP(k)}>{PN[k]}</button>)}
-        <DatePicker value={du} aria-label="Data limite" onChange={v => { setDu(v); if (!v) setDuTime('') }} className="auto" />
-        <TimePicker value={duTime} aria-label="Hora limite" onChange={v => { setDuTime(v); setDu(dueForTime(du, v, today)) }} className="auto" /><button className="btn pri sp-l" type="submit">Adicionar</button></div>
+      <div className="chips"><span className="mu">Prioridade</span>{PRIORITIES.map(k => <button key={k} type="button" className="chip" aria-pressed={p === k} style={{ ['--c' as string]: PC[k] }} onClick={() => setP(k)}>{PN[k]}</button>)}
+        {dueDate}
+        {dueClock}<button className="btn pri sp-l" type="submit">Adicionar</button></div>
+      </>}
     </form>
     {list.length > 1 && <div className="tsub"><label>Ordenar por<Select<SortBy> value={sortBy} onChange={setSortBy} options={[{ value: 'priority', label: 'Relevância' }, { value: 'effort', label: 'Tempo estimado' }, { value: 'due', label: 'Data limite' }, { value: 'custom', label: 'Customizado' }]} /></label></div>}
     <div className="tasks-list" ref={listRef}>{list.length ? list.map(t => { const [lbl, late] = dueLabel(t, today, nowTime)
@@ -166,9 +181,9 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
         <label className="w">Nome<input value={ed.t} required maxLength={90} onChange={e => setEd({ ...ed, t: e.target.value })} /></label>
         <label>Data limite<DatePicker value={ed.due} onChange={due => setEd({ ...ed, due, dueTime: due ? ed.dueTime : '' })} /></label>
         <label>Hora limite<TimePicker value={ed.dueTime ?? ''} onChange={dueTime => setEd({ ...ed, dueTime, due: dueForTime(ed.due, dueTime, today) })} /></label>
-        <label className="w">Prioridade<Select<Priority> value={ed.p} onChange={p => setEd({ ...ed, p })} options={(['urgente', 'alta', 'media', 'baixa'] as Priority[]).map(k => ({ value: k, label: PN[k], color: PC[k] }))} /></label>
+        <label className="w">Prioridade<Select<Priority> value={ed.p} onChange={p => setEd({ ...ed, p })} options={PRIORITY_OPTIONS} /></label>
         <label className="w">Espaço de trabalho<Select value={ed.workspaceId ?? 'geral'} onChange={workspaceId => setEd({ ...ed, workspaceId })} options={data.workspaces.map(w => ({ value: w.id, label: w.name }))} /></label>
-        <label className="w">Esforço<Select<Effort | ''> value={ed.effort ?? ''} onChange={effort => setEd({ ...ed, effort })} options={[{ value: '', label: 'Sem definir' }, ...LK.map(k => ({ value: k, label: LV[k].n, hint: LV[k].t, color: LV[k].c }))]} /></label>
+        <label className="w">Esforço<Select<Effort | ''> value={ed.effort ?? ''} onChange={effort => setEd({ ...ed, effort })} options={EFFORT_OPTIONS} /></label>
         <label className="w">Notas<textarea rows={3} maxLength={400} value={ed.n ?? ''} onChange={e => setEd({ ...ed, n: e.target.value })} /></label>
         <label className="w ck"><input type="checkbox" checked={ed.d} onChange={e => setEd({ ...ed, d: e.target.checked })} /> Concluída</label>
         <div className="acts w"><button type="button" className="btn dng" onClick={() => { const id = ed.id; update(d => { d.tasks = d.tasks.filter(x => x.id !== id) }); setEd(null) }}>Apagar</button><span className="sp" /><button type="button" className="btn" onClick={() => setEd(null)}>Cancelar</button><button className="btn pri" type="submit">Guardar</button></div>

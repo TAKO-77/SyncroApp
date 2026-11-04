@@ -72,7 +72,7 @@ export function Definicoes() {
     } catch { setMsg('Ficheiro inválido.') }
   }
 
-  return <section className="page narrow">
+  return <section className="page narrow settings-page">
     <h2>Definições</h2>
     <h2 className="sub">Conta</h2>
     <p>{user?.email}</p>
@@ -87,8 +87,8 @@ export function Definicoes() {
       <p className="mu">{version ? `Versão instalada: ${version}` : 'A obter a versão instalada…'}</p>
       <button className="btn" disabled={checkingUpdates} onClick={checkUpdates}>{checkingUpdates ? 'A verificar…' : 'Procurar atualizações'}</button>
       <p className="mu" role="status" aria-live="polite">{updateStatus}</p>
-    </> : <p className="mu">No navegador, o Syncro está sempre na versão mais recente: basta recarregar a página. A procura de atualizações só existe na aplicação Windows.</p>}
-    <p><a className="btn" href="https://github.com/TAKO-77/SyncroApp/releases/latest" target="_blank" rel="noreferrer">Descarregar a versão mais recente no GitHub</a></p>
+    </> : <p className="mu">Estás sempre na versão mais recente.</p>}
+    <p className="wide-only"><a className="btn" href="https://github.com/TAKO-77/SyncroApp/releases/latest" target="_blank" rel="noreferrer">Descarregar a versão mais recente no GitHub</a></p>
     {!desktop && <PushSetting />}
     {desktop && <>
       <h2 className="sub">Notificações</h2>

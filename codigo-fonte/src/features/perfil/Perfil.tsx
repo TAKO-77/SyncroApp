@@ -1,17 +1,12 @@
 import { useRef, useState } from 'react'
 import { useStore } from '../../store/useStore'
-import { sleepSchedule } from '../../lib/sleep'
-import { mins } from '../../lib/dates'
 import { Dashboard } from './Dashboard'
-import { TimePicker } from '../../components/TimePicker'
-import { Select } from '../../components/Select'
+import { SleepSettings } from './SleepSettings'
 
 export function Perfil() {
   const { data, update } = useStore()
   const [name, setName] = useState(data.name ?? '')
   const [msg, setMsg] = useState('')
-  const [syncDay, setSyncDay] = useState(0)
-  const weekdays = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo']
   const file = useRef<HTMLInputElement>(null)
 
   const [uploading, setUploading] = useState(false)
@@ -51,40 +46,12 @@ export function Perfil() {
         </div>
         <input ref={file} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e => { void uploadPhoto(e.target.files?.[0]); e.target.value = '' }} />
       </div>
-      <p className="mu" role="status">{msg.startsWith('Horário') ? '' : msg}</p>
-      <form className="row" onSubmit={e => { e.preventDefault(); update(d => { d.name = name.trim() }); setMsg('Guardado') }}>
+      <p className="mu" role="status">{msg}</p>
+      <form className="row profile-name" onSubmit={e => { e.preventDefault(); update(d => { d.name = name.trim() }); setMsg('Guardado') }}>
         <label>Nome<input value={name} maxLength={24} onChange={e => setName(e.target.value)} required /></label>
         <button className="btn pri" type="submit">Guardar</button>
       </form>
-      <h2 className="sub">Sono</h2>
-      <p className="mu">Define a hora de deitar e de acordar para cada dia. As alterações ficam guardadas automaticamente.</p>
-      <div className="sleep-week">
-        <div className="sleep-row sleep-head" aria-hidden="true"><span>Dia</span><span>Deito-me</span><span>Acordo</span><span>Duração</span></div>
-        {weekdays.map((day, index) => {
-          const schedule = sleepSchedule(data.sleep, index)
-          const duration = (mins(schedule.wake) - mins(schedule.bed) + 1440) % 1440
-          return <div className={`sleep-row${index >= 5 ? ' weekend' : ''}`} key={day}>
-            <strong title={day}>{day.slice(0, 3)}</strong>
-            <TimePicker required aria-label={`Deito-me — ${day}`} value={schedule.bed} onChange={value => {
-              if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return
-              update(d => { const daily = weekdays.map((_, i) => ({ ...sleepSchedule(d.sleep, i) })); daily[index].bed = value; d.sleep.daily = daily })
-            }} />
-            <TimePicker required aria-label={`Acordo — ${day}`} value={schedule.wake} onChange={value => {
-              if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return
-              update(d => { const daily = weekdays.map((_, i) => ({ ...sleepSchedule(d.sleep, i) })); daily[index].wake = value; d.sleep.daily = daily })
-            }} />
-            <span className="sleep-duration">{duration ? `${Math.floor(duration / 60)}h${duration % 60 ? ` ${String(duration % 60).padStart(2, '0')}` : ''}` : '—'}</span>
-          </div>
-        })}
-      </div>
-      <div className="row sleep-sync">
-        <label>Usar o horário de<Select value={syncDay} onChange={setSyncDay} options={weekdays.map((day, index) => ({ value: index, label: day }))} /></label>
-        <button type="button" className="btn" onClick={() => {
-          update(d => { const schedule = sleepSchedule(d.sleep, syncDay); d.sleep.daily = weekdays.map(() => ({ ...schedule })) })
-          setMsg('Horário de sono aplicado a todos os dias.')
-        }}>Aplicar a todos os dias</button>
-      </div>
-      <p className="mu" role="status">{msg.startsWith('Horário') ? msg : ''}</p>
+      <SleepSettings />
       <h2 className="sub">Onde gasto o tempo</h2>
       <Dashboard />
     </section>

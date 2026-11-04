@@ -364,6 +364,10 @@ textarea{width:100%;resize:vertical}
 .sleep-duration{color:var(--mu);font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
 .sleep-head span:last-child{text-align:right}
 .sleep-sync{margin-top:16px}
+.sleep-group{display:grid;gap:8px;padding:12px 14px}.sleep-group+.sleep-group{border-top:1px solid var(--l1)}
+.sleep-group-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}.sleep-group-head strong{font-size:14px;font-weight:600}
+.sleep-group-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.sleep-group small{color:var(--mu);font-size:12px}
+.sleep-more{margin-top:10px}.sleep-more summary{padding:8px 2px;color:var(--mu);font:600 13px var(--font);cursor:pointer}.sleep-more[open] summary{margin-bottom:8px;color:var(--tx)}
 
 /* Sign-in and desktop-only screens */
 .auth{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
@@ -502,6 +506,9 @@ main>.page{animation:page-in .35s cubic-bezier(.2,.75,.25,1) backwards}
   .top-actions>.btn.pri{display:none}
   .fab{display:grid;place-items:center;position:fixed;right:calc(18px + env(safe-area-inset-right));bottom:calc(88px + env(safe-area-inset-bottom));z-index:29;width:56px;height:56px;border:0;border-radius:50%;background:var(--ac-fill);color:var(--accent-text);box-shadow:var(--shadow),0 6px 20px var(--glow);cursor:pointer;transition:transform .15s}.fab:active{transform:scale(.95)}
   .schedule-switch{margin-bottom:10px}.schedule-switch button{flex:1}
+  .tadd-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.tadd-fields>.btn{grid-column:1/-1}
+  .profile-name{flex-direction:column;align-items:stretch}
+  .settings-page h2.sub{margin-top:26px}.settings-page p.mu{font-size:12px;line-height:1.45}
   /* Sideways gestures stay with the page, so a slightly diagonal swipe isn't taken as a scroll. */
   .schedule-layout main{touch-action:pan-y pinch-zoom}
   /* Compact greeting, so the summary cards start higher. */
