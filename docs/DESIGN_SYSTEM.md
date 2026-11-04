@@ -10,6 +10,7 @@ Elegant, organized, focused, and adaptable (Dark/Light). The interface is a near
 - Source images: `codigo-fonte/src/assets/syncro-symbol.png` and `syncro-logo.png`; Windows icons: `desktop/assets/Syncro.ico` and `Syncro-brand.ico`.
 - Transparent Windows master: `desktop/assets/syncro-icon.png`; provide ICO sizes 16, 24, 32, 48, 64, 128 and 256 pixels. The build copies `Syncro-brand.ico` as `Syncro-brand-amber-transparent.ico`, which the installer and shortcuts use to avoid the previous cached background.
 - In the UI, logo images use the SVG filter `#logo-background` (`LogoFilter` in `components/common.tsx`) to remove their dark background. Render `LogoFilter` wherever the logo appears.
+- The start-up logo (`#splash` in `codigo-fonte/index.html`) is a vector trace of the transparent master, with one `<svg>` per blade and one for the centre dot, in `--brand` and `--brand-centre`.
 - The interface accent uses the same amber as the logo.
 
 # 02 Colour Palette
@@ -34,7 +35,7 @@ All interface colours are CSS custom properties at the top of `codigo-fonte/src/
 | `--success` | Success | #3CCF7F | #15803D | Income, positive values, "em dia", task completion |
 | `--error` | Error | #F26161 | #C62828 | Errors, overdue, negative values, destructive actions |
 | `--brand` | Brand Amber | #FFB020 | #FFB020 | Logo lettering |
-| — | Brand Centre | #FFE4A3 | #FFE4A3 | Logo centre dot |
+| `--brand-centre` | Brand Centre | #FFE4A3 | #FFE4A3 | Logo centre dot |
 
 - Keep `--ac` for anything read as text (amber text on white needs the darker ink) and `--ac-fill` for filled shapes.
 - Shadows: `--shadow` for dialogs, popovers and the floating mobile nav; `--shadow-sm` for hover lift on cards and rows.
@@ -141,6 +142,7 @@ One family: **Manrope** (400, 500, 600, 700), loaded from Google Fonts in `codig
 - **Theme Toggle:** "Modo claro" checkbox in Settings; stored in `localStorage` (`syncro-theme`), dark by default.
 
 # 07 Motion
+- Start-up: the logo's centre dot is fixed at the centre of the screen from the first paint, and the four blades slide in one by one from off screen along their own direction (1.2s). The complete logo stays until the app is ready, then fades in 0.3s into the next screen. Reduced motion shows the complete logo at once.
 - Pages, cards, task rows, note cards and empty states enter with a short fade-up (0.4–0.45s), staggered.
 - Dialogs, popovers, menus and the toast use short scale/slide entrances (0.2–0.34s).
 - Cards and rows lift 2px on hover; buttons scale to 95% when pressed.

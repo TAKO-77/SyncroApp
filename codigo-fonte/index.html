@@ -24,6 +24,18 @@
 <meta property="og:locale" content="pt_PT">
 <meta name="twitter:card" content="summary_large_image">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- The start-up logo paints before the bundle loads, so the saved theme has to be set here. -->
+<script>try{if(localStorage.getItem('syncro-theme')==='light'){document.documentElement.dataset.theme='light';document.querySelector('meta[name="theme-color"]').setAttribute('content','#e9e9e5')}}catch(e){}</script>
 </head>
-<body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body>
+<body>
+<div id="splash" class="splash" role="status" aria-label="A abrir o Syncro">
+  <div class="splash-mark" aria-hidden="true">
+    <svg class="splash-blade" style="--i:0;--x:-.163;--y:-.987" viewBox="40 38 1212 1212"><path d="M809 38L876 208C674.6 289.6 478.9 434.4 355 630L307 549C387.9 327.6 593.4 129.3 809 38Z"/></svg>
+    <svg class="splash-blade" style="--i:1;--x:.959;--y:-.283" viewBox="40 38 1212 1212"><path d="M752 290C959.6 366.4 1129.1 554.8 1213 755L1056 820C974 639 841.8 458.9 663 342L752 290Z"/></svg>
+    <svg class="splash-blade" style="--i:2;--x:.28;--y:.96" viewBox="40 38 1212 1212"><path d="M951 669L1006 765C921.1 957.7 726.4 1128.5 537 1205L463 1044C646.9 965.6 828.5 849.2 951 669Z"/></svg>
+    <svg class="splash-blade" style="--i:3;--x:-.985;--y:.175" viewBox="40 38 1212 1212"><path d="M226 423C299 626.9 451.5 812.4 646 929L567 975C341.6 904.6 145.1 709 53 491L226 423Z"/></svg>
+    <svg class="splash-dot" viewBox="40 38 1212 1212"><circle cx="646" cy="644" r="113"/></svg>
+  </div>
+</div>
+<div id="root"></div><script type="module" src="/src/main.tsx"></script></body>
 </html>

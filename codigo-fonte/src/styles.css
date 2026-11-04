@@ -3,7 +3,7 @@
   --bg:#0c0d0d;--s1:#151616;--s2:#1c1e1e;--s3:#242626;--l1:#232525;--l2:#303333;
   --tx:#f2f2ef;--mu:#8e9191;--ac:#ffb020;--ac-fill:#ffb020;--accent-text:#1b1404;
   --accent-soft:rgba(255,176,32,.13);--glow:rgba(255,176,32,.2);--hover:var(--s3);
-  --success:#3ccf7f;--error:#f26161;--brand:#ffb020;
+  --success:#3ccf7f;--error:#f26161;--brand:#ffb020;--brand-centre:#ffe4a3;
   --shadow:0 24px 60px rgba(0,0,0,.5);--shadow-sm:0 10px 26px rgba(0,0,0,.32);
   --font:Manrope,"Segoe UI",system-ui,sans-serif;
   color-scheme:dark
@@ -376,6 +376,16 @@ textarea{width:100%;resize:vertical}
 .auth-password{position:relative;display:block}.auth-password input{width:100%;padding-right:44px}
 .auth-eye{position:absolute;top:50%;right:6px;transform:translateY(-50%);display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:999px;background:none;color:var(--mu);cursor:pointer}.auth-eye:hover,.auth-eye:focus-visible{color:var(--tx);background:var(--s3)}
 .auth-card a.btn{text-decoration:none}
+/* Start-up logo (markup in index.html, control in lib/splash.ts). The dot never moves; each blade slides in from off screen along the line from the dot through its own centre.
+   Each part is its own <svg> because CSS lengths in a transform on an element inside a viewBox are user units, so 100vmax would not reach the screen edge. */
+.splash{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;overflow:hidden;background:var(--bg);transition:opacity .3s ease,visibility 0s linear .3s}
+.splash.out{opacity:0;visibility:hidden}
+.splash-mark{position:relative;width:min(38vmin,168px);aspect-ratio:1}
+.splash-mark svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;fill:var(--brand)}
+.splash-mark .splash-dot{fill:var(--brand-centre)}
+.splash-blade{animation:blade-in 1.2s cubic-bezier(.25,.6,.3,1) calc(var(--i)*60ms) backwards}
+@keyframes blade-in{from{transform:translate(calc(var(--x)*100vmax),calc(var(--y)*100vmax))}}
+@media(prefers-reduced-motion:reduce){.splash-blade{animation:none}}
 
 /* Pickers and selects */
 .pk{position:relative;display:flex;min-width:0}.pk.auto{display:inline-flex}

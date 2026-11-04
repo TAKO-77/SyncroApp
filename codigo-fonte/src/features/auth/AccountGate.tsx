@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { hideSplash, showSplash, splashLanded } from '../../lib/splash'
 import { supabaseConfigured } from '../../lib/supabase'
 import { startSync, stopSync, type LegacyChoice } from '../../lib/sync/engine'
 import { initAuth, signOut, useAuth } from '../../store/useAuth'
@@ -28,10 +29,23 @@ export function AccountGate({ children }: { children: ReactNode }) {
     return () => { active = false; stopSync() }
   }, [user?.id, attempt])
 
+  // The logo covers the screen while booting. Auth and data load behind it from the start; what comes next mounts once both are done and the logo has formed, then the logo fades away.
+  const booting = supabaseConfigured && (!ready || (!!user && phase.kind === 'loading'))
+  const [landed, setLanded] = useState(!supabaseConfigured)
+  const splashRun = useRef(0)
+  useLayoutEffect(() => {
+    if (!booting) return
+    const run = ++splashRun.current
+    showSplash()
+    setLanded(false)
+    void splashLanded().then(() => { if (run === splashRun.current) setLanded(true) })
+  }, [booting])
+  const reveal = !booting && landed
+  useEffect(() => { if (reveal) hideSplash() }, [reveal])
+
   if (!supabaseConfigured) return <Notice title="Ligação à base de dados por configurar"><p className="mu">Define VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em codigo-fonte/.env e volta a compilar a aplicação.</p></Notice>
-  if (!ready) return <Notice title="A abrir o Syncro…" />
+  if (!reveal) return null
   if (!user) return <AuthScreen />
-  if (phase.kind === 'loading') return <Notice title="A carregar os teus dados…" />
   if (phase.kind === 'error') return <Notice title="Não foi possível carregar os teus dados">
     <p className="mu">O primeiro acesso a esta conta neste dispositivo precisa de ligação à Internet.</p>
     <div className="auth-links"><button className="btn pri" onClick={() => setAttempt(a => a + 1)}>Tentar novamente</button><button className="btn ghost" onClick={() => void signOut()}>Terminar sessão</button></div>
