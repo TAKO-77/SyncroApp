@@ -5,6 +5,8 @@ import { markDone, purgeExpired } from '../codigo-fonte/src/lib/cleanup.ts'
 import { monthTotals, ymAdd } from '../codigo-fonte/src/lib/finance.ts'
 import { daysLeft, upcomingSpecialDays } from '../codigo-fonte/src/lib/specialDays.ts'
 import { dueForTime, dueKey, isOverdue } from '../codigo-fonte/src/lib/taskDue.ts'
+import { parseQ } from '../codigo-fonte/src/lib/quick.ts'
+import { eventsOn } from '../codigo-fonte/src/lib/recurrence.ts'
 
 // Checks the mapping between the local document and the Supabase rows used by the sync engine.
 const base = (): AppData => ({
@@ -256,6 +258,54 @@ test('clearing a time limit produces an update of that column only', () => {
   const ops = diffRows(toRows(base()), toRows(next))
   assert.deepEqual(ops.map(o => [o.id, o.fields]), [['t1', ['due_time']]])
   assert.equal(ops[0].row.due_time, null)
+})
+
+const quick = (text: string) => parseQ(text, new Date(2026, 10, 4, 10, 0)) as { title: string; date: string; start: string; end: string; rep: string }
+
+test('quick add reads a second time as the end of the event', () => {
+  for (const text of ['Trabalho 17:30 3:00', 'Trabalho 17:30 às 3:00', 'Trabalho das 17:30 às 3:00', 'Trabalho 17:30-3:00', 'Trabalho 17h30 às 3h', 'Trabalho 17:30 até 3:00']) {
+    const r = quick(text)
+    assert.deepEqual([r.title, r.start, r.end], ['Trabalho', '17:30', '03:00'], text)
+  }
+  assert.deepEqual([quick('Aula 14:00 às 15:30').start, quick('Aula 14:00 às 15:30').end], ['14:00', '15:30'])
+})
+
+test('quick add still reads a time written as hours as a duration', () => {
+  assert.equal(quick('Reunião amanhã 14:30 1h').end, '15:30')
+  const r = quick('Treino sex 18h 1h30 semanal')
+  assert.deepEqual([r.title, r.start, r.end, r.rep], ['Treino', '18:00', '19:30', 'weekly'])
+  assert.equal(quick('Turno 22:00 5h').end, '03:00')
+  assert.equal(quick('Ceia 23:30 30min').end, '00:00')
+})
+
+const nightShift = (over: Partial<AppData['ev'][number]> = {}): AppData['ev'][number] => ({ id: 'w', title: 'Trabalho', start: '17:30', end: '03:00', date: '2026-11-04', rep: 'none', cat: 'rotina', done: {}, ...over })
+const parts = (ev: AppData['ev'], day: string) => eventsOn({ ...base(), ev }, day).map(e => [e.start, e.end, e.cont, e.day, e.realStart, e.realEnd])
+
+test('an event past midnight is shown on both days', () => {
+  assert.deepEqual(parts([nightShift()], '2026-11-04'), [['17:30', '24:00', false, '2026-11-04', '17:30', '03:00']])
+  assert.deepEqual(parts([nightShift()], '2026-11-05'), [['00:00', '03:00', true, '2026-11-04', '17:30', '03:00']])
+  assert.deepEqual(parts([nightShift()], '2026-11-03'), [])
+  assert.deepEqual(parts([nightShift()], '2026-11-06'), [])
+})
+
+test('an event ending exactly at midnight has no continuation', () => {
+  assert.deepEqual(parts([nightShift({ end: '00:00' })], '2026-11-05'), [])
+  assert.equal(parts([nightShift({ end: '00:00' })], '2026-11-04')[0][1], '24:00')
+})
+
+test('a repeating night event shows both parts each day and exceptions follow the day it started', () => {
+  const daily = nightShift({ rep: 'daily' })
+  assert.deepEqual(parts([daily], '2026-11-05').map(p => [p[0], p[2]]), [['00:00', true], ['17:30', false]])
+  const skipped = nightShift({ rep: 'daily', ex: { '2026-11-04': { x: 1 } } })
+  assert.deepEqual(parts([skipped], '2026-11-05').map(p => p[2]), [false])
+  const shorter = nightShift({ rep: 'daily', ex: { '2026-11-04': { end: '22:00' } } })
+  assert.deepEqual(parts([shorter], '2026-11-05').map(p => p[2]), [false])
+  assert.equal(parts([shorter], '2026-11-04')[0][1], '22:00')
+})
+
+test('events within one day are not split', () => {
+  assert.deepEqual(parts([nightShift({ start: '09:00', end: '10:00' })], '2026-11-04'), [['09:00', '10:00', false, '2026-11-04', '09:00', '10:00']])
+  assert.deepEqual(parts([nightShift({ start: '09:00', end: '10:00' })], '2026-11-05'), [])
 })
 
 for (const name of results) console.log(`PASS ${name}`)

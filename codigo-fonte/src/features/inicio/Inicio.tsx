@@ -77,7 +77,7 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
       <button type="button" className="card kpi" onClick={() => go('agenda')}>
         <span className="card-h"><span className="kpi-l">Agenda de hoje</span>{planned > 0 && <span className="trend acc">{fmt(planned)}</span>}</span>
         <b className="kpi-v num"><CountUp value={events.length} /> <small>{events.length === 1 ? 'evento' : 'eventos'}</small></b>
-        <span className="kpi-strip day-strip" aria-hidden="true">{events.map(e => <i key={e.id} style={{ left: `${dayPos(mins(e.start))}%`, width: `${Math.max(1.2, dayPos(mins(e.end)) - dayPos(mins(e.start)))}%`, ['--c' as string]: color(e) }} />)}<b style={{ left: `${dayPos(nowM)}%` }} /></span>
+        <span className="kpi-strip day-strip" aria-hidden="true">{events.map(e => <i key={`${e.id}:${e.day}`} style={{ left: `${dayPos(mins(e.start))}%`, width: `${Math.max(1.2, dayPos(mins(e.end)) - dayPos(mins(e.start)))}%`, ['--c' as string]: color(e) }} />)}<b style={{ left: `${dayPos(nowM)}%` }} /></span>
         <span className="kpi-f">{next ? `${mins(next.start) <= nowM ? 'Agora' : `Às ${next.start}`} · ${next.title}` : events.length ? 'Sem mais eventos hoje' : 'Dia livre'}</span>
       </button>
       <button type="button" className="card kpi" onClick={() => go('tarefas')}>
@@ -105,9 +105,9 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
         <div className="card-h"><h3>Agenda de hoje</h3>{more('agenda', 'Abrir agenda')}</div>
         {events.length ? <div className="hl">{events.slice(0, 6).map(e => {
           const live = mins(e.start) <= nowM && nowM < mins(e.end), past = mins(e.end) <= nowM
-          return <div key={e.id} className={'hl-row ev-row' + (live ? ' is-now' : '') + (past ? ' is-past' : '')} style={{ ['--c' as string]: color(e) }}>
+          return <div key={`${e.id}:${e.day}`} className={'hl-row ev-row' + (live ? ' is-now' : '') + (past ? ' is-past' : '')} style={{ ['--c' as string]: color(e) }}>
             <time className="num">{e.start}</time>
-            <span className="hl-main"><b>{e.title}</b><small>{live ? `Agora · até às ${e.end}` : `${e.start} – ${e.end}`}</small></span>
+            <span className="hl-main"><b>{e.title}</b><small>{live ? `Agora · até às ${e.realEnd}` : e.cont ? `Até às ${e.realEnd}` : `${e.start} – ${e.realEnd}`}</small></span>
             {catName(e) && <span className="tag">{catName(e)}</span>}
           </div>
         })}{events.length > 6 && <p className="mu hl-more">Mais {events.length - 6} na agenda.</p>}</div>

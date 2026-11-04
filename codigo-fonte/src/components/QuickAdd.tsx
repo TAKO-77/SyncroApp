@@ -14,7 +14,7 @@ export function QuickAdd({ onClose, onEvent }: { onClose: () => void; onEvent: (
     const id = /\b(ir|ida|volta|viagem|comboio|autocarro|metro|desloc\w*)\b/i.test(t) ? 'desloc' : /gym|gin[aá]sio|treino|corrida|correr|exerc/i.test(t) ? 'exercicio' : /\b(uni|aula|aulas|faculdade|escola)\b/i.test(t) ? 'presencial' : /estud|tpc/i.test(t) ? 'autonomo' : /projeto|c[oó]digo|programar/i.test(t) ? 'projetos' : /amig|jogo|cinema|sair/i.test(t) ? 'lazer' : 'rotina'
     return data.cats.some(c => c.id === id) ? id : data.cats[0]?.id ?? ''
   }
-  const hint = !v ? 'Ex.: Treino sex 18h 1h30 semanal  ·  t: Comprar café' : !r ? 'Falta o título' : 'task' in r ? 'Tarefa · ' + r.task : `${r.title} · ${DN[dow(parse(r.date))]} ${parse(r.date).getDate()} ${MN[parse(r.date).getMonth()]} · ${r.start}–${r.end}${r.rep !== 'none' ? ' · ' + RLB[r.rep] : ''}`
+  const hint = !v ? 'Ex.: Treino sex 18h 1h30 semanal  ·  t: Comprar café' : !r ? 'Falta o título' : 'task' in r ? 'Tarefa · ' + r.task : `${r.title} · ${DN[dow(parse(r.date))]} ${parse(r.date).getDate()} ${MN[parse(r.date).getMonth()]} · ${r.start}–${r.end}${r.end < r.start ? ' (dia seguinte)' : ''}${r.rep !== 'none' ? ' · ' + RLB[r.rep] : ''}`
   const submit = (e: FormEvent) => {
     e.preventDefault(); if (!r) return
     if ('task' in r) { update(d => { d.tasks.push({ id: uid('t'), t: r.task, due: '', p: 'media', d: false }) }); useToast.getState().show('Tarefa criada') }

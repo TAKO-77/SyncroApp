@@ -2,7 +2,7 @@ import { PALETTE } from '../../lib/palette'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useStore } from '../../store/useStore'
 import { DN, MN, dow, fmt, hm, iso, mins, parse } from '../../lib/dates'
-import { eventsOn } from '../../lib/recurrence'
+import { crossesMidnight, eventsOn, type DayEvent } from '../../lib/recurrence'
 import { sleepIv } from '../../lib/sleep'
 import { Modal, uid, useNow } from '../../components/common'
 import { CategoryManager } from '../../components/CategoryManager'
@@ -14,8 +14,8 @@ import { TimePicker } from '../../components/TimePicker'
 import { Select } from '../../components/Select'
 import { Glider } from '../../components/Glider'
 
-type L = PEvent & { l: number; n: number }
-function lanes(list: PEvent[]): L[] {
+type L = DayEvent & { l: number; n: number }
+function lanes(list: DayEvent[]): L[] {
   const out: L[] = []; let cl: L[] = []; let end = 0
   const flush = () => {
     const le: number[] = []
@@ -59,7 +59,7 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
   }
   const save = (ev: FormEvent) => {
     ev.preventDefault(); const f = form; if (!f) return
-    if (mins(f.end) <= mins(f.start)) { setErr('O fim tem de ser depois do início'); return }
+    if (f.end === f.start) { setErr('O fim tem de ser diferente do início'); return }
     const dd = f.rep === 'custom' ? (f.days.length ? [...f.days].sort() : [dow(parse(f.date))]) : undefined
     const o = { title: f.title.trim(), start: f.start, end: f.end, date: f.date, rep: f.rep, days: dd, cat: f.cat, color: data.cats.find(c => c.id === f.cat)?.color }
     update(d => { if (f.id) { const b = d.ev.find(x => x.id === f.id); if (b) Object.assign(b, o) } else d.ev.push({ ...o, id: uid('e'), done: {} }) })
@@ -69,12 +69,12 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
   const delDay = () => { const f = form; update(d => { const b = d.ev.find(x => x.id === f?.id); if (b && f) b.ex = { ...b.ex, [f.ds]: { x: 1 } } }); setForm(null) }
   const rep = form?.id ? data.ev.find(x => x.id === form.id)?.rep !== 'none' : false
   const noClick = useRef(0)
-  const startDrag = (e: React.PointerEvent<HTMLDivElement>, ev: PEvent, srcDs: string) => {
+  const startDrag = (e: React.PointerEvent<HTMLDivElement>, ev: PEvent) => {
     if (e.button !== 0 || !box.current) return
     const el = e.currentTarget, tt = box.current, st0 = tt.scrollTop
     const resize = !!(e.target as HTMLElement).closest('.rz')
     const cols = [...tt.querySelectorAll<HTMLElement>('.col')], srcCol = el.parentElement as HTMLElement
-    const eff = eventsOn(data, srcDs).find(x => x.id === ev.id) ?? ev
+    const eff = ev
     const s0 = mins(eff.start), e0 = mins(eff.end), sx = e.clientX, sy = e.clientY
     let moved = false, ghost: HTMLDivElement | null = null, tip: HTMLSpanElement | null = null
     let tgt = { col: srcCol, s: s0, e: e0 }
@@ -149,9 +149,9 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
           return <div key={ds} data-d={ds} className={'col' + (ds === td ? ' td' : '')} style={{ height: 1440 }}
             onClick={e => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('slp') || (e.target as HTMLElement).classList.contains('past')) openNew(ds, Math.max(0, Math.min(1439, Math.round(e.clientY - e.currentTarget.getBoundingClientRect().top)))) }}>
             {sleepIv(data.sleep, ds).map(([a, b], i) => <div key={i} className="slp" style={{ top: a, height: b - a }}>{b - a > 90 && <span>Sono</span>}</div>)}
-            {lanes(evs).map(e => { const h = Math.max(18, dur(e) - 1), w = 100 / e.n
-              return <div key={e.id} className={'ev' + (h < 44 ? ' sm' : '')} title={e.title} style={{ ['--c' as string]: color(e), top: mins(e.start), height: h, left: `calc(${e.l * w}% + 2px)`, width: `calc(${w}% - 4px)` }} onPointerDown={ev => startDrag(ev, e, ds)} onClick={() => { if (Date.now() > noClick.current) openEdit(e.id, ds) }}>
-                <div className="rz" /><b>{e.title}</b><small>{e.start}–{e.end}{h < 44 ? '' : ' · ' + fmt(dur(e))}</small></div> })}
+            {lanes(evs).map(e => { const h = Math.max(18, dur(e) - 1), w = 100 / e.n, night = crossesMidnight({ start: e.realStart, end: e.realEnd }), full = (mins(e.realEnd) - mins(e.realStart) + 1440) % 1440
+              return <div key={`${e.id}:${e.day}`} className={'ev' + (h < 44 ? ' sm' : '') + (e.cont ? ' from-prev' : night ? ' to-next' : '')} title={e.title} style={{ ['--c' as string]: color(e), top: mins(e.start), height: h, left: `calc(${e.l * w}% + 2px)`, width: `calc(${w}% - 4px)` }} onPointerDown={night ? undefined : ev => startDrag(ev, e)} onClick={() => { if (Date.now() > noClick.current) openEdit(e.id, e.day) }}>
+                {!night && <div className="rz" />}<b>{e.title}</b><small>{e.cont ? `até às ${e.realEnd}` : `${e.realStart}–${e.realEnd}`}{h < 44 ? '' : ' · ' + fmt(full)}</small></div> })}
             {ds === td && <><div className="past" style={{ height: nowM }} /><div className="now" style={{ top: nowM }} /></>}
           </div>
         })}
@@ -169,6 +169,7 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
           { value: 'none', label: 'Não repete' }, { value: 'daily', label: 'Todos os dias' }, { value: 'weekdays', label: 'Dias úteis' }, { value: 'custom', label: 'Dias à escolha' }, { value: 'weekly', label: 'Todas as semanas' }]} /></label>
         {form.rep === 'custom' && <div className="w dys">{DN.map((n, i) => <button key={n} type="button" aria-pressed={form.days.includes(i)} onClick={() => setForm({ ...form, days: form.days.includes(i) ? form.days.filter(x => x !== i) : [...form.days, i] })}>{n}</button>)}</div>}
         <div className="w cats">{data.cats.map(c => <label key={c.id} className="cp"><input type="radio" name="cat" checked={form.cat === c.id} onChange={() => setForm({ ...form, cat: c.id })} /><span style={{ ['--c' as string]: c.color }}>{c.name}</span></label>)}</div>
+        {crossesMidnight(form) && <p className="w mu">Termina no dia seguinte.</p>}
         {err && <p className="w neg" role="alert">{err}</p>}
         <div className="acts w">{form.id && (rep ? <><button type="button" className="btn dng" onClick={delDay}>Apagar só este dia</button><button type="button" className="btn dng" onClick={delSeries}>Apagar série</button></> : <button type="button" className="btn dng" onClick={delSeries}>Apagar</button>)}
           <span className="sp" /><button type="button" className="btn" onClick={() => setForm(null)}>Cancelar</button><button className="btn pri" type="submit">Guardar</button></div>

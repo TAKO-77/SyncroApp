@@ -1,5 +1,6 @@
 import type { Rep } from '../types'
-import { dow, hm, iso } from './dates'
+import { dow, hm, iso } from './dates.ts'
+const RANGE_LINK = /^\s*(?:às|as|até|ate|a|-|–|—)\s*$/i
 export type Parsed = { task: string } | { title: string; date: string; start: string; end: string; rep: Rep }
 export const RLB: Record<string, string> = { daily: 'todos os dias', weekdays: 'dias úteis', weekly: 'semanal' }
 
@@ -7,7 +8,7 @@ export function parseQ(q0: string, now = new Date()): Parsed | null {
   let q = q0.trim(); if (!q) return null
   if (/^t:/i.test(q)) { const t = q.slice(2).trim(); return t ? { task: t } : null }
   const today = iso(now)
-  let rep: Rep = 'none', date = today, dur = 60, start: number | null = null
+  let rep: Rep = 'none', date = today, dur = 60, start: number | null = null, end: number | null = null
   const reps: [RegExp, Rep][] = [[/\b(todos os dias|diariamente|diário|diario)\b/i, 'daily'], [/\bdias [uú]teis\b/i, 'weekdays'], [/\b(semanalmente|semanal|todas as semanas)\b/i, 'weekly']]
   for (const [r, v] of reps) if (r.test(q)) { rep = v; q = q.replace(r, ' ') }
   if (/amanh[ãa]/i.test(q)) { const d = new Date(now); d.setDate(d.getDate() + 1); date = iso(d); q = q.replace(/amanh[ãa]/i, ' ') }
@@ -24,10 +25,19 @@ export function parseQ(q0: string, now = new Date()): Parsed | null {
   const re = /\b(\d{1,2})(?::(\d{2})|h(\d{2})?)(?!\d)/gi, ts = [...q.matchAll(re)]
   const val = (m: RegExpMatchArray) => +m[1] * 60 + +(m[2] || m[3] || 0)
   if (ts.length === 1) { const m = ts[0]; if (!m[2] && +m[1] < 6 && !/(^|\s)às(\s|$)/i.test(q)) dur = val(m); else start = val(m) }
-  else if (ts.length > 1) { start = val(ts[0]); dur = val(ts[1]) }
+  else if (ts.length > 1) {
+    const [a, b] = ts, aAt = a.index ?? 0, bAt = b.index ?? 0
+    start = val(a)
+    // "17:30 às 3:00", "17:30-3:00" and "17:30 3:00" give the end time; "17:30 3h" gives a duration.
+    if (b[2] || RANGE_LINK.test(q.slice(aAt + a[0].length, bAt))) {
+      end = val(b) % 1440
+      q = q.slice(0, aAt).replace(/(^|\s)(?:das|de)\s*$/i, ' ') + ' ' + q.slice(bAt + b[0].length)
+    } else dur = val(b)
+  }
   q = q.replace(re, ' ').replace(/(^|\s)às(?=\s|$)/gi, ' ')
   let title = q.replace(/\s+/g, ' ').trim(); if (!title) return null
   title = title[0].toUpperCase() + title.slice(1)
   if (start == null) start = date === today ? Math.min(now.getHours() * 60 + now.getMinutes() + 1, 1439) : 540
-  return { title, date, start: hm(start), end: hm(Math.min(start + dur, 1439)), rep }
+  const stop = end !== null && end !== start ? end : (start + Math.min(dur, 1439)) % 1440
+  return { title, date, start: hm(start), end: hm(stop), rep }
 }
