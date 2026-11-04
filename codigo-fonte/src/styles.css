@@ -509,8 +509,11 @@ main>.page{animation:page-in .35s cubic-bezier(.2,.75,.25,1) backwards}
   .tadd-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.tadd-fields>.btn{grid-column:1/-1}
   .profile-name{flex-direction:column;align-items:stretch}
   .settings-page h2.sub{margin-top:26px}.settings-page p.mu{font-size:12px;line-height:1.45}
-  /* Sideways gestures stay with the page, so a slightly diagonal swipe isn't taken as a scroll. */
-  .schedule-layout main{touch-action:pan-y pinch-zoom}
+  /* Agenda and Calendário sit side by side; SwipePager moves them with the finger, so the box itself never scrolls natively. */
+  .pager{display:flex;align-items:flex-start;gap:16px;overflow:hidden;touch-action:pan-y pinch-zoom;transition:height .25s ease}
+  .pager-panel{flex:0 0 100%;min-width:0}
+  .pager-panel>.page{display:flex;flex-direction:column;min-height:0}
+  .calendar-page .upcoming-compact .upcoming-list{overscroll-behavior-x:contain}
   /* Compact greeting, so the summary cards start higher. */
   .top>div:first-child:not(:empty){margin-bottom:12px}
   .hero>div:first-child{padding:12px 16px}.hero .hello{font-size:22px}.hello-sub{margin-top:2px;font-size:13px}

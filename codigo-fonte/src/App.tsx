@@ -13,7 +13,8 @@ import { ProfileButton } from './features/perfil/ProfileButton'
 import { QuickAdd } from './components/QuickAdd'
 import { Toast } from './components/Toast'
 import { applyTheme, useStore } from './store/useStore'
-import { LogoFilter, todayIso, useIsPhone, useNow, useSwipe } from './components/common'
+import { LogoFilter, todayIso, useIsPhone, useNow } from './components/common'
+import { SwipePager } from './components/SwipePager'
 import { cleanUpNoteImages } from './lib/noteImages'
 import { purgeExpired } from './lib/cleanup'
 import { desktop } from './lib/desktop'
@@ -40,7 +41,6 @@ export default function App() {
   // On phones Agenda and Calendário share one bottom-bar item and switch inside the page.
   const navSections = SECTIONS.filter(s => s.id !== 'definicoes' && s.id !== 'perfil' && !(phone && s.id === 'calendario'))
   const isCurrent = (id: Id) => sec === id || (phone && id === 'agenda' && schedule)
-  const swipe = useSwipe(() => { if (sec === 'agenda') setSec('calendario') }, () => { if (sec === 'calendario') setSec('agenda') })
   useEffect(() => { setSidebarOpen(false) }, [sidebarAutoOpen])
   useEffect(() => applyTheme(theme), [theme])
   useEffect(() => {
@@ -78,6 +78,8 @@ export default function App() {
     }
     addEventListener('keydown', k); return () => removeEventListener('keydown', k)
   }, [qa])
+  const agendaPage = <Agenda anchor={anchor} setAnchor={setAnchor} view={agendaView} setView={setAgendaView} />
+  const calendarPage = <Calendario onOpenDay={ds => { setAnchor(ds); setSec('agenda') }} />
   return <div className={`app${sidebarOpen ? ' sidebar-open' : ''}${schedule ? ' schedule-layout' : ''}`}>
     <LogoFilter />
     <aside id="sidebar" className="sb" onMouseEnter={() => { if (sidebarAutoOpen) setSidebarOpen(true) }} onMouseLeave={() => { if (sidebarAutoOpen) setSidebarOpen(false) }} onFocus={() => { if (sidebarAutoOpen) setSidebarOpen(true) }} onBlur={e => { if (sidebarAutoOpen && !e.currentTarget.contains(e.relatedTarget as Node | null)) setSidebarOpen(false) }}>
@@ -87,7 +89,7 @@ export default function App() {
       {focusTimer && <Foco />}
       <nav className="nav settings-nav" aria-label="Definições"><button title="Definições" aria-label="Definições" aria-current={sec === 'definicoes' ? 'page' : undefined} onClick={() => setSec('definicoes')}><Settings size={20} strokeWidth={1.5} aria-hidden="true" /><span>Definições</span></button></nav>
     </aside>
-    <main {...(phone && schedule ? swipe : {})}>
+    <main>
       <div className="mobile-brand"><img src={syncroLogo} alt="Syncro" width={607} height={222} /></div>
       <div className={'top' + (sec === 'inicio' ? ' hero' : '')}><div>{sec === 'inicio' && <><div className="hello"><RevealText text={g + (data.name ? ', ' : '.')} />{data.name && <span className="nm"><RevealText text={data.name} from={g.length + 2} /></span>}</div><TodaySummary /></>}</div>
         <div className="top-actions"><button type="button" className="date-pill" title={`${now.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Abrir calendário`} onClick={() => setSec('calendario')}>
@@ -95,8 +97,10 @@ export default function App() {
           <button className="btn pri" onClick={() => setQa(true)} title="Adição rápida ( / )"><Plus size={16} strokeWidth={2} aria-hidden="true" />Adição rápida</button><ProfileButton active={sec === 'perfil'} onClick={() => setSec('perfil')} /></div></div>
       {phone && schedule && <div className="seg schedule-switch"><button aria-pressed={sec === 'agenda'} onClick={() => setSec('agenda')}>Agenda</button><button aria-pressed={sec === 'calendario'} onClick={() => setSec('calendario')}>Calendário</button><Glider /></div>}
       {sec === 'inicio' && <Inicio go={setSec} />}
-      {sec === 'agenda' && <Agenda anchor={anchor} setAnchor={setAnchor} view={agendaView} setView={setAgendaView} />}
-      {sec === 'calendario' && <Calendario onOpenDay={ds => { setAnchor(ds); setSec('agenda') }} />}
+      {phone && schedule ? <SwipePager page={sec === 'agenda' ? 0 : 1} onChange={p => setSec(p ? 'calendario' : 'agenda')} pages={[agendaPage, calendarPage]} /> : <>
+        {sec === 'agenda' && agendaPage}
+        {sec === 'calendario' && calendarPage}
+      </>}
       {sec === 'tarefas' && <Tarefas workspaceId={workspaceId} setWorkspaceId={setWorkspaceId} />}
       {sec === 'financas' && <Financas />}
       {sec === 'perfil' && <Perfil />}
