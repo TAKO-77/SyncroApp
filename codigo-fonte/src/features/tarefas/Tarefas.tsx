@@ -44,6 +44,9 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
       if (timers.has(id)) { clearTimeout(timers.get(id)); timers.delete(id); setCompleting(c => c.filter(x => x !== id)); return }
       patch(id, x => markDone(x, done)); return
     }
+    // Rows differ in height on phones, so the collapse animation starts from this row's own height.
+    const completingRow = listRef.current?.querySelector<HTMLElement>(`[data-id="${id}"]`)
+    completingRow?.style.setProperty('--tk-h', `${completingRow.offsetHeight}px`)
     setCompleting(c => [...c, id])
     timers.set(id, window.setTimeout(() => {
       timers.delete(id); setCompleting(c => c.filter(x => x !== id)); patch(id, x => markDone(x, true))
@@ -55,11 +58,16 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
     e.preventDefault()
     const rows = [...listRef.current.querySelectorAll<HTMLElement>('.tk')], i0 = rows.findIndex(r => r.dataset.id === id), n = rows.length
     if (n < 2) return
-    const row = rows[i0], step = rows[1].offsetTop - rows[0].offsetTop, sy = e.clientY, sc = scrollY
+    // Rows can differ in height: the dragged row takes a neighbour's place once its edge passes that neighbour's middle.
+    const row = rows[i0], sy = e.clientY, sc = scrollY, tops = rows.map(r => r.offsetTop), middles = rows.map((r, k) => tops[k] + r.offsetHeight / 2)
+    const step = row.offsetHeight + rows[1].offsetTop - rows[0].offsetTop - rows[0].offsetHeight
     let ni = i0; row.classList.add('drag')
     const mv = (m: PointerEvent) => {
       if (m.clientY < 70) scrollBy(0, -14); else if (m.clientY > innerHeight - 70) scrollBy(0, 14)
-      const dy = m.clientY - sy + (scrollY - sc); ni = Math.max(0, Math.min(n - 1, i0 + Math.round(dy / step)))
+      const dy = m.clientY - sy + (scrollY - sc), top = tops[i0] + dy, bottom = top + row.offsetHeight
+      ni = i0
+      for (let k = i0 + 1; k < n && bottom > middles[k]; k++) ni = k
+      for (let k = i0 - 1; k >= 0 && top < middles[k]; k--) ni = k
       row.style.transform = `translateY(${dy}px)`
       rows.forEach((r, k) => { if (r !== row) r.style.transform = i0 < ni && k > i0 && k <= ni ? `translateY(${-step}px)` : i0 > ni && k >= ni && k < i0 ? `translateY(${step}px)` : '' })
     }
@@ -134,10 +142,12 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
         <span className="rc-wrap"><input className="rc" type="checkbox" checked={t.d || done} aria-label="Concluída" onChange={e => toggleDone(t.id, e.target.checked)} />
           {done && <span className="burst" aria-hidden="true">{BURST.map(a => <i key={a} style={{ ['--a' as string]: `${a}deg` }} />)}</span>}</span>
         <span className="tt2" onClick={() => setEd({ ...t })}><span className="tt2-text">{t.t}</span></span>
-        {t.n && <small className="tm" title="Tem notas">≡</small>}
-        {lbl && <small className={'tm' + (late ? ' late' : '')}>{lbl}</small>}
-        {t.effort && <button className="lt" style={{ ['--c' as string]: LV[t.effort].c }} title={LV[t.effort].t}>{LV[t.effort].n}</button>}
-        <button className="pp2" onClick={() => patch(t.id, x => { x.p = NX[x.p] })}>{PN[t.p]}</button>
+        <span className="tk-meta">
+          {t.n && <small className="tm" title="Tem notas">≡</small>}
+          {lbl && <small className={'tm' + (late ? ' late' : '')}>{lbl}</small>}
+          {t.effort && <button className="lt" style={{ ['--c' as string]: LV[t.effort].c }} title={LV[t.effort].t}>{LV[t.effort].n}</button>}
+          <button className="pp2" onClick={() => patch(t.id, x => { x.p = NX[x.p] })}>{PN[t.p]}</button>
+        </span>
         <button className="x" aria-label="Remover" onClick={() => update(d => { d.tasks = d.tasks.filter(x => x.id !== t.id) })}>✕</button>
       </div> }) : <div className="tem">{open ? 'Tudo em dia. Adiciona a próxima tarefa acima.' : 'Ainda nada concluído.'}</div>}</div>
     </div>

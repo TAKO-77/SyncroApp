@@ -6,6 +6,7 @@ import { monthTotals, ymAdd } from '../codigo-fonte/src/lib/finance.ts'
 import { daysLeft, upcomingSpecialDays } from '../codigo-fonte/src/lib/specialDays.ts'
 import { dueForTime, dueKey, isOverdue } from '../codigo-fonte/src/lib/taskDue.ts'
 import { parseQ } from '../codigo-fonte/src/lib/quick.ts'
+import { WEEK_RANGE, clipToWeek, weekScale } from '../codigo-fonte/src/lib/agendaFit.ts'
 import { eventsOn } from '../codigo-fonte/src/lib/recurrence.ts'
 import { reminderText, remindersBetween } from '../codigo-fonte/src/lib/reminders.ts'
 import { expirySeconds, isPushEndpoint, localMinutes, reminderText as serverText, remindersAt } from '../supabase/functions/send-reminders/rules.ts'
@@ -32,6 +33,21 @@ const base = (): AppData => ({
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v))
 const results: string[] = []
 const test = (name: string, fn: () => void) => { fn(); results.push(name) }
+
+test('phone week cuts events to 08:00-20:00 and leaves out those outside', () => {
+  const clip = (start: string, end: string) => clipToWeek([{ start, end }])
+  assert.deepEqual(clip('09:00', '10:00'), [{ start: '09:00', end: '10:00' }])
+  assert.deepEqual(clip('07:00', '09:00'), [{ start: '08:00', end: '09:00' }])
+  assert.deepEqual(clip('19:30', '24:00'), [{ start: '19:30', end: '20:00' }])
+  assert.deepEqual(clip('06:00', '08:00'), [])
+  assert.deepEqual(clip('20:00', '21:00'), [])
+})
+
+test('phone week scale fits the screen within readable limits', () => {
+  assert.equal(weekScale(1000), (1000 - 380) / (WEEK_RANGE.to - WEEK_RANGE.from))
+  assert.equal(weekScale(500), 0.6)
+  assert.equal(weekScale(2000), 1.2)
+})
 
 test('round trip keeps every synced field', () => {
   const d = base()

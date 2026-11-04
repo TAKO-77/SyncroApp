@@ -52,7 +52,7 @@ Used for categories, priorities, effort levels, charts and special dates. Compon
 | Muted | #6B7280 | Free time in charts |
 
 - Urgent priority uses `PALETTE.error`.
-- Tinted backgrounds are derived from `--c` with `color-mix` (12–20% over the surface), never with new hex values.
+- Tinted backgrounds are derived from `--c` with `color-mix` (12–20% over the surface; phone event blocks in the dark theme are the exception, see Event block), never with new hex values.
 - In light mode, category text (chips, tags, effort pills) is mixed 55% with `--tx` for contrast.
 
 # 03 Typography
@@ -99,8 +99,8 @@ One family: **Manrope** (400, 500, 600, 700), loaded from Google Fonts in `codig
 ## Shell
 - **Sidebar:** floating panel (`--s1`, 20px radius) beside the page; 72px collapsed, 240px expanded, with optional auto-open on hover. Active item: accent-soft gradient fading to the right, 1px inner border, icon in `--ac`. Settings sits at the bottom above a divider. The focus timer is a card with an amber glow and an orb (`.orb`) beside the time: it breathes when idle, pulses while running, bounces when done and turns slate for a break.
 - **Top bar:** greeting (Início only) and the date on the left; "Adição rápida" primary pill and the round profile button on the right.
-- **Início hero (`.top.hero`):** on Início the top bar is a card (`--s1`, 20px radius) with a slow amber/slate aurora (`--hero-1..3`, blurred radial gradients, 22s loop) and film grain (`--hero-grain`) behind it; both are tuned per theme. On mobile the card wraps only the greeting. Pure CSS, static under reduced motion.
-- **Mobile (≤ 760px):** the sidebar becomes a floating bottom bar inset 12px from the edges, with a shadow. It has five items: Agenda and Calendário share one, with a segmented switch at the top of the page. "Adição rápida" becomes a 56px round amber floating button (`.fab`) above the bar's right end, hidden on Perfil and Definições.
+- **Início hero (`.top.hero`):** on Início the top bar is a card (`--s1`, 20px radius) with a slow amber/slate aurora (`--hero-1..3`, blurred radial gradients, 22s loop) and film grain (`--hero-grain`) behind it; both are tuned per theme. On mobile the card wraps only the greeting, with 12px × 16px padding and 22px text. Pure CSS, static under reduced motion.
+- **Mobile (≤ 760px):** the sidebar becomes a floating bottom bar inset 12px from the edges, with a shadow. It has five items: Agenda and Calendário share one, with a segmented switch at the top of the page and a sideways swipe between them. "Adição rápida" becomes a 56px round amber floating button (`.fab`) above the bar's right end, hidden on Agenda (it would cover the timetable, and the toolbar has its own add button), Perfil and Definições.
 
 ## Controls
 - **Primary button (`.btn.pri`):** amber pill (`--ac-fill`), `--accent-text`, weight 700; lifts 1px with a glow on hover.
@@ -121,8 +121,8 @@ One family: **Manrope** (400, 500, 600, 700), loaded from Google Fonts in `codig
 - **Badges (`.trend`):** pills — `.up` success tint, `.down` error tint, `.acc` accent tint.
 - **Tags (`.tag`):** pill with a dot and a 14% tint of `--c`.
 - **List rows (`.hl-row`):** `--s2`, 14px radius, 52px min height; the current event has an amber border and an accent gradient; past events are dimmed.
-- **Task Row (`.tk`):** `--s1`, 1px border, 3px left border in the priority colour, 14px radius, 56px height. Completing a task plays a check pop with a ring and particles, strikes the title, shows "✓ Concluída" and slides the row away.
-- **Event block (`.ev`):** 10px radius, 3px left border in the category colour, 16% tint over the panel.
+- **Task Row (`.tk`):** `--s1`, 1px border, 3px left border in the priority colour, 14px radius, 56px height. Completing a task plays a check pop with a ring and particles, strikes the title, shows "✓ Concluída" and slides the row away. On phones the height is automatic: the title takes up to two lines, with date, effort and priority on a line below.
+- **Event block (`.ev`):** 10px radius, 3px left border in the category colour, 16% tint over the panel. On phones in the dark theme the fill is a pastel (45% of the colour mixed into `--tx`) with `--bg` text. The phone week view fits the screen (`.tt.fit`): seven columns with no sideways scroll, always 08:00–20:00, and blocks showing only the wrapped title at 10px. Events entirely outside those hours appear as a `+N` pill (`.hd-more`) under the day, which opens that day.
 - **Note cards (`.note-card`):** masonry grid, `--s2`, 14px radius, amber border while editing.
 - **Empty state (`.tem`):** dashed `--l2`, 20px radius, centred muted text.
 - **Hidden money (`.blurred`, `.fwrap.blur`):** finance values are blurred until the user chooses "Mostrar valores".

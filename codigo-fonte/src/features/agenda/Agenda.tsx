@@ -1,18 +1,18 @@
 import { PALETTE } from '../../lib/palette'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Plus, Tags } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { DN, MN, dow, fmt, hm, iso, mins, parse } from '../../lib/dates'
 import { crossesMidnight, eventsOn, type DayEvent } from '../../lib/recurrence'
 import { sleepIv } from '../../lib/sleep'
-import { Modal, uid, useNow } from '../../components/common'
+import { Modal, uid, useIsPhone, useNow } from '../../components/common'
 import { CategoryManager } from '../../components/CategoryManager'
-import { useToast } from '../../store/toast'
-import { useStore as store } from '../../store/useStore'
 import type { PEvent, Rep } from '../../types'
 import { DatePicker } from '../../components/DatePicker'
 import { TimePicker } from '../../components/TimePicker'
 import { Select } from '../../components/Select'
 import { Glider } from '../../components/Glider'
+import { WEEK_RANGE, clipToWeek, weekScale } from '../../lib/agendaFit'
 
 type L = DayEvent & { l: number; n: number }
 function lanes(list: DayEvent[]): L[] {
@@ -41,10 +41,17 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
   useEffect(() => { if (box.current) box.current.scrollTop = Math.max(0, nowM - 90) }, []) // eslint-disable-line
 
   const A = parse(anchor), N = view === 'week' ? 7 : 1
+  // On phones the week fits the screen: seven narrow columns, 08:00 to 20:00.
+  const phone = useIsPhone(), narrow = phone && N === 7
   // Agenda weeks run Sunday to Saturday.
   const first = new Date(A); if (N === 7) first.setDate(first.getDate() - A.getDay())
   const days = Array.from({ length: N }, (_, i) => { const d = new Date(first); d.setDate(d.getDate() + i); return d })
   const last = days[N - 1]
+  const range = narrow ? WEEK_RANGE : { from: 0, to: 1440 }
+  const px = narrow ? weekScale(innerHeight) : 1
+  const eventsFor = (ds: string) => eventsOn(data, ds).filter(e => !fcat || e.cat === fcat)
+  const y = (m: number) => (m - range.from) * px
+  const gridHeight = y(range.to)
   const specialDaysOn = (ds: string) => data.days
     .filter(x => x.y ? ds >= x.s && ds.slice(5) === x.s.slice(5) : ds >= x.s && ds <= (x.e || x.s))
     .sort((a, b) => (a.h || '99').localeCompare(b.h || '99'))
@@ -68,63 +75,6 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
   const delSeries = () => { const id = form?.id; update(d => { d.ev = d.ev.filter(x => x.id !== id) }); setForm(null) }
   const delDay = () => { const f = form; update(d => { const b = d.ev.find(x => x.id === f?.id); if (b && f) b.ex = { ...b.ex, [f.ds]: { x: 1 } } }); setForm(null) }
   const rep = form?.id ? data.ev.find(x => x.id === form.id)?.rep !== 'none' : false
-  const noClick = useRef(0)
-  const startDrag = (e: React.PointerEvent<HTMLDivElement>, ev: PEvent) => {
-    if (e.button !== 0 || !box.current) return
-    const el = e.currentTarget, tt = box.current, st0 = tt.scrollTop
-    const resize = !!(e.target as HTMLElement).closest('.rz')
-    const cols = [...tt.querySelectorAll<HTMLElement>('.col')], srcCol = el.parentElement as HTMLElement
-    const eff = ev
-    const s0 = mins(eff.start), e0 = mins(eff.end), sx = e.clientX, sy = e.clientY
-    let moved = false, ghost: HTMLDivElement | null = null, tip: HTMLSpanElement | null = null
-    let tgt = { col: srcCol, s: s0, e: e0 }
-    const snap = (v: number) => Math.max(0, Math.min(1439, Math.round(v)))
-    const colAt = (x: number) => { let b = cols[0], bd = 1e9; cols.forEach(c => { const r = c.getBoundingClientRect(), d = x < r.left ? r.left - x : x > r.right ? x - r.right : 0; if (d < bd) { bd = d; b = c } }); return b }
-    const onMove = (m: PointerEvent) => {
-      const tr = tt.getBoundingClientRect()
-      if (moved) { if (m.clientY < tr.top + 50) tt.scrollTop -= 14; else if (m.clientY > tr.bottom - 50) tt.scrollTop += 14 }
-      const dx = m.clientX - sx, dy = m.clientY - sy + (tt.scrollTop - st0)
-      if (!moved) {
-        if (Math.hypot(dx, m.clientY - sy) < 5) return
-        moved = true; el.classList.add('drag')
-        if (!resize) { ghost = document.createElement('div'); ghost.className = 'ghost'; tip = document.createElement('span'); tip.className = 'tip'; ghost.appendChild(tip); srcCol.appendChild(ghost) }
-      }
-      if (resize) { const ne = Math.max(s0 + 1, Math.min(1439, snap(e0 + dy))); tgt.e = ne; el.style.height = Math.max(18, ne - s0 - 1) + 'px'; return }
-      const d = e0 - s0, ns = Math.max(0, Math.min(1439 - d, snap(s0 + dy))), col = colAt(m.clientX)
-      tgt = { col, s: ns, e: ns + d }
-      el.style.transform = `translate(${dx}px,${dy}px)`
-      if (ghost && tip) { ghost.style.top = ns + 'px'; ghost.style.height = Math.max(18, d - 1) + 'px'; if (ghost.parentElement !== col) col.appendChild(ghost); tip.textContent = hm(ns) + '–' + hm(ns + d) + (col !== srcCol ? ' · ' + DN[dow(parse(col.dataset.d as string))] : '') }
-    }
-    const commit = () => {
-      const st = store.getState(), sd = srcCol.dataset.d as string, td = tgt.col.dataset.d as string
-      const diff = !resize && tgt.col !== srcCol, ns = hm(tgt.s), ne = hm(tgt.e)
-      const series = (o: PEvent) => {
-        o.start = ns; o.end = ne
-        if (!diff) return
-        if (o.rep === 'none') o.date = td
-        else if (o.rep === 'weekly') { const k = Math.round((+parse(td) - +parse(sd)) / 864e5), d = parse(o.date); d.setDate(d.getDate() + k); o.date = iso(d) }
-        else if (o.rep === 'custom') { const a = dow(parse(sd)), c = dow(parse(td)); o.days = [...new Set((o.days ?? []).filter(x => x !== a).concat(c))].sort() }
-      }
-      const undo = { label: 'Anular', fn: () => store.getState().undo() }
-      if (ev.rep === 'none') { st.update(d => { const o = d.ev.find(x => x.id === ev.id); if (o) series(o) }); useToast.getState().show(resize ? 'Duração alterada' : 'Evento movido', [undo]); return }
-      st.update(d => {
-        const o = d.ev.find(x => x.id === ev.id); if (!o) return
-        o.ex = o.ex ?? {}
-        if (diff) { o.ex[sd] = { x: 1 }; d.ev.push({ id: uid('e'), title: eff.title, start: ns, end: ne, date: td, rep: 'none', cat: eff.cat, color: eff.color, done: {} }) }
-        else { const cur = o.ex[sd]; o.ex[sd] = { ...(cur && !cur.x ? cur : {}), start: ns, end: ne } }
-      })
-      useToast.getState().show(diff ? 'Movido só neste dia' : 'Alterado só neste dia', [undo, { label: 'Aplicar à série', fn: () => { const s2 = store.getState(); s2.undo(); s2.update(d => { const o = d.ev.find(x => x.id === ev.id); if (o) series(o) }) } }])
-    }
-    const onUp = () => {
-      removeEventListener('pointermove', onMove); removeEventListener('pointerup', onUp); removeEventListener('pointercancel', onUp)
-      if (!moved) return
-      noClick.current = Date.now() + 300
-      ghost?.remove(); el.classList.remove('drag'); el.style.transform = ''
-      commit()
-    }
-    addEventListener('pointermove', onMove); addEventListener('pointerup', onUp); addEventListener('pointercancel', onUp)
-  }
-  let total = 0
 
   return <section className="page agenda-page">
     <div className="bar">
@@ -132,32 +82,33 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
       <span className="rg">{label}</span>
       <button className="btn sq" onClick={() => move(1)} aria-label="Seguinte">›</button>
       <button className="btn ghost" onClick={() => { setAnchor(td); if (box.current) box.current.scrollTop = Math.max(0, nowM - 90) }}>Hoje</button>
-      <Select value={fcat} onChange={setFcat} aria-label="Filtrar por categoria" options={[{ value: '', label: 'Todas as categorias' }, ...data.cats.map(c => ({ value: c.id, label: c.name, color: c.color }))]} />
-      <button className="btn" onClick={() => setCm(true)}>Categorias</button>
+      <Select value={fcat} onChange={setFcat} aria-label="Filtrar por categoria" options={[{ value: '', label: phone ? 'Todas' : 'Todas as categorias' }, ...data.cats.map(c => ({ value: c.id, label: c.name, color: c.color }))]} />
+      {phone ? <button className="btn sq" aria-label="Categorias" title="Categorias" onClick={() => setCm(true)}><Tags size={16} strokeWidth={1.5} aria-hidden="true" /></button> : <button className="btn" onClick={() => setCm(true)}>Categorias</button>}
       <div className="seg"><button aria-pressed={view === 'week'} onClick={() => setView('week')}>Semana</button><button aria-pressed={view === 'day'} onClick={() => setView('day')}>Dia</button><Glider /></div>
-      <button className="btn pri" onClick={() => openNew(anchor, anchor === td ? Math.min(nowM + 1, 1439) : 540)}>Novo evento</button>
+      <button className={'btn pri' + (phone ? ' sq' : '')} aria-label="Novo evento" title="Novo evento" onClick={() => openNew(anchor, anchor === td ? Math.min(nowM + 1, 1439) : 540)}>{phone ? <Plus size={16} strokeWidth={2} aria-hidden="true" /> : 'Novo evento'}</button>
     </div>
-    <div className="tt" ref={box} tabIndex={0} role="region" aria-label="Horário da agenda">
-      <div className="gr" style={{ gridTemplateColumns: `52px repeat(${N},minmax(104px,1fr))`, minWidth: N === 7 ? 790 : 0 }}>
+    <div className={'tt' + (narrow ? ' fit' : '')} ref={box} tabIndex={0} role="region" aria-label="Horário da agenda">
+      <div className="gr" style={{ gridTemplateColumns: narrow ? '26px repeat(7,minmax(0,1fr))' : `52px repeat(${N},minmax(104px,1fr))`, minWidth: N === 7 && !narrow ? 790 : 0, ['--hour' as string]: `${60 * px}px` }}>
         <div className="corner" />
         {days.map(d => <div key={iso(d)} className={'hd' + (iso(d) === td ? ' td' : '')}><span className="dw">{DN[dow(d)]}</span><b className="dd">{d.getDate()}</b>
+          {narrow && (() => { const hidden = eventsFor(iso(d)).length - clipToWeek(eventsFor(iso(d))).length
+            return hidden > 0 && <button type="button" className="hd-more" aria-label={`${hidden} fora do horário, abrir este dia`} title="Fora do horário das 8:00 às 20:00" onClick={() => { setAnchor(iso(d)); setView('day') }}>+{hidden}</button> })()}
           {specialDaysOn(iso(d)).map(x => <span className="agenda-special" key={x.id} title={x.o || x.n}>{x.h ? `${x.h} · ` : ''}{x.n}</span>)}
         </div>)}
-        <div className="tc" style={{ height: 1440 }}>{Array.from({ length: 24 }, (_, h) => <div key={h} style={{ top: h * 60 }}>{String(h).padStart(2, '0')}:00</div>)}</div>
+        <div className="tc" style={{ height: gridHeight }}>{Array.from({ length: (range.to - range.from) / 60 + (narrow ? 1 : 0) }, (_, i) => range.from / 60 + i).map(h => <div key={h} style={{ top: y(h * 60) }}>{narrow ? `${h}h` : `${String(h).padStart(2, '0')}:00`}</div>)}</div>
         {days.map(d => {
-          const ds = iso(d), evs = eventsOn(data, ds).filter(e => !fcat || e.cat === fcat); total += evs.reduce((a, e) => a + dur(e), 0)
-          return <div key={ds} data-d={ds} className={'col' + (ds === td ? ' td' : '')} style={{ height: 1440 }}
-            onClick={e => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('slp') || (e.target as HTMLElement).classList.contains('past')) openNew(ds, Math.max(0, Math.min(1439, Math.round(e.clientY - e.currentTarget.getBoundingClientRect().top)))) }}>
-            {sleepIv(data.sleep, ds).map(([a, b], i) => <div key={i} className="slp" style={{ top: a, height: b - a }}>{b - a > 90 && <span>Sono</span>}</div>)}
-            {lanes(evs).map(e => { const h = Math.max(18, dur(e) - 1), w = 100 / e.n, night = crossesMidnight({ start: e.realStart, end: e.realEnd }), full = (mins(e.realEnd) - mins(e.realStart) + 1440) % 1440
-              return <div key={`${e.id}:${e.day}`} className={'ev' + (h < 44 ? ' sm' : '') + (e.cont ? ' from-prev' : night ? ' to-next' : '')} title={e.title} style={{ ['--c' as string]: color(e), top: mins(e.start), height: h, left: `calc(${e.l * w}% + 2px)`, width: `calc(${w}% - 4px)` }} onPointerDown={night ? undefined : ev => startDrag(ev, e)} onClick={() => { if (Date.now() > noClick.current) openEdit(e.id, e.day) }}>
-                {!night && <div className="rz" />}<b>{e.title}</b><small>{e.cont ? `até às ${e.realEnd}` : `${e.realStart}–${e.realEnd}`}{h < 44 ? '' : ' · ' + fmt(full)}</small></div> })}
-            {ds === td && <><div className="past" style={{ height: nowM }} /><div className="now" style={{ top: nowM }} /></>}
+          const ds = iso(d), evs = narrow ? clipToWeek(eventsFor(ds)) : eventsFor(ds)
+          return <div key={ds} data-d={ds} className={'col' + (ds === td ? ' td' : '')} style={{ height: gridHeight }}
+            onClick={e => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('slp') || (e.target as HTMLElement).classList.contains('past')) openNew(ds, Math.max(0, Math.min(1439, Math.round(range.from + (e.clientY - e.currentTarget.getBoundingClientRect().top) / px)))) }}>
+            {sleepIv(data.sleep, ds).map(([a, b]) => [Math.max(a, range.from), Math.min(b, range.to)]).filter(([a, b]) => b > a).map(([a, b], i) => <div key={i} className="slp" style={{ top: y(a), height: (b - a) * px }}>{!narrow && b - a > 90 && <span>Sono</span>}</div>)}
+            {lanes(evs).map(e => { const h = Math.max(narrow ? 16 : 18, dur(e) * px - 1), w = 100 / e.n, gap = narrow ? 1 : 2, night = crossesMidnight({ start: e.realStart, end: e.realEnd }), full = (mins(e.realEnd) - mins(e.realStart) + 1440) % 1440
+              return <div key={`${e.id}:${e.day}`} className={'ev' + (!narrow && h < 44 ? ' sm' : '') + (narrow && (e.n > 1 || h < 26) ? ' tight' : '') + (e.cont ? ' from-prev' : night ? ' to-next' : '')} title={e.title} style={{ ['--c' as string]: color(e), top: y(mins(e.start)), height: h, left: `calc(${e.l * w}% + ${gap}px)`, width: `calc(${w}% - ${gap * 2}px)` }} onClick={() => openEdit(e.id, e.day)}>
+                <b>{e.title}</b><small>{e.cont ? `até às ${e.realEnd}` : `${e.realStart}–${e.realEnd}`}{h < 44 ? '' : ' · ' + fmt(full)}</small></div> })}
+            {ds === td && <><div className="past" style={{ height: Math.max(0, Math.min(y(nowM), gridHeight)) }} />{nowM >= range.from && nowM < range.to && <div className="now" style={{ top: y(nowM) }} />}</>}
           </div>
         })}
       </div>
     </div>
-    <p className="mu">{total ? `${fmt(total)} planeadas ${N === 7 ? 'esta semana' : 'neste dia'}` : ''}</p>
     {cm && <CategoryManager list="cats" title="Categorias da Agenda" description="Define o nome e a cor usadas nos eventos." onClose={() => setCm(false)} />}
     {form && <Modal title={form.id ? 'Editar evento' : 'Novo evento'} onClose={() => setForm(null)}>
       <form className="fgrid" onSubmit={save}>
