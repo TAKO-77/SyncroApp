@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { ArrowUpRight, CalendarHeart, CalendarPlus, CheckCheck, Eye, EyeOff, Wallet } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { FIN_CATS, PALETTE } from '../../lib/palette'
-import { MN, fmt, iso, mins, parse } from '../../lib/dates'
+import { MN, fmt, hm, iso, mins, parse } from '../../lib/dates'
 import { eventsOn } from '../../lib/recurrence'
 import { eur, monthTotals, ymAdd } from '../../lib/finance'
 import { daysLeft, upcomingSpecialDays } from '../../lib/specialDays'
 import { PC, PN, dueLabel, tasksDueBy, urgentTasks } from '../../lib/tasks'
+import { isOverdue } from '../../lib/taskDue'
 import { markDone } from '../../lib/cleanup'
 import { todayIso, useNow } from '../../components/common'
 import { CountUp } from '../../components/CountUp'
@@ -51,8 +52,9 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
   const next = events.find(e => mins(e.end) > nowM)
 
   const pending = urgentTasks(data.tasks)
-  const late = pending.filter(t => t.due && t.due < today).length
-  const dueToday = pending.filter(t => t.due === today).length
+  const nowTime = hm(nowM)
+  const late = pending.filter(t => isOverdue(t, today, nowTime)).length
+  const dueToday = pending.filter(t => t.due === today && !isOverdue(t, today, nowTime)).length
   const weekEnd = parse(today); weekEnd.setDate(weekEnd.getDate() + 6)
   const shown = range === 'todas' ? pending : tasksDueBy(pending, range === 'hoje' ? today : iso(weekEnd))
 
@@ -116,7 +118,7 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
         <div className="card-h"><h3>Tarefas</h3>
           <span className="card-acts"><span className="seg sm" role="group" aria-label="Período das tarefas">{RANGES.map(x => <button key={x.id} type="button" aria-pressed={range === x.id} onClick={() => setRange(x.id)}>{x.label}</button>)}<Glider /></span>{more('tarefas', 'Ver tarefas')}</span></div>
         {shown.length ? <div className="hl">{shown.slice(0, LIMIT).map(t => {
-          const [lbl, isLate] = dueLabel(t.due, today)
+          const [lbl, isLate] = dueLabel(t, today, nowTime)
           return <label key={t.id} className="hl-row task-row">
             <input className="rc" type="checkbox" checked={false} aria-label={`Concluir ${t.t}`} onChange={() => complete(t.id)} />
             <span className="hl-main"><b>{t.t}</b>{lbl && <small className={isLate ? 'late' : ''}>{lbl}</small>}</span>

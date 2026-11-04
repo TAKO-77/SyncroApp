@@ -1,5 +1,6 @@
 import { PALETTE } from './palette'
 import { MN, iso, parse } from './dates'
+import { dueKey, isOverdue } from './taskDue'
 import type { Effort, Priority, Task } from '../types'
 
 // Task labels and colours shared by Tarefas and Início.
@@ -10,11 +11,12 @@ export const LV: Record<Effort, { n: string; t: string; c: string }> = { rel: { 
 export const LK = Object.keys(LV) as Effort[]
 const RANK: Record<Priority, number> = { urgente: 0, alta: 1, media: 2, baixa: 3 }
 
-/** Label for a due date and whether it is overdue. */
-export function dueLabel(d: string, today: string): [string, boolean] {
-  if (!d) return ['', false]; if (d < today) return ['Atrasada', true]; if (d === today) return ['Hoje', false]
-  const t = parse(today); t.setDate(t.getDate() + 1); if (d === iso(t)) return ['Amanhã', false]
-  const x = parse(d); return [`${x.getDate()} ${MN[x.getMonth()]}`, false]
+/** Label for a task's deadline and whether it is overdue. */
+export function dueLabel(task: Pick<Task, 'due' | 'dueTime'>, today: string, time: string): [string, boolean] {
+  const d = task.due, at = task.dueTime ? `, ${task.dueTime}` : ''
+  if (!d) return ['', false]; if (isOverdue(task, today, time)) return ['Atrasada', true]; if (d === today) return [`Hoje${at}`, false]
+  const t = parse(today); t.setDate(t.getDate() + 1); if (d === iso(t)) return [`Amanhã${at}`, false]
+  const x = parse(d); return [`${x.getDate()} ${MN[x.getMonth()]}${at}`, false]
 }
 
 /** Pending tasks due on or before `last` (overdue ones included); undated tasks are left out. */
@@ -22,4 +24,4 @@ export const tasksDueBy = (tasks: Task[], last: string) => tasks.filter(t => !t.
 
 /** Pending tasks, most urgent first: by due date (overdue first, undated last), then by priority. */
 export const urgentTasks = (tasks: Task[]) => tasks.filter(t => !t.d)
-  .sort((a, b) => (a.due || '9999-99-99').localeCompare(b.due || '9999-99-99') || RANK[a.p] - RANK[b.p])
+  .sort((a, b) => dueKey(a).localeCompare(dueKey(b)) || RANK[a.p] - RANK[b.p])

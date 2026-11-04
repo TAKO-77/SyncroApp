@@ -4,6 +4,7 @@ import type { AppData } from '../codigo-fonte/src/types.ts'
 import { markDone, purgeExpired } from '../codigo-fonte/src/lib/cleanup.ts'
 import { monthTotals, ymAdd } from '../codigo-fonte/src/lib/finance.ts'
 import { daysLeft, upcomingSpecialDays } from '../codigo-fonte/src/lib/specialDays.ts'
+import { dueForTime, dueKey, isOverdue } from '../codigo-fonte/src/lib/taskDue.ts'
 
 // Checks the mapping between the local document and the Supabase rows used by the sync engine.
 const base = (): AppData => ({
@@ -12,7 +13,7 @@ const base = (): AppData => ({
     { id: 'e2', title: 'Ginásio', start: '18:00', end: '19:00', date: '2026-10-20', rep: 'custom', days: [1, 3], cat: 'exercicio', done: {} },
   ],
   tasks: [
-    { id: 't1', t: 'Relatório', due: '2026-10-30', p: 'alta', d: false, effort: 'cui', workspaceId: 'w1', n: 'Ver anexos' },
+    { id: 't1', t: 'Relatório', due: '2026-10-30', dueTime: '18:30', p: 'alta', d: false, effort: 'cui', workspaceId: 'w1', n: 'Ver anexos' },
     { id: 't2', t: 'Compras', due: '', p: 'media', d: true, doneAt: '2026-10-21', effort: '', workspaceId: 'geral' },
   ],
   workspaces: [{ id: 'geral', name: 'Geral' }, { id: 'w1', name: 'Projeto' }],
@@ -221,6 +222,40 @@ test('yearly special days roll over the new year and skip 29 February in common 
   const day = (id: string, s: string) => ({ id, n: id, ty: 'aniv', s, e: '', h: '', o: '', y: true })
   assert.deepEqual(upcomingSpecialDays([day('ano', '1990-01-10')], '2026-12-20').map(x => x.date), ['2027-01-10'])
   assert.deepEqual(upcomingSpecialDays([day('bissexto', '2000-02-29')], '2027-02-10'), [])
+})
+
+test('a task with a time limit is overdue only after that minute', () => {
+  const t = { due: '2026-11-04', dueTime: '18:00' }
+  assert.equal(isOverdue(t, '2026-11-04', '17:59'), false)
+  assert.equal(isOverdue(t, '2026-11-04', '18:00'), false)
+  assert.equal(isOverdue(t, '2026-11-04', '18:01'), true)
+  assert.equal(isOverdue(t, '2026-11-05', '00:00'), true)
+  assert.equal(isOverdue(t, '2026-11-03', '23:59'), false)
+})
+
+test('a task without a time limit is overdue only after its day', () => {
+  assert.equal(isOverdue({ due: '2026-11-04' }, '2026-11-04', '23:59'), false)
+  assert.equal(isOverdue({ due: '2026-11-04' }, '2026-11-05', '00:00'), true)
+  assert.equal(isOverdue({ due: '', dueTime: '10:00' }, '2026-11-04', '23:59'), false)
+})
+
+test('choosing only a time sets the deadline to today', () => {
+  assert.equal(dueForTime('', '18:00', '2026-11-04'), '2026-11-04')
+  assert.equal(dueForTime('2026-12-01', '18:00', '2026-11-04'), '2026-12-01')
+  assert.equal(dueForTime('2026-12-01', '', '2026-11-04'), '2026-12-01')
+  assert.equal(dueForTime('', '', '2026-11-04'), '')
+})
+
+test('deadlines sort by day and time, with untimed tasks after timed ones and undated tasks last', () => {
+  const tasks = [{ due: '' }, { due: '2026-11-05' }, { due: '2026-11-04' }, { due: '2026-11-04', dueTime: '18:00' }, { due: '2026-11-04', dueTime: '09:30' }]
+  assert.deepEqual([...tasks].sort((a, b) => dueKey(a).localeCompare(dueKey(b))), [tasks[4], tasks[3], tasks[2], tasks[1], tasks[0]])
+})
+
+test('clearing a time limit produces an update of that column only', () => {
+  const next = base(); delete next.tasks[0].dueTime
+  const ops = diffRows(toRows(base()), toRows(next))
+  assert.deepEqual(ops.map(o => [o.id, o.fields]), [['t1', ['due_time']]])
+  assert.equal(ops[0].row.due_time, null)
 })
 
 for (const name of results) console.log(`PASS ${name}`)

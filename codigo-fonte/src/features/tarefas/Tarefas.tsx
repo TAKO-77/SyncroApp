@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as RPE } from 'react'
 import { useStore } from '../../store/useStore'
-import { Modal, todayIso, uid } from '../../components/common'
+import { Modal, todayIso, uid, useNow } from '../../components/common'
 import type { Effort, Priority, Task } from '../../types'
 import { NoteCard } from './NoteCard'
 import { NoteGrid } from './NoteGrid'
 import { DatePicker } from '../../components/DatePicker'
+import { TimePicker } from '../../components/TimePicker'
 import { confirmDialog } from '../../store/confirm'
 import { Select } from '../../components/Select'
 import { markDone } from '../../lib/cleanup'
 import { LK, LV, PC, PN, dueLabel } from '../../lib/tasks'
+import { dueForTime, dueKey } from '../../lib/taskDue'
+import { hm } from '../../lib/dates'
 import { Glider } from '../../components/Glider'
 
 const NX: Record<Priority, Priority> = { urgente: 'alta', alta: 'media', media: 'baixa', baixa: 'urgente' }
@@ -22,9 +25,9 @@ const readSort = (): SortBy => {
 
 export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; setWorkspaceId: (id: string) => void }) {
   const { data, update } = useStore()
-  const today = todayIso()
+  const now = useNow(), today = todayIso(), nowTime = hm(now.getHours() * 60 + now.getMinutes())
   const [open, setOpen] = useState(true)
-  const [txt, setTxt] = useState(''); const [p, setP] = useState<Priority>('media'); const [du, setDu] = useState(''); const [effort, setEffort] = useState<Effort | ''>('')
+  const [txt, setTxt] = useState(''); const [p, setP] = useState<Priority>('media'); const [du, setDu] = useState(''); const [duTime, setDuTime] = useState(''); const [effort, setEffort] = useState<Effort | ''>('')
   const [ed, setEd] = useState<Task | null>(null)
   const [workspaceMenu, setWorkspaceMenu] = useState(false)
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
@@ -81,7 +84,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
     if (sortBy === 'custom') return a.index - b.index
     if (sortBy === 'priority') return ({ urgente: 0, alta: 1, media: 2, baixa: 3 }[a.task.p] - { urgente: 0, alta: 1, media: 2, baixa: 3 }[b.task.p]) || a.index - b.index
     if (sortBy === 'effort') return ((a.task.effort ? LK.indexOf(a.task.effort as Effort) : 99) - (b.task.effort ? LK.indexOf(b.task.effort as Effort) : 99)) || a.index - b.index
-    return ((a.task.due || '9999-99-99').localeCompare(b.task.due || '9999-99-99')) || a.index - b.index
+    return dueKey(a.task).localeCompare(dueKey(b.task)) || a.index - b.index
   }).map(x => x.task)
   const addWorkspace = (e: FormEvent) => {
     e.preventDefault()
@@ -98,7 +101,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
     update(d => { d.tasks.forEach(t => { if (t.workspaceId === id) t.workspaceId = 'geral' }); d.workspaces = d.workspaces.filter(w => w.id !== id); d.notes = d.notes.filter(n => n.workspaceId !== id) })
     setWorkspaceId('geral')
   }
-  const add = (e: FormEvent) => { e.preventDefault(); const v = txt.trim(); if (!v) return; update(d => { d.tasks.push({ id: uid('t'), t: v, due: du, p, d: false, effort, workspaceId: workspace?.id ?? 'geral' }) }); setTxt(''); setDu(''); setEffort(''); setP('media'); setOpen(true) }
+  const add = (e: FormEvent) => { e.preventDefault(); const v = txt.trim(); if (!v) return; update(d => { d.tasks.push({ id: uid('t'), t: v, due: du, dueTime: duTime, p, d: false, effort, workspaceId: workspace?.id ?? 'geral' }) }); setTxt(''); setDu(''); setDuTime(''); setEffort(''); setP('media'); setOpen(true) }
   const patch = (id: string, fn: (t: Task) => void) => update(d => { const t = d.tasks.find(x => x.id === id); if (t) fn(t) })
   const addNote = () => { const id = uid('n'); update(d => { d.notes.push({ id, workspaceId: activeWorkspaceId, text: '' }) }); setEditingNoteId(id) }
   const saveNote = (id: string, text: string) => update(d => { const n = d.notes.find(x => x.id === id); if (n) n.text = text })
@@ -120,10 +123,11 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
       <input value={txt} maxLength={90} placeholder="Nova tarefa…" aria-label="Nova tarefa" required autoComplete="off" onChange={e => setTxt(e.target.value)} />
       <div className="chips"><span className="mu">Esforço</span>{LK.map(k => <button key={k} type="button" className="chip" aria-pressed={effort === k} title={LV[k].t} style={{ ['--c' as string]: LV[k].c }} onClick={() => setEffort(effort === k ? '' : k)}>{LV[k].n}</button>)}</div>
       <div className="chips"><span className="mu">Prioridade</span>{(['urgente', 'alta', 'media', 'baixa'] as Priority[]).map(k => <button key={k} type="button" className="chip" aria-pressed={p === k} style={{ ['--c' as string]: PC[k] }} onClick={() => setP(k)}>{PN[k]}</button>)}
-        <DatePicker value={du} aria-label="Data limite" onChange={setDu} className="auto" /><button className="btn pri sp-l" type="submit">Adicionar</button></div>
+        <DatePicker value={du} aria-label="Data limite" onChange={v => { setDu(v); if (!v) setDuTime('') }} className="auto" />
+        <TimePicker value={duTime} aria-label="Hora limite" onChange={v => { setDuTime(v); setDu(dueForTime(du, v, today)) }} className="auto" /><button className="btn pri sp-l" type="submit">Adicionar</button></div>
     </form>
     {list.length > 1 && <div className="tsub"><label>Ordenar por<Select<SortBy> value={sortBy} onChange={setSortBy} options={[{ value: 'priority', label: 'Relevância' }, { value: 'effort', label: 'Tempo estimado' }, { value: 'due', label: 'Data limite' }, { value: 'custom', label: 'Customizado' }]} /></label></div>}
-    <div className="tasks-list" ref={listRef}>{list.length ? list.map(t => { const [lbl, late] = dueLabel(t.due, today)
+    <div className="tasks-list" ref={listRef}>{list.length ? list.map(t => { const [lbl, late] = dueLabel(t, today, nowTime)
       const done = completing.includes(t.id)
       return <div key={t.id} data-id={t.id} className={'tk' + (t.d ? ' dn' : '') + (done ? ' completing' : '')} style={{ ['--c' as string]: PC[t.p] }}>
         {open && <span className="hnd" title="Arrastar" onPointerDown={e => dragStart(e, t.id)}>⋮⋮</span>}
@@ -150,8 +154,9 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
     {ed && <Modal title="Editar tarefa" onClose={() => setEd(null)}>
       <form className="fgrid" onSubmit={e => { e.preventDefault(); const v = ed.t.trim(); if (!v) return; patch(ed.id, x => Object.assign(x, { ...ed, t: v })); setEd(null) }}>
         <label className="w">Nome<input value={ed.t} required maxLength={90} onChange={e => setEd({ ...ed, t: e.target.value })} /></label>
-        <label>Data limite<DatePicker value={ed.due} onChange={due => setEd({ ...ed, due })} /></label>
-        <label>Prioridade<Select<Priority> value={ed.p} onChange={p => setEd({ ...ed, p })} options={(['urgente', 'alta', 'media', 'baixa'] as Priority[]).map(k => ({ value: k, label: PN[k], color: PC[k] }))} /></label>
+        <label>Data limite<DatePicker value={ed.due} onChange={due => setEd({ ...ed, due, dueTime: due ? ed.dueTime : '' })} /></label>
+        <label>Hora limite<TimePicker value={ed.dueTime ?? ''} onChange={dueTime => setEd({ ...ed, dueTime, due: dueForTime(ed.due, dueTime, today) })} /></label>
+        <label className="w">Prioridade<Select<Priority> value={ed.p} onChange={p => setEd({ ...ed, p })} options={(['urgente', 'alta', 'media', 'baixa'] as Priority[]).map(k => ({ value: k, label: PN[k], color: PC[k] }))} /></label>
         <label className="w">Espaço de trabalho<Select value={ed.workspaceId ?? 'geral'} onChange={workspaceId => setEd({ ...ed, workspaceId })} options={data.workspaces.map(w => ({ value: w.id, label: w.name }))} /></label>
         <label className="w">Esforço<Select<Effort | ''> value={ed.effort ?? ''} onChange={effort => setEd({ ...ed, effort })} options={[{ value: '', label: 'Sem definir' }, ...LK.map(k => ({ value: k, label: LV[k].n, hint: LV[k].t, color: LV[k].c }))]} /></label>
         <label className="w">Notas<textarea rows={3} maxLength={400} value={ed.n ?? ''} onChange={e => setEd({ ...ed, n: e.target.value })} /></label>
