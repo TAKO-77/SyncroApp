@@ -6,5 +6,7 @@ import './styles.css'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { UpdateBanner } from './components/UpdateBanner'
 import { initPwa } from './lib/pwa'
+import { blockPhoneZoom } from './lib/phoneZoom'
 initPwa()
+blockPhoneZoom()
 createRoot(document.getElementById('root')!).render(<StrictMode><AccountGate><App /></AccountGate><ConfirmDialog /><UpdateBanner /></StrictMode>)

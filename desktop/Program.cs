@@ -319,6 +319,9 @@ internal sealed class PlannerWindow : Form
         view.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
         view.CoreWebView2.Settings.IsStatusBarEnabled = false;
         view.CoreWebView2.Settings.AreDevToolsEnabled = false;
+        view.CoreWebView2.Settings.IsZoomControlEnabled = false;
+        view.CoreWebView2.Settings.IsPinchZoomEnabled = false;
+        view.ZoomFactor = 1;
         view.CoreWebView2.SetVirtualHostNameToFolderMapping("planner.local", folder, CoreWebView2HostResourceAccessKind.Allow);
         view.CoreWebView2.NewWindowRequested += (sender, args) =>
         {

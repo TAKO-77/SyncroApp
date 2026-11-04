@@ -497,6 +497,8 @@ main>.page{animation:page-in .35s cubic-bezier(.2,.75,.25,1) backwards}
   main>.mobile-brand{grid-column:1}main>.top{display:contents}.top>.top-actions{grid-column:2;grid-row:1;margin-bottom:12px}.top>div:first-child{grid-column:1/-1}.top>div:first-child:not(:empty){margin-bottom:18px}
   .top.hero{padding:0;border:0;min-height:0;animation:none}.hero::before,.hero::after{display:none}.hero>div:first-child::before,.hero>div:first-child::after{display:block}
   .hero>div:first-child{position:relative;isolation:isolate;overflow:hidden;padding:20px;border:1px solid var(--l1);border-radius:20px;background:var(--s1)}
+  /* No pinch or double-tap zoom on phones; see lib/phoneZoom.ts for Safari. */
+  html,body{touch-action:pan-x pan-y}
   /* Safari on iOS zooms into fields with text under 16px. */
   input,select,textarea{font-size:16px}
   .evo{gap:4px}.evc{min-width:0}.bars i{width:auto;flex:1;max-width:22px}
@@ -510,7 +512,7 @@ main>.page{animation:page-in .35s cubic-bezier(.2,.75,.25,1) backwards}
   .profile-name{flex-direction:column;align-items:stretch}
   .settings-page h2.sub{margin-top:26px}.settings-page p.mu{font-size:12px;line-height:1.45}
   /* Agenda and Calendário sit side by side; SwipePager moves them with the finger, so the box itself never scrolls natively. */
-  .pager{display:flex;align-items:flex-start;gap:16px;overflow:hidden;touch-action:pan-y pinch-zoom;transition:height .25s ease}
+  .pager{display:flex;align-items:flex-start;gap:16px;overflow:hidden;touch-action:pan-y;transition:height .25s ease}
   .pager-panel{flex:0 0 100%;min-width:0}
   .pager-panel>.page{display:flex;flex-direction:column;min-height:0}
   .calendar-page .upcoming-compact .upcoming-list{overscroll-behavior-x:contain}
