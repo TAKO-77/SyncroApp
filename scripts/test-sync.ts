@@ -389,9 +389,10 @@ test('a sleeping phone gets "soon" only until the limit and "due" for one more h
 
 test('server and Windows app write the same notification text', () => {
   const kind = (k: 'soon' | 'due', i: number) => ({ taskId: `t${i}`, kind: k, title: `T${i}`, time: '18:00', due: '2026-11-04' })
-  for (const list of [[kind('soon', 0)], [kind('due', 0)], [kind('soon', 0), kind('due', 1)], [0, 1, 2, 3, 4].map(i => kind('due', i))]) {
+  for (const list of [[kind('soon', 0)], [kind('due', 0)]]) assert.deepEqual(serverText(list), { title: reminderText(list).body, body: '' })
+  for (const list of [[kind('soon', 0), kind('due', 1)], [0, 1, 2, 3, 4].map(i => kind('due', i))]) {
     assert.equal(serverText(list).body, reminderText(list).body)
-    assert.equal(serverText(list).title, '')
+    assert.equal(serverText(list).title, `${list.length} avisos de tarefas`)
   }
 })
 

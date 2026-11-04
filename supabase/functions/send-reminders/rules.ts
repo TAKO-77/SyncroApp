@@ -1,5 +1,5 @@
 // Which reminders a device should receive. Free of runtime imports so scripts/test-sync.ts can run it with Node.
-// The body matches codigo-fonte/src/lib/reminders.ts, which the Windows app uses; a test keeps them equal.
+// The wording matches codigo-fonte/src/lib/reminders.ts, which the Windows app uses; a test keeps them equal.
 
 export type ReminderKind = 'soon' | 'due'
 export interface TaskRow { id: string; title: string; due: string; due_time: string }
@@ -36,9 +36,10 @@ export const expirySeconds = (list: Reminder[]) => (list.some(r => r.kind === 'd
 const line = (r: Pick<Reminder, 'kind' | 'title'>) => r.kind === 'soon' ? `Falta 1 hora para ${r.title}` : `Chegou a hora limite de ${r.title}`
 
 export function reminderText(list: Pick<Reminder, 'kind' | 'title'>[]): { title: string; body: string } {
+  // iPhones always add "from Syncro" under the title, so the app's name would only repeat there.
+  if (list.length === 1) return { title: line(list[0]), body: '' }
   const extra = list.length - 3
-  // No title: iPhones already add "from Syncro" to the notification.
-  return { title: '', body: list.slice(0, 3).map(line).join('\n') + (extra > 0 ? `\ne mais ${extra}` : '') }
+  return { title: `${list.length} avisos de tarefas`, body: list.slice(0, 3).map(line).join('\n') + (extra > 0 ? `\ne mais ${extra}` : '') }
 }
 
 const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /(^|\.)push\.apple\.com$/, /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/]
