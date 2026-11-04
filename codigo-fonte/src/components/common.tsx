@@ -7,6 +7,17 @@ export function useNow(ms = 30000) {
   useEffect(() => { const id = setInterval(() => setN(new Date()), ms); return () => clearInterval(id) }, [ms])
   return n
 }
+const PHONE_QUERY = '(max-width:760px)'
+/** True in the phone layout, using the same breakpoint as `styles.css`. */
+export function useIsPhone() {
+  const [phone, setPhone] = useState(() => matchMedia(PHONE_QUERY).matches)
+  useEffect(() => {
+    const query = matchMedia(PHONE_QUERY), onChange = () => setPhone(query.matches)
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }, [])
+  return phone
+}
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }

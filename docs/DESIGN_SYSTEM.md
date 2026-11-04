@@ -100,7 +100,7 @@ One family: **Manrope** (400, 500, 600, 700), loaded from Google Fonts in `codig
 - **Sidebar:** floating panel (`--s1`, 20px radius) beside the page; 72px collapsed, 240px expanded, with optional auto-open on hover. Active item: accent-soft gradient fading to the right, 1px inner border, icon in `--ac`. Settings sits at the bottom above a divider. The focus timer is a card with an amber glow and an orb (`.orb`) beside the time: it breathes when idle, pulses while running, bounces when done and turns slate for a break.
 - **Top bar:** greeting (Início only) and the date on the left; "Adição rápida" primary pill and the round profile button on the right.
 - **Início hero (`.top.hero`):** on Início the top bar is a card (`--s1`, 20px radius) with a slow amber/slate aurora (`--hero-1..3`, blurred radial gradients, 22s loop) and film grain (`--hero-grain`) behind it; both are tuned per theme. On mobile the card wraps only the greeting. Pure CSS, static under reduced motion.
-- **Mobile (≤ 760px):** the sidebar becomes a floating bottom bar inset 12px from the edges, with a shadow.
+- **Mobile (≤ 760px):** the sidebar becomes a floating bottom bar inset 12px from the edges, with a shadow. It has five items: Agenda and Calendário share one, with a segmented switch at the top of the page. "Adição rápida" becomes a 56px round amber floating button (`.fab`) above the bar's right end, hidden on Perfil and Definições.
 
 ## Controls
 - **Primary button (`.btn.pri`):** amber pill (`--ac-fill`), `--accent-text`, weight 700; lifts 1px with a glow on hover.
