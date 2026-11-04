@@ -7,6 +7,7 @@ import { daysLeft, upcomingSpecialDays } from '../codigo-fonte/src/lib/specialDa
 import { dueForTime, dueKey, isOverdue } from '../codigo-fonte/src/lib/taskDue.ts'
 import { parseQ } from '../codigo-fonte/src/lib/quick.ts'
 import { eventsOn } from '../codigo-fonte/src/lib/recurrence.ts'
+import { reminderText, remindersBetween } from '../codigo-fonte/src/lib/reminders.ts'
 
 // Checks the mapping between the local document and the Supabase rows used by the sync engine.
 const base = (): AppData => ({
@@ -306,6 +307,52 @@ test('a repeating night event shows both parts each day and exceptions follow th
 test('events within one day are not split', () => {
   assert.deepEqual(parts([nightShift({ start: '09:00', end: '10:00' })], '2026-11-04'), [['09:00', '10:00', false, '2026-11-04', '09:00', '10:00']])
   assert.deepEqual(parts([nightShift({ start: '09:00', end: '10:00' })], '2026-11-05'), [])
+})
+
+const at = (hour: number, minute = 0, day = 4) => new Date(2026, 10, day, hour, minute)
+const timed = (over: Partial<AppData['tasks'][number]> = {}): AppData['tasks'][number] => ({ id: 'r', t: 'Relatório', due: '2026-11-04', dueTime: '18:00', p: 'media', d: false, ...over })
+const fired = (tasks: AppData['tasks'], since: Date, now: Date) => remindersBetween(tasks, since, now).map(r => r.kind)
+
+test('a timed task reminds one hour before and at its limit, once each', () => {
+  assert.deepEqual(fired([timed()], at(16, 59), at(17, 0)), ['soon'])
+  assert.deepEqual(fired([timed()], at(17, 0), at(17, 1)), [])
+  assert.deepEqual(fired([timed()], at(17, 59), at(18, 0)), ['due'])
+  assert.deepEqual(fired([timed()], at(18, 0), at(18, 1)), [])
+})
+
+test('a task created less than an hour before its limit only reminds at the limit', () => {
+  assert.deepEqual(fired([timed()], at(17, 30), at(17, 31)), [])
+  assert.deepEqual(fired([timed()], at(17, 59), at(18, 0)), ['due'])
+})
+
+test('after a gap the reminder still fires only while it is useful', () => {
+  assert.deepEqual(fired([timed()], at(16, 0), at(17, 40)), ['soon'])
+  assert.deepEqual(fired([timed()], at(16, 0), at(18, 30)), ['due'])
+  assert.deepEqual(fired([timed()], at(16, 0), at(19, 0)), ['due'])
+  assert.deepEqual(fired([timed()], at(16, 0), at(19, 1)), [])
+})
+
+test('completed, undated and untimed tasks do not remind', () => {
+  const window = [at(16, 0), at(18, 30)] as const
+  assert.deepEqual(fired([timed({ d: true })], ...window), [])
+  assert.deepEqual(fired([timed({ due: '' })], ...window), [])
+  assert.deepEqual(fired([timed({ dueTime: '' })], ...window), [])
+  assert.deepEqual(fired([timed({ dueTime: undefined })], ...window), [])
+})
+
+test('moving a task to a later time reminds again for the new limit', () => {
+  assert.deepEqual(fired([timed({ dueTime: '20:00' })], at(18, 59), at(19, 0)), ['soon'])
+  assert.deepEqual(fired([timed({ due: '2026-11-05', dueTime: '09:00' })], at(8, 59, 5), at(9, 0, 5)), ['due'])
+})
+
+test('reminders of one check become a single notification', () => {
+  const one = remindersBetween([timed()], at(16, 59), at(17, 0))
+  assert.deepEqual(reminderText(one), { title: 'Falta 1 hora', body: 'Relatório · até às 18:00' })
+  assert.deepEqual(reminderText(remindersBetween([timed()], at(17, 59), at(18, 0))), { title: 'Chegou a hora limite', body: 'Relatório · terminou às 18:00' })
+  const tasks = ['18:00', '18:00', '18:00', '18:00', '18:00'].map((dueTime, i) => timed({ id: `r${i}`, t: `T${i}`, dueTime }))
+  const many = reminderText(remindersBetween(tasks, at(17, 59), at(18, 0)))
+  assert.equal(many.title, '5 avisos de tarefas')
+  assert.equal(many.body, 'T0 · terminou às 18:00\nT1 · terminou às 18:00\nT2 · terminou às 18:00\ne mais 2')
 })
 
 for (const name of results) console.log(`PASS ${name}`)

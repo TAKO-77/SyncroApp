@@ -16,6 +16,8 @@ import { applyTheme, useStore } from './store/useStore'
 import { LogoFilter, todayIso, useNow } from './components/common'
 import { cleanUpNoteImages } from './lib/noteImages'
 import { purgeExpired } from './lib/cleanup'
+import { desktop } from './lib/desktop'
+import { startReminders } from './lib/notifications'
 import { Glider } from './components/Glider'
 import { RevealText } from './components/RevealText'
 const syncroSymbol = new URL('./assets/syncro-symbol.png', import.meta.url).href
@@ -48,6 +50,15 @@ export default function App() {
     // Once per session, after start-up sync has had time to run.
     const timer = setTimeout(() => { const { data: current, history } = useStore.getState(); void cleanUpNoteImages([JSON.stringify(current.notes), ...history]).catch(() => undefined) }, 15000)
     return () => clearTimeout(timer)
+  }, [])
+  useEffect(startReminders, [])
+  useEffect(() => {
+    // Clicking a notification on Windows opens the tasks.
+    const bridge = desktop
+    if (!bridge) return
+    const onMessage = (event: MessageEvent) => { if ((event.data as { type?: string } | null)?.type === 'syncro:open-tasks') setSec('tarefas') }
+    bridge.addEventListener('message', onMessage)
+    return () => bridge.removeEventListener('message', onMessage)
   }, [])
   const now = useNow(10000), h = now.getHours()
   const g = h < 6 ? 'Boa noite' : h < 13 ? 'Bom dia' : h < 20 ? 'Boa tarde' : 'Boa noite'

@@ -54,6 +54,10 @@ Name: "{autoprograms}\{#AppName}\{#AppName}"; Filename: "{app}\{#AppExe}"; \
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; \
   WorkingDir: "{app}"; IconFilename: "{app}\Syncro-brand-amber-transparent.ico"; Tasks: desktopicon
 
+[Registry]
+; The app writes this key for its Windows notifications; removing the app removes it too.
+Root: HKCU; Subkey: "Software\Classes\AppUserModelId\Syncro.Desktop"; Flags: dontcreatekey uninsdeletekey
+
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Abrir o Syncro"; Flags: nowait postinstall skipifsilent
 

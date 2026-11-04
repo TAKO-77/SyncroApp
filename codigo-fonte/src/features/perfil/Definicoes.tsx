@@ -10,7 +10,7 @@ import { confirmDialog } from '../../store/confirm'
 const SYNC_LABEL: Record<SyncStatus, string> = { idle: 'A preparar a sincronização…', syncing: 'A sincronizar…', synced: 'Sincronizado', offline: 'Sem ligação — as alterações ficam guardadas neste dispositivo', error: 'Não foi possível sincronizar' }
 
 export function Definicoes() {
-  const { data, replace, sidebarAutoOpen, setSidebarAutoOpen, focusTimer, setFocusTimer, theme, setTheme } = useStore()
+  const { data, replace, sidebarAutoOpen, setSidebarAutoOpen, focusTimer, setFocusTimer, notifications, setNotifications, theme, setTheme } = useStore()
   const { user, offline } = useAuth()
   const sync = useSync()
   const [msg, setMsg] = useState('')
@@ -88,6 +88,11 @@ export function Definicoes() {
       <p className="mu" role="status" aria-live="polite">{updateStatus}</p>
     </> : <p className="mu">No navegador, o Syncro está sempre na versão mais recente: basta recarregar a página. A procura de atualizações só existe na aplicação Windows.</p>}
     <p><a className="btn" href="https://github.com/TAKO-77/SyncroApp/releases/latest" target="_blank" rel="noreferrer">Descarregar a versão mais recente no GitHub</a></p>
+    {desktop && <>
+      <h2 className="sub">Notificações</h2>
+      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={notifications} onChange={e => setNotifications(e.target.checked)} /> Avisar sobre tarefas com hora limite</label>
+      <p className="mu">Avisa 1 hora antes e quando a hora chega. Ao fechar a janela, o Syncro continua a correr junto ao relógio do Windows para poder avisar. Para o encerrar, escolhe Sair nesse ícone.</p>
+    </>}
     <h2 className="sub">Aparência</h2>
     <label className="ck"><input type="checkbox" className="sw" role="switch" checked={theme === 'light'} onChange={e => switchTheme(e.target.checked ? 'light' : 'dark', e.currentTarget)} /> Modo claro</label>
     <div className="wide-only">

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Net;
 using System.Collections.Generic;
 using System.Web.Script.Serialization;
@@ -9,6 +10,9 @@ using System.Diagnostics;
 using System.Collections;
 using System.Security.Cryptography;
 using System.Reflection;
+using System.Security;
+using System.Text;
+using System.Threading;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -23,7 +27,25 @@ internal static class Program
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-        Application.Run(new PlannerWindow());
+        // The window can be hidden in the tray, so a second launch shows it instead of notifying twice.
+        // Scoped to this copy of the program, so a development build does not open the installed one.
+        string instance = InstanceName();
+        bool first;
+        using (var running = new Mutex(true, instance + "-running", out first))
+        using (var showRequest = new EventWaitHandle(false, EventResetMode.AutoReset, instance + "-show"))
+        {
+            if (!first) { showRequest.Set(); return; }
+            Application.Run(new PlannerWindow(showRequest));
+        }
+    }
+
+    private static string InstanceName()
+    {
+        using (var sha = SHA256.Create())
+        {
+            byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(Application.ExecutablePath.ToLowerInvariant()));
+            return "Syncro-" + BitConverter.ToString(hash).Replace("-", "");
+        }
     }
 }
 
@@ -32,9 +54,16 @@ internal sealed class PlannerWindow : Form
     internal const string AppVersion = "2.8.0";
     private const string LatestReleaseApi = "https://api.github.com/repos/TAKO-77/SyncroApp/releases/latest";
     private readonly WebView2 view = new WebView2();
+    private const string NotifyPrefix = "syncro:notify:";
+    private const string ToastAppId = "Syncro.Desktop";
+    private readonly List<object> recentToasts = new List<object>();
+    private const int WM_QUERYENDSESSION = 0x0011;
+    private readonly NotifyIcon tray = new NotifyIcon();
     private bool checkingUpdates;
+    private bool exiting;
+    private bool balloonOpensTasks;
 
-    public PlannerWindow()
+    public PlannerWindow(EventWaitHandle showRequest)
     {
         Text = "Syncro";
         // Keep the restored window inside smaller screens instead of a fixed 1920x1200.
@@ -51,6 +80,176 @@ internal sealed class PlannerWindow : Form
         view.Dock = DockStyle.Fill;
         Controls.Add(view);
         Shown += async (sender, args) => await StartPlanner();
+        SetUpTray();
+        ThreadPool.RegisterWaitForSingleObject(showRequest, (state, timedOut) =>
+        {
+            try { if (IsHandleCreated && !IsDisposed) BeginInvoke(new Action(ShowFromTray)); }
+            catch (InvalidOperationException) { /* The window closed in the meantime. */ }
+        }, null, Timeout.Infinite, false);
+    }
+
+    private void SetUpTray()
+    {
+        var menu = new ContextMenuStrip();
+        menu.Items.Add("Abrir o Syncro", null, (sender, args) => ShowFromTray());
+        menu.Items.Add("Sair", null, (sender, args) => ExitApp());
+        tray.Icon = Icon;
+        tray.Text = "Syncro";
+        tray.ContextMenuStrip = menu;
+        tray.MouseClick += (sender, args) => { if (args.Button == MouseButtons.Left) ShowFromTray(); };
+        tray.BalloonTipClicked += (sender, args) => { if (balloonOpensTasks) OpenTasks(); else ShowFromTray(); };
+        tray.Visible = true;
+    }
+
+    private void ShowFromTray()
+    {
+        Show();
+        if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+        // Windows may refuse to bring a window forward on request; briefly topmost gets past that.
+        TopMost = true;
+        TopMost = false;
+        Activate();
+    }
+
+    private void ExitApp()
+    {
+        exiting = true;
+        Close();
+    }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        if (!exiting && e.CloseReason == CloseReason.UserClosing)
+        {
+            e.Cancel = true;
+            Hide();
+            ShowTrayHintOnce();
+            return;
+        }
+        base.OnFormClosing(e);
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        // Without this the icon stays next to the clock until the mouse passes over it.
+        tray.Visible = false;
+        tray.Dispose();
+        base.OnFormClosed(e);
+    }
+
+    private void ShowTrayHintOnce()
+    {
+        try
+        {
+            string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Syncro");
+            string marker = Path.Combine(folder, "tray-hint-shown");
+            if (File.Exists(marker)) return;
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(marker, "");
+            Notify("O Syncro continua aqui", "Fica junto ao relógio para poder avisar sobre as tarefas. Para o encerrar, escolhe Sair neste ícone.", false);
+        }
+        catch (Exception ex) { LogUpdateFailure(ex); }
+    }
+
+    private void ShowNotification(string json)
+    {
+        string title, body;
+        try
+        {
+            var notice = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
+            title = Convert.ToString(notice["title"]);
+            body = Convert.ToString(notice["body"]);
+        }
+        catch (Exception ex) { LogUpdateFailure(ex); return; }
+        if (String.IsNullOrWhiteSpace(title) || String.IsNullOrWhiteSpace(body)) return;
+        Notify(title, body, true);
+    }
+
+    private void Notify(string title, string body, bool opensTasks)
+    {
+        if (ShowToast(title, body, opensTasks)) return;
+        balloonOpensTasks = opensTasks;
+        // The shell limits these to 63 and 255 characters.
+        tray.ShowBalloonTip(10000, Clip(title, 63), Clip(body, 255), ToolTipIcon.None);
+    }
+
+    /// <summary>Shows a Windows toast; current Windows builds silently drop tray balloons. Returns false when it cannot.</summary>
+    /// <remarks>Uses reflection because csc.exe here has no references to the Windows Runtime metadata.</remarks>
+    private bool ShowToast(string title, string body, bool opensTasks)
+    {
+        try
+        {
+            Type manager = Type.GetType("Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType=WindowsRuntime", true);
+            Type notifierType = Type.GetType("Windows.UI.Notifications.ToastNotifier, Windows.UI.Notifications, ContentType=WindowsRuntime", true);
+            Type toastType = Type.GetType("Windows.UI.Notifications.ToastNotification, Windows.UI.Notifications, ContentType=WindowsRuntime", true);
+            Type xmlType = Type.GetType("Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType=WindowsRuntime", true);
+            RegisterToastSender();
+            object xml = Activator.CreateInstance(xmlType);
+            xmlType.GetMethod("LoadXml", new[] { typeof(string) }).Invoke(xml, new object[] {
+                "<toast><visual><binding template=\"ToastGeneric\"><text>" + SecurityElement.Escape(title) + "</text><text>" + SecurityElement.Escape(body) + "</text></binding></visual></toast>" });
+            object toast = Activator.CreateInstance(toastType, xml);
+            AddToastClick(toastType, toast, opensTasks ? "OnTaskToastClicked" : "OnHintToastClicked");
+            object notifier = manager.GetMethod("CreateToastNotifier", new[] { typeof(string) }).Invoke(null, new object[] { ToastAppId });
+            notifierType.GetMethod("Show", new[] { toastType }).Invoke(notifier, new[] { toast });
+            // Keeps the click handlers alive while the toast can still be clicked.
+            recentToasts.Add(toast);
+            if (recentToasts.Count > 20) recentToasts.RemoveAt(0);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LogUpdateFailure(ex);
+            return false;
+        }
+    }
+
+    private void AddToastClick(Type toastType, object toast, string handler)
+    {
+        // A failure here only loses the click, so the toast is still shown.
+        try
+        {
+            EventInfo activated = toastType.GetEvent("Activated");
+            MethodInfo method = typeof(PlannerWindow).GetMethod(handler, BindingFlags.Instance | BindingFlags.NonPublic);
+            // EventInfo.AddEventHandler refuses Windows Runtime events; this is the route meant for them.
+            Type handlerType = activated.EventHandlerType;
+            Delegate add = Delegate.CreateDelegate(typeof(Func<,>).MakeGenericType(handlerType, typeof(EventRegistrationToken)), toast, activated.GetAddMethod());
+            Delegate remove = Delegate.CreateDelegate(typeof(Action<EventRegistrationToken>), toast, activated.GetRemoveMethod());
+            typeof(WindowsRuntimeMarshal).GetMethod("AddEventHandler").MakeGenericMethod(handlerType)
+                .Invoke(null, new object[] { add, remove, Delegate.CreateDelegate(handlerType, this, method) });
+        }
+        catch (Exception ex) { LogUpdateFailure(ex); }
+    }
+
+    private void OnTaskToastClicked(object sender, object args) { RunOnWindow(OpenTasks); }
+    private void OnHintToastClicked(object sender, object args) { RunOnWindow(ShowFromTray); }
+
+    private void RunOnWindow(Action action)
+    {
+        try { if (IsHandleCreated && !IsDisposed) BeginInvoke(action); }
+        catch (InvalidOperationException) { /* The window closed in the meantime. */ }
+    }
+
+    private void OpenTasks()
+    {
+        ShowFromTray();
+        if (view.CoreWebView2 != null)
+            view.CoreWebView2.PostWebMessageAsJson(new JavaScriptSerializer().Serialize(new { type = "syncro:open-tasks" }));
+    }
+
+    /// <summary>Windows only shows toasts from a registered sender, which also gives them the name and icon.</summary>
+    private static void RegisterToastSender()
+    {
+        using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Classes\AppUserModelId\" + ToastAppId))
+        {
+            key.SetValue("DisplayName", "Syncro");
+            string icon = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Syncro-brand-amber-transparent.ico");
+            if (File.Exists(icon)) key.SetValue("IconUri", icon);
+        }
+    }
+
+    private static string Clip(string text, int length)
+    {
+        return text.Length <= length ? text : text.Substring(0, length - 1) + "…";
     }
 
     // Minimum window size in CSS pixels; wider than the 760px mobile breakpoint so the desktop layout never collapses.
@@ -71,6 +270,8 @@ internal sealed class PlannerWindow : Form
 
     protected override void WndProc(ref Message m)
     {
+        // Windows shutting down, or the installer asking through Restart Manager: really close.
+        if (m.Msg == WM_QUERYENDSESSION) exiting = true;
         base.WndProc(ref m);
         if (m.Msg == WM_DPICHANGED) ApplyMinimumSize();
     }
@@ -107,7 +308,7 @@ internal sealed class PlannerWindow : Form
         if (!File.Exists(html))
         {
             MessageBox.Show(this, "Não foi encontrado o index.html junto da aplicação nem na pasta dist.", "Syncro", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            Close();
+            ExitApp();
             return;
         }
         // Pasta de dados mantida como "Planner" para preservar os dados já guardados.
@@ -139,6 +340,7 @@ internal sealed class PlannerWindow : Form
             catch (ArgumentException) { return; }
             if (message == "syncro:check-for-updates") await CheckForUpdates(true);
             else if (message == "syncro:version") PublishUpdateStatus("", checkingUpdates);
+            else if (message.StartsWith(NotifyPrefix, StringComparison.Ordinal)) ShowNotification(message.Substring(NotifyPrefix.Length));
         };
         view.Source = new Uri("https://planner.local/index.html");
         await CheckForUpdates();
@@ -276,7 +478,7 @@ internal sealed class PlannerWindow : Form
                 });
                 if (installer == null) throw new IOException("Não foi possível abrir o instalador.");
                 launched = true;
-                Close();
+                ExitApp();
             }
         }
         catch (Exception ex)

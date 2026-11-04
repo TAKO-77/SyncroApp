@@ -6,6 +6,7 @@ import { emptyData, parseAppData } from '../lib/schema'
 export const LEGACY_KEY = 'wayne'
 const SIDEBAR_AUTO_OPEN_KEY = 'syncro-sidebar-auto-open'
 const FOCUS_TIMER_KEY = 'syncro-focus-timer'
+const NOTIFICATIONS_KEY = 'syncro-notifications'
 export const cacheKey = (userId: string) => `syncro-data:${userId}`
 
 function loadSidebarAutoOpen(): boolean {
@@ -14,6 +15,10 @@ function loadSidebarAutoOpen(): boolean {
 
 function loadFocusTimer(): boolean {
   try { return localStorage.getItem(FOCUS_TIMER_KEY) !== 'false' } catch { return true }
+}
+
+function loadNotifications(): boolean {
+  try { return localStorage.getItem(NOTIFICATIONS_KEY) !== 'false' } catch { return true }
 }
 
 export function readData(key: string): AppData | null {
@@ -49,6 +54,8 @@ interface Store {
   setSidebarAutoOpen: (enabled: boolean) => void
   focusTimer: boolean
   setFocusTimer: (enabled: boolean) => void
+  notifications: boolean
+  setNotifications: (enabled: boolean) => void
   userId: string | null
   data: AppData
   history: string[]
@@ -76,6 +83,11 @@ export const useStore = create<Store>((set, get) => ({
   setFocusTimer: enabled => {
     try { localStorage.setItem(FOCUS_TIMER_KEY, String(enabled)) } catch { /* armazenamento indisponível */ }
     set({ focusTimer: enabled })
+  },
+  notifications: loadNotifications(),
+  setNotifications: enabled => {
+    try { localStorage.setItem(NOTIFICATIONS_KEY, String(enabled)) } catch { /* armazenamento indisponível */ }
+    set({ notifications: enabled })
   },
   userId: null,
   data: emptyData(),
