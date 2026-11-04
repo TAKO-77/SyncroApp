@@ -1,8 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { version } from './package.json'
 
 export default defineConfig({
+  // Web builds ship on every push, so the build time tells them apart between releases.
+  define: { __APP_VERSION__: JSON.stringify(version), __APP_BUILD__: JSON.stringify(new Date().toISOString()) },
   plugins: [
     react(),
     // Web/PWA only: the Windows host copies just index.html and assets/, and lib/pwa.ts never registers the worker there.

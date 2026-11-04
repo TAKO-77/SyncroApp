@@ -65,7 +65,7 @@ A compilação e os testes requerem Node.js 22.18 ou superior (suporte nativo a 
 
 A versão preparada é **2.9.0**. Para publicar uma atualização:
 
-1. Define o mesmo novo número em `desktop/Program.cs` (`AppVersion`) e `desktop/installer/Syncro.iss` (`AppVersion`).
+1. Define o mesmo novo número em `desktop/Program.cs` (`AppVersion`), `desktop/installer/Syncro.iss` (`AppVersion`) e `codigo-fonte/package.json` (`version`), que é a versão mostrada na aplicação web.
 2. Fecha o Syncro e executa `scripts/build.bat`.
 3. Abre `desktop/installer/Syncro.iss` no Inno Setup e compila o instalador. O resultado fica em `releases/SyncroSetup.exe`.
 4. Faz commit e push do código e da documentação. Exclui dependências instaladas, ficheiros temporários e atalhos locais. Os ficheiros gerados são distribuídos no instalador da Release.

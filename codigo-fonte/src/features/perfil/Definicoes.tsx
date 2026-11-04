@@ -87,7 +87,7 @@ export function Definicoes() {
       <p className="mu">{version ? `Versão instalada: ${version}` : 'A obter a versão instalada…'}</p>
       <button className="btn" disabled={checkingUpdates} onClick={checkUpdates}>{checkingUpdates ? 'A verificar…' : 'Procurar atualizações'}</button>
       <p className="mu" role="status" aria-live="polite">{updateStatus}</p>
-    </> : <p className="mu">Estás sempre na versão mais recente.</p>}
+    </> : <p className="mu">Versão instalada: {__APP_VERSION__} · {new Date(__APP_BUILD__).toLocaleString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
     <p className="wide-only"><a className="btn" href="https://github.com/TAKO-77/SyncroApp/releases/latest" target="_blank" rel="noreferrer">Descarregar a versão mais recente no GitHub</a></p>
     {!desktop && <PushSetting />}
     {desktop && <>

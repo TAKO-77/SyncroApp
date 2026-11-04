@@ -11,6 +11,7 @@ const version = source.match(/const string AppVersion = "([\d.]+)"/)?.[1]
 assert.ok(version, 'AppVersion missing')
 const installer = readFileSync(join(root, 'desktop/installer/Syncro.iss'), 'utf8')
 assert.equal(installer.match(/#define AppVersion "([\d.]+)"/)?.[1], version, 'Installer version differs from application')
+assert.equal(JSON.parse(readFileSync(join(root, 'codigo-fonte/package.json'), 'utf8')).version, version, 'Web version differs from application')
 
 const asset = { name: 'SyncroSetup.exe', state: 'uploaded', size: 128,
   browser_download_url: 'https://github.com/TAKO-77/SyncroApp/releases/download/v9.0.0/SyncroSetup.exe' }
