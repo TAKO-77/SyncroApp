@@ -1,5 +1,5 @@
 // Which reminders a device should receive. Free of runtime imports so scripts/test-sync.ts can run it with Node.
-// The text matches codigo-fonte/src/lib/reminders.ts, which the Windows app uses; a test keeps them equal.
+// The body matches codigo-fonte/src/lib/reminders.ts, which the Windows app uses; a test keeps them equal.
 
 export type ReminderKind = 'soon' | 'due'
 export interface TaskRow { id: string; title: string; due: string; due_time: string }
@@ -33,12 +33,12 @@ export function remindersAt(tasks: TaskRow[], now: number): Reminder[] {
 /** How long the push service keeps trying a sleeping phone: "soon" only until the limit, "due" for one more hour. */
 export const expirySeconds = (list: Reminder[]) => (list.some(r => r.kind === 'due') ? 3600 : 55 * 60)
 
-const line = (r: Pick<Reminder, 'kind' | 'title' | 'time'>) => `${r.title} · ${r.kind === 'soon' ? 'até às' : 'terminou às'} ${r.time}`
+const line = (r: Pick<Reminder, 'kind' | 'title'>) => r.kind === 'soon' ? `Falta 1 hora para ${r.title}` : `Chegou a hora limite de ${r.title}`
 
-export function reminderText(list: Pick<Reminder, 'kind' | 'title' | 'time'>[]): { title: string; body: string } {
-  if (list.length === 1) return { title: list[0].kind === 'soon' ? 'Falta 1 hora' : 'Chegou a hora limite', body: line(list[0]) }
+export function reminderText(list: Pick<Reminder, 'kind' | 'title'>[]): { title: string; body: string } {
   const extra = list.length - 3
-  return { title: `${list.length} avisos de tarefas`, body: list.slice(0, 3).map(line).join('\n') + (extra > 0 ? `\ne mais ${extra}` : '') }
+  // No title: iPhones already add "from Syncro" to the notification.
+  return { title: '', body: list.slice(0, 3).map(line).join('\n') + (extra > 0 ? `\ne mais ${extra}` : '') }
 }
 
 const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /(^|\.)push\.apple\.com$/, /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/]

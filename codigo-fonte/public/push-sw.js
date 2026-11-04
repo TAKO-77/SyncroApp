@@ -3,7 +3,7 @@
 self.addEventListener('push', event => {
   let notice = {}
   try { notice = event.data.json() } catch { /* mensagem sem conteúdo válido */ }
-  event.waitUntil(self.registration.showNotification(notice.title || 'Syncro', { body: notice.body || '', icon: 'icons/pwa-192.png' }))
+  event.waitUntil(self.registration.showNotification(notice.title ?? 'Syncro', { body: notice.body || '', icon: 'icons/pwa-192.png' }))
 })
 
 self.addEventListener('notificationclick', event => {

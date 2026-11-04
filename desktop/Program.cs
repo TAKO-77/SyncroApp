@@ -186,7 +186,8 @@ internal sealed class PlannerWindow : Form
             RegisterToastSender();
             object xml = Activator.CreateInstance(xmlType);
             xmlType.GetMethod("LoadXml", new[] { typeof(string) }).Invoke(xml, new object[] {
-                "<toast><visual><binding template=\"ToastGeneric\"><text>" + SecurityElement.Escape(title) + "</text><text>" + SecurityElement.Escape(body) + "</text></binding></visual></toast>" });
+                // Windows already shows the sender's name above the text, so it is not repeated as a title.
+                "<toast><visual><binding template=\"ToastGeneric\">" + (title == "Syncro" ? "" : "<text>" + SecurityElement.Escape(title) + "</text>") + "<text>" + SecurityElement.Escape(body) + "</text></binding></visual></toast>" });
             object toast = Activator.CreateInstance(toastType, xml);
             AddToastClick(toastType, toast, opensTasks ? "OnTaskToastClicked" : "OnHintToastClicked");
             object notifier = manager.GetMethod("CreateToastNotifier", new[] { typeof(string) }).Invoke(null, new object[] { ToastAppId });

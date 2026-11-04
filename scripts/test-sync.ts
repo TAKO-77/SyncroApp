@@ -348,12 +348,12 @@ test('moving a task to a later time reminds again for the new limit', () => {
 
 test('reminders of one check become a single notification', () => {
   const one = remindersBetween([timed()], at(16, 59), at(17, 0))
-  assert.deepEqual(reminderText(one), { title: 'Falta 1 hora', body: 'Relatório · até às 18:00' })
-  assert.deepEqual(reminderText(remindersBetween([timed()], at(17, 59), at(18, 0))), { title: 'Chegou a hora limite', body: 'Relatório · terminou às 18:00' })
+  assert.deepEqual(reminderText(one), { title: 'Syncro', body: 'Falta 1 hora para Relatório' })
+  assert.deepEqual(reminderText(remindersBetween([timed()], at(17, 59), at(18, 0))), { title: 'Syncro', body: 'Chegou a hora limite de Relatório' })
   const tasks = ['18:00', '18:00', '18:00', '18:00', '18:00'].map((dueTime, i) => timed({ id: `r${i}`, t: `T${i}`, dueTime }))
   const many = reminderText(remindersBetween(tasks, at(17, 59), at(18, 0)))
-  assert.equal(many.title, '5 avisos de tarefas')
-  assert.equal(many.body, 'T0 · terminou às 18:00\nT1 · terminou às 18:00\nT2 · terminou às 18:00\ne mais 2')
+  assert.equal(many.title, 'Syncro')
+  assert.equal(many.body, 'Chegou a hora limite de T0\nChegou a hora limite de T1\nChegou a hora limite de T2\ne mais 2')
 })
 
 const row = { id: 'r', title: 'Relatório', due: '2026-11-04', due_time: '18:00' }
@@ -389,7 +389,10 @@ test('a sleeping phone gets "soon" only until the limit and "due" for one more h
 
 test('server and Windows app write the same notification text', () => {
   const kind = (k: 'soon' | 'due', i: number) => ({ taskId: `t${i}`, kind: k, title: `T${i}`, time: '18:00', due: '2026-11-04' })
-  for (const list of [[kind('soon', 0)], [kind('due', 0)], [kind('soon', 0), kind('due', 1)], [0, 1, 2, 3, 4].map(i => kind('due', i))]) assert.deepEqual(serverText(list), reminderText(list))
+  for (const list of [[kind('soon', 0)], [kind('due', 0)], [kind('soon', 0), kind('due', 1)], [0, 1, 2, 3, 4].map(i => kind('due', i))]) {
+    assert.equal(serverText(list).body, reminderText(list).body)
+    assert.equal(serverText(list).title, '')
+  }
 })
 
 test('the server only calls known push services', () => {

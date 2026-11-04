@@ -25,11 +25,10 @@ export function remindersBetween(tasks: Task[], since: Date, now: Date): Reminde
   return out.sort((a, b) => a.at - b.at).map(({ at: _at, ...r }) => r)
 }
 
-const line = (r: Reminder) => `${r.title} · ${r.kind === 'soon' ? 'até às' : 'terminou às'} ${r.time}`
+const line = (r: Reminder) => r.kind === 'soon' ? `Falta 1 hora para ${r.title}` : `Chegou a hora limite de ${r.title}`
 
 /** Text of one notification; reminders from the same check are grouped because the system may show only the last one sent. */
 export function reminderText(list: Reminder[]): { title: string; body: string } {
-  if (list.length === 1) return { title: list[0].kind === 'soon' ? 'Falta 1 hora' : 'Chegou a hora limite', body: line(list[0]) }
   const extra = list.length - 3
-  return { title: `${list.length} avisos de tarefas`, body: list.slice(0, 3).map(line).join('\n') + (extra > 0 ? `\ne mais ${extra}` : '') }
+  return { title: 'Syncro', body: list.slice(0, 3).map(line).join('\n') + (extra > 0 ? `\ne mais ${extra}` : '') }
 }
