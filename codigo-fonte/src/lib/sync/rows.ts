@@ -1,9 +1,9 @@
-import type { AppData, Effort, Priority, Rep, Sleep } from '../../types'
+import type { AppData, Effort, Priority, ReminderLead, ReminderRepeat, Rep, Sleep } from '../../types'
 
 // Maps the local AppData document to the Supabase tables and back.
 // Kept free of runtime imports so scripts/test-sync.ts can run it with Node directly.
 
-export const TABLES = ['profiles', 'workspaces', 'tasks', 'event_categories', 'day_categories', 'events', 'finances', 'special_days', 'workspace_notes'] as const
+export const TABLES = ['profiles', 'workspaces', 'tasks', 'event_categories', 'day_categories', 'events', 'finances', 'special_days', 'workspace_notes', 'reminders'] as const
 export type Table = typeof TABLES[number]
 export type Row = Record<string, unknown>
 export type Rows = Record<Table, Record<string, Row>>
@@ -26,6 +26,7 @@ const FIELDS: Record<Table, readonly string[]> = {
   finances: ['id', 'type', 'kind', 'name', 'amount', 'date', 'end_month', 'category_id', 'position'],
   special_days: ['id', 'name', 'category_id', 'start_date', 'end_date', 'time', 'notes', 'yearly', 'position'],
   workspace_notes: ['id', 'workspace_id', 'text', 'position'],
+  reminders: ['id', 'title', 'date', 'time', 'frequency', 'lead_time', 'end_date', 'done_until', 'done_at', 'position'],
 }
 
 /** Keeps only the synced columns, in a fixed order, so rows can be compared as JSON. */
@@ -49,6 +50,7 @@ export function toRows(d: AppData): Rows {
     finances: byId('finances', d.fin, (f, position) => ({ id: f.id, type: f.t, kind: f.k, name: f.n, amount: f.a, date: f.date, end_month: f.end ?? '', category_id: f.c ?? '', position })),
     special_days: byId('special_days', d.days, (x, position) => ({ id: x.id, name: x.n, category_id: x.ty, start_date: x.s, end_date: x.e || null, time: x.h ?? '', notes: x.o ?? '', yearly: x.y, position })),
     workspace_notes: byId('workspace_notes', d.notes ?? [], (n, position) => ({ id: n.id, workspace_id: n.workspaceId, text: n.text, position })),
+    reminders: byId('reminders', d.reminders ?? [], (r, position) => ({ id: r.id, title: r.title, date: r.date, time: r.time, frequency: r.repeat, lead_time: r.lead, end_date: r.until || null, done_until: r.doneUntil, done_at: r.doneAt || null, position })),
   }
 }
 
@@ -75,6 +77,7 @@ export function fromRows(rows: Rows, base: AppData): AppData {
     fin: ordered(rows.finances).map(f => ({ id: str(f.id), t: f.type as 'in' | 'out', k: f.kind as 'rec' | 'one', n: str(f.name), a: Number(f.amount), date: str(f.date), end: str(f.end_month), c: str(f.category_id) })),
     days: ordered(rows.special_days).map(x => ({ id: str(x.id), n: str(x.name), ty: str(x.category_id), s: str(x.start_date), e: str(x.end_date), h: str(x.time), o: str(x.notes), y: Boolean(x.yearly) })),
     notes: ordered(rows.workspace_notes).map(n => ({ id: str(n.id), workspaceId: str(n.workspace_id), text: str(n.text) })),
+    reminders: ordered(rows.reminders).map(r => ({ id: str(r.id), title: str(r.title), date: str(r.date), time: str(r.time), repeat: r.frequency as ReminderRepeat, lead: str(r.lead_time) as ReminderLead, until: str(r.end_date), doneUntil: str(r.done_until), doneAt: str(r.done_at) })),
   }
 }
 

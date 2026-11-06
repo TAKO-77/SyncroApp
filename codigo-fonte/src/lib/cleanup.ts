@@ -19,7 +19,7 @@ const shift = (day: string, months: number, days: number) => {
 }
 
 /**
- * Deletes tasks completed TASK_DAYS or more days ago and one-off events more than EVENT_MONTHS in the past.
+ * Deletes tasks and reminders completed TASK_DAYS or more days ago and one-off events more than EVENT_MONTHS in the past.
  * Completed tasks without a date (from before dates were recorded) start counting today.
  * Subtasks leave with their main task, which waits while it has a pending subtask.
  * Mutates `d` and returns whether anything changed.
@@ -36,5 +36,7 @@ export function purgeExpired(d: AppData, today: string): boolean {
   const ev = d.ev.filter(e => e.rep !== 'none' || e.date >= eventCutoff)
   if (tasks.length !== d.tasks.length) { d.tasks = tasks; changed = true }
   if (ev.length !== d.ev.length) { d.ev = ev; changed = true }
+  const reminders = d.reminders.filter(r => !r.doneAt || r.doneAt > taskCutoff)
+  if (reminders.length !== d.reminders.length) { d.reminders = reminders; changed = true }
   return changed
 }

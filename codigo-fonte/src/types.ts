@@ -9,6 +9,10 @@ export type Priority = 'urgente' | 'alta' | 'media' | 'baixa'
 export type Effort = 'rel' | 'lig' | 'cui' | 'exi' | 'pro'
 /** `parentId` makes the task a subtask of that task; see `lib/subtasks.ts`. */
 export interface Task { id: string; t: string; due: string; dueTime?: string; p: Priority; d: boolean; doneAt?: string; effort?: Effort | ''; lv?: Effort | ''; n?: string; workspaceId?: string; parentId?: string }
+export type ReminderRepeat = 'none' | 'daily' | 'weekly'
+export type ReminderLead = '' | '1w' | '1d' | '1h' | '10m'
+/** `until` is the final day of a repeating reminder; `doneUntil` is the last occurrence concluded; see `lib/reminderItems.ts`. */
+export interface ReminderItem { id: string; title: string; date: string; time: string; repeat: ReminderRepeat; lead: ReminderLead; until: string; doneUntil: string; doneAt: string }
 export interface TaskWorkspace { id: string; name: string }
 export interface WorkspaceNote { id: string; workspaceId: string; text: string }
 export interface Finance { id: string; t: 'in' | 'out'; k: 'rec' | 'one'; n: string; a: number; date: string; end: string; c: string }
@@ -19,7 +23,7 @@ export interface Sleep { daily?: SleepSchedule[]; bed: string; wake: string; wk:
 export interface AppData {
   ev: PEvent[]; tasks: Task[]; workspaces: TaskWorkspace[]; fin: Finance[]; days: SpecialDay[]
   cats: Category[]; dayCats: Category[]; sleep: Sleep; name?: string; photo?: string; reset: string
-  notes: WorkspaceNote[]
+  notes: WorkspaceNote[]; reminders: ReminderItem[]
   /** Legacy single note per workspace; moved into `notes` by `parseAppData`. */
   taskNotes?: Record<string, string>
 }

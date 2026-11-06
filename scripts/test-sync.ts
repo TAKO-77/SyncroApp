@@ -13,6 +13,8 @@ import { expirySeconds, isPushEndpoint, localMinutes, reminderText as serverText
 import { addSubtaskDraft, applySubtaskEdits, hasBlankSubtask, splitSubtasks, withoutTask } from '../codigo-fonte/src/lib/subtasks.ts'
 import { TASK_NOTES_MAX, taskNotesError } from '../codigo-fonte/src/lib/taskNotes.ts'
 import { parseAppData } from '../codigo-fonte/src/lib/schema.ts'
+import { applyReminderEdit, concludeReminder, lastOccurrence, leadAvailable, occurrenceAfter, reminderError, reminderStatus, reopenReminder } from '../codigo-fonte/src/lib/reminderItems.ts'
+import type { ReminderItem } from '../codigo-fonte/src/types.ts'
 import { readFileSync } from 'node:fs'
 
 // Checks the mapping between the local document and the Supabase rows used by the sync engine.
@@ -33,6 +35,10 @@ const base = (): AppData => ({
   sleep: { bed: '23:30', wake: '07:30', wk: false, bed2: '00:30', wake2: '09:30' },
   name: 'Ana', reset: '2026-10-21',
   notes: [{ id: 'n1', workspaceId: 'w1', text: '- [ ] rever' }, { id: 'n2', workspaceId: 'w1', text: 'Ideias' }],
+  reminders: [
+    { id: 'r1', title: 'Consulta', date: '2026-11-20', time: '15:00', repeat: 'none', lead: '1d', until: '', doneUntil: '', doneAt: '' },
+    { id: 'r2', title: 'Medicação', date: '2026-11-01', time: '09:00', repeat: 'daily', lead: '', until: '2026-11-30', doneUntil: '2026-11-05T09:00', doneAt: '' },
+  ],
 })
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v))
 const results: string[] = []
@@ -61,6 +67,7 @@ test('round trip keeps every synced field', () => {
   assert.deepEqual(back.tasks, d.tasks)
   assert.deepEqual(back.notes, d.notes)
   assert.deepEqual(back.dayCats, d.dayCats)
+  assert.deepEqual(back.reminders, d.reminders)
 })
 
 test('no changes produce no operations', () => assert.deepEqual(diffRows(toRows(base()), toRows(base())), []))
@@ -147,7 +154,7 @@ test('adding and removing notes keeps their order', () => {
 
 test('first upload sends every row', () => {
   const ops = diffRows(emptyRows(), toRows(base()))
-  assert.equal(ops.length, 1 + 2 + 2 + 2 + 2 + 2 + 1 + 1 + 2)
+  assert.equal(ops.length, 1 + 2 + 2 + 2 + 2 + 2 + 1 + 1 + 2 + 2)
   assert.ok(ops.every(o => !o.deleted))
 })
 
@@ -545,6 +552,161 @@ test('notes limit is shared with the database and never cuts the text', () => {
   const d = base(); d.tasks[0].n = notes
   assert.equal(fromRows(toRows(d), d).tasks[0].n, notes)
   assert.equal(parseAppData(clone(d))!.tasks[0].n, notes)
+})
+
+const reminder = (over: Partial<ReminderItem> = {}): ReminderItem => ({ id: 'r', title: 'Teste', date: '2026-11-02', time: '09:00', repeat: 'none', lead: '', until: '', doneUntil: '', doneAt: '', ...over })
+
+test('old data and backups without reminders still load', () => {
+  const { reminders: _gone, ...old } = base()
+  assert.deepEqual(parseAppData(clone(old))!.reminders, [])
+})
+
+test('reminders survive the loader, and only edited columns are uploaded', () => {
+  const d = base()
+  assert.deepEqual(parseAppData(clone(d))!.reminders, d.reminders)
+  const next = clone(d); next.reminders[1].doneUntil = '2026-11-06T09:00'
+  const ops = diffRows(toRows(d), toRows(next))
+  assert.equal(ops.length, 1)
+  assert.equal(ops[0].table, 'reminders')
+  assert.deepEqual(ops[0].fields, ['done_until'])
+})
+
+test('a one-off reminder has a single occurrence', () => {
+  const r = reminder()
+  assert.equal(occurrenceAfter(r, ''), '2026-11-02T09:00')
+  assert.equal(occurrenceAfter(r, '2026-11-02T08:59'), '2026-11-02T09:00')
+  assert.equal(occurrenceAfter(r, '2026-11-02T09:00'), null)
+  assert.equal(lastOccurrence(r, '2026-11-02T08:59'), null)
+  assert.equal(lastOccurrence(r, '2026-11-02T09:00'), '2026-11-02T09:00')
+})
+
+test('a daily reminder repeats at its time up to and including the final day', () => {
+  const r = reminder({ repeat: 'daily', until: '2026-11-04' })
+  assert.equal(occurrenceAfter(r, '2026-11-02T09:00'), '2026-11-03T09:00')
+  assert.equal(occurrenceAfter(r, '2026-11-03T08:00'), '2026-11-03T09:00')
+  assert.equal(occurrenceAfter(r, '2026-11-03T10:00'), '2026-11-04T09:00')
+  assert.equal(occurrenceAfter(r, '2026-11-04T09:00'), null)
+  assert.equal(lastOccurrence(r, '2026-11-03T08:00'), '2026-11-02T09:00')
+  assert.equal(lastOccurrence(r, '2026-11-03T09:00'), '2026-11-03T09:00')
+  assert.equal(lastOccurrence(r, '2026-12-25T12:00'), '2026-11-04T09:00')
+})
+
+test('a weekly reminder keeps its weekday and stops at the final day, across a month end', () => {
+  const r = reminder({ date: '2026-11-23', repeat: 'weekly', until: '2026-12-10' })
+  assert.equal(occurrenceAfter(r, '2026-11-24T00:00'), '2026-11-30T09:00')
+  assert.equal(occurrenceAfter(r, '2026-11-30T09:00'), '2026-12-07T09:00')
+  assert.equal(occurrenceAfter(r, '2026-12-07T09:00'), null, 'the 14th is after the final day')
+  assert.equal(lastOccurrence(r, '2026-12-06T23:59'), '2026-11-30T09:00')
+  assert.equal(lastOccurrence(r, '2027-01-01T00:00'), '2026-12-07T09:00')
+})
+
+test('a one-off reminder stays late until concluded, then leaves', () => {
+  const r = reminder()
+  assert.deepEqual(reminderStatus(r, '2026-11-01T12:00'), { at: '2026-11-02T09:00', late: false, done: false })
+  assert.deepEqual(reminderStatus(r, '2026-12-25T12:00'), { at: '2026-11-02T09:00', late: true, done: false })
+  concludeReminder(r, '2026-12-25T12:00', '2026-12-25')
+  assert.deepEqual(reminderStatus(r, '2026-12-25T12:00'), { at: '2026-11-02T09:00', late: false, done: true })
+  assert.equal(r.doneAt, '2026-12-25')
+  reopenReminder(r)
+  assert.equal(reminderStatus(r, '2026-12-25T12:00').late, true)
+  assert.equal(r.doneAt, '')
+})
+
+test('a one-off reminder can be concluded before its time', () => {
+  const r = reminder()
+  concludeReminder(r, '2026-11-01T12:00', '2026-11-01')
+  assert.equal(reminderStatus(r, '2026-11-01T12:00').done, true)
+  assert.equal(reminderStatus(r, '2026-11-05T12:00').done, true, 'it does not come back as late')
+})
+
+test('concluding a late repeating reminder clears every missed occurrence at once', () => {
+  const r = reminder({ repeat: 'daily', until: '2026-11-10' })
+  const now = '2026-11-06T12:00'
+  assert.deepEqual(reminderStatus(r, now), { at: '2026-11-06T09:00', late: true, done: false })
+  concludeReminder(r, now, '2026-11-06')
+  assert.deepEqual(reminderStatus(r, now), { at: '2026-11-07T09:00', late: false, done: false })
+  assert.equal(r.doneAt, '', 'occurrences remain')
+  assert.equal(reminderStatus(r, '2026-11-07T09:00').late, true, 'the next one goes late if ignored')
+})
+
+test('concluding the next occurrence ahead of time moves to the one after', () => {
+  const r = reminder({ repeat: 'daily', until: '2026-11-10' })
+  concludeReminder(r, '2026-11-01T12:00', '2026-11-01')
+  assert.equal(r.doneUntil, '2026-11-02T09:00')
+  assert.deepEqual(reminderStatus(r, '2026-11-01T12:00'), { at: '2026-11-03T09:00', late: false, done: false })
+  assert.equal(reminderStatus(r, '2026-11-02T12:00').late, false, 'the concluded one is not late')
+})
+
+test('a repeating reminder ends only when its last occurrence is concluded', () => {
+  const r = reminder({ repeat: 'daily', until: '2026-11-03' })
+  assert.deepEqual(reminderStatus(r, '2026-12-01T00:00'), { at: '2026-11-03T09:00', late: true, done: false })
+  concludeReminder(r, '2026-12-01T00:00', '2026-12-01')
+  assert.equal(reminderStatus(r, '2026-12-01T00:00').done, true)
+  assert.equal(r.doneAt, '2026-12-01')
+})
+
+test('concluded reminders are deleted after two days, with the tasks', () => {
+  const d = base()
+  d.reminders = [reminder({ id: 'old', doneUntil: '2026-11-02T09:00', doneAt: '2026-11-04' }), reminder({ id: 'recent', doneUntil: '2026-11-02T09:00', doneAt: '2026-11-05' }), reminder({ id: 'open' })]
+  assert.equal(purgeExpired(d, '2026-11-06'), true)
+  assert.deepEqual(d.reminders.map(r => r.id), ['recent', 'open'])
+})
+
+test('early warnings whose moment has passed are unavailable', () => {
+  const r = { date: '2026-11-08', time: '00:05' }
+  assert.equal(leadAvailable(r, '', '2026-12-01T00:00'), true, 'no early warning is always possible')
+  assert.equal(leadAvailable(r, '1w', '2026-11-01T00:04'), true)
+  assert.equal(leadAvailable(r, '1w', '2026-11-01T00:05'), false)
+  assert.equal(leadAvailable(r, '1d', '2026-11-07T00:04'), true)
+  assert.equal(leadAvailable(r, '1h', '2026-11-07T23:04'), true, 'crosses midnight')
+  assert.equal(leadAvailable(r, '1h', '2026-11-07T23:05'), false)
+  assert.equal(leadAvailable(r, '10m', '2026-11-07T23:54'), true)
+  assert.equal(leadAvailable(r, '10m', '2026-11-07T23:55'), false)
+  assert.equal(leadAvailable({ date: '2026-11-08', time: '' }, '1w', '2026-12-01T00:00'), true, 'waits for the time to be chosen')
+})
+
+test('the form requires a time, and a final day when repeating', () => {
+  const now = '2026-11-01T12:00', ok = { title: 'Teste', date: '2026-11-02', time: '09:00', repeat: 'none' as const, until: '' }
+  assert.equal(reminderError(ok, now), '')
+  assert.match(reminderError({ ...ok, title: '  ' }, now), /nome/)
+  assert.match(reminderError({ ...ok, time: '' }, now), /hora/)
+  assert.match(reminderError({ ...ok, repeat: 'daily' }, now), /dia final/)
+  assert.match(reminderError({ ...ok, repeat: 'weekly', until: '2026-11-01' }, now), /antes/)
+  assert.equal(reminderError({ ...ok, repeat: 'daily', until: '2026-11-02' }, now), '', 'the final day can be the first day')
+})
+
+test('a reminder cannot be created in the past, normal or repeating', () => {
+  const now = '2026-11-06T12:00', form = { title: 'Teste', date: '2026-11-06', time: '12:01', repeat: 'none' as const, until: '' }
+  assert.equal(reminderError(form, now), '')
+  assert.match(reminderError({ ...form, time: '12:00' }, now), /futuro/, 'this very minute has already arrived')
+  assert.match(reminderError({ ...form, time: '11:59' }, now), /futuro/, 'earlier today')
+  assert.match(reminderError({ ...form, date: '2026-11-05', time: '23:00' }, now), /futuro/, 'an earlier day')
+  assert.match(reminderError({ ...form, date: '2026-11-05', time: '23:00', repeat: 'daily', until: '2026-11-30' }, now), /futuro/, 'a repeating one too')
+})
+
+test('a late reminder can still be edited, but not moved to another past moment', () => {
+  const now = '2026-11-06T12:00', saved = { date: '2026-11-02', time: '09:00' }, form = { title: 'Novo nome', ...saved, repeat: 'none' as const, until: '' }
+  assert.equal(reminderError(form, now, saved), '', 'keeping its date and time')
+  assert.match(reminderError({ ...form, time: '10:00' }, now, saved), /futuro/)
+  assert.equal(reminderError({ ...form, date: '2026-11-07' }, now, saved), '', 'moving it to the future')
+})
+
+test('editing clears what does not apply and keeps a repeating reminder\'s progress', () => {
+  const r = reminder({ doneUntil: '2026-11-02T09:00', doneAt: '2026-11-02' })
+  applyReminderEdit(r, { title: ' Novo ', date: '2026-11-10', time: '09:00', repeat: 'none', lead: '1h', until: '2026-12-01' }, '2026-11-03')
+  assert.equal(r.title, 'Novo')
+  assert.equal(r.until, '', 'a one-off reminder has no final day')
+  assert.equal(r.doneUntil, '', 'moving it makes it pending again')
+  assert.equal(r.doneAt, '')
+
+  const daily = reminder({ repeat: 'daily', until: '2026-11-10', doneUntil: '2026-11-05T09:00' })
+  applyReminderEdit(daily, { title: 'Teste', date: '2026-11-02', time: '08:00', repeat: 'daily', lead: '1d', until: '2026-11-10' }, '2026-11-05')
+  assert.equal(daily.lead, '', 'repeating reminders have no early warning')
+  assert.equal(daily.doneUntil, '2026-11-05T09:00', 'past occurrences do not return as late')
+
+  const shortened = reminder({ repeat: 'daily', until: '2026-11-10', doneUntil: '2026-11-05T09:00' })
+  applyReminderEdit(shortened, { title: 'Teste', date: '2026-11-02', time: '09:00', repeat: 'daily', lead: '', until: '2026-11-05' }, '2026-11-06')
+  assert.equal(shortened.doneAt, '2026-11-06', 'nothing left after the new final day')
 })
 
 for (const name of results) console.log(`PASS ${name}`)

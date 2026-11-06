@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { CalendarDays, CalendarClock, House, ListTodo, Wallet, UserRound, PanelLeft, Plus, Settings } from 'lucide-react'
+import { Bell, CalendarDays, CalendarClock, House, ListTodo, Wallet, UserRound, PanelLeft, Plus, Settings } from 'lucide-react'
 import { Inicio, TodaySummary } from './features/inicio/Inicio'
 import { DN, MN, dow } from './lib/dates'
 import { Agenda, type AgendaView } from './features/agenda/Agenda'
 import { Calendario } from './features/calendario/Calendario'
 import { Tarefas } from './features/tarefas/Tarefas'
+import { Lembretes } from './features/lembretes/Lembretes'
 import { Financas } from './features/financas/Financas'
 import { Perfil } from './features/perfil/Perfil'
 import { Definicoes } from './features/perfil/Definicoes'
@@ -25,7 +26,7 @@ import { RevealText } from './components/RevealText'
 const syncroSymbol = new URL('./assets/syncro-symbol.png', import.meta.url).href
 const syncroLogo = new URL('./assets/syncro-logo.png', import.meta.url).href
 
-const SECTIONS = [{ id: 'inicio', label: 'Início', icon: House }, { id: 'agenda', label: 'Agenda', icon: CalendarClock }, { id: 'calendario', label: 'Calendário', icon: CalendarDays }, { id: 'tarefas', label: 'Tarefas', icon: ListTodo }, { id: 'financas', label: 'Finanças', icon: Wallet }, { id: 'perfil', label: 'Perfil', icon: UserRound }, { id: 'definicoes', label: 'Definições', icon: Settings }] as const
+const SECTIONS = [{ id: 'inicio', label: 'Início', icon: House }, { id: 'agenda', label: 'Agenda', icon: CalendarClock }, { id: 'calendario', label: 'Calendário', icon: CalendarDays }, { id: 'tarefas', label: 'Tarefas', icon: ListTodo }, { id: 'lembretes', label: 'Lembretes', icon: Bell }, { id: 'financas', label: 'Finanças', icon: Wallet }, { id: 'perfil', label: 'Perfil', icon: UserRound }, { id: 'definicoes', label: 'Definições', icon: Settings }] as const
 type Id = typeof SECTIONS[number]['id']
 
 export default function App() {
@@ -39,7 +40,7 @@ export default function App() {
   const phone = useIsPhone()
   const schedule = sec === 'agenda' || sec === 'calendario'
   // On phones Agenda and Calendário share one bottom-bar item and switch inside the page.
-  const navSections = SECTIONS.filter(s => s.id !== 'definicoes' && s.id !== 'perfil' && !(phone && s.id === 'calendario'))
+  const navSections = SECTIONS.filter(s => s.id !== 'definicoes' && s.id !== 'perfil' && !(phone && (s.id === 'calendario' || s.id === 'lembretes')))
   const isCurrent = (id: Id) => sec === id || (phone && id === 'agenda' && schedule)
   useEffect(() => { setSidebarOpen(false) }, [sidebarAutoOpen])
   useEffect(() => applyTheme(theme), [theme])
@@ -74,7 +75,7 @@ export default function App() {
     const k = (e: KeyboardEvent) => {
       const typing = /INPUT|SELECT|TEXTAREA/.test((document.activeElement?.tagName) ?? '')
       if ((e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !typing)) { e.preventDefault(); setQa(true); return }
-      if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey && !qa && '1234567'.includes(e.key) && e.key) setSec(SECTIONS[+e.key - 1].id)
+      if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey && !qa && '12345678'.includes(e.key) && e.key) setSec(SECTIONS[+e.key - 1].id)
     }
     addEventListener('keydown', k); return () => removeEventListener('keydown', k)
   }, [qa])
@@ -102,6 +103,7 @@ export default function App() {
         {sec === 'calendario' && calendarPage}
       </>}
       {sec === 'tarefas' && <Tarefas workspaceId={workspaceId} setWorkspaceId={setWorkspaceId} />}
+      {sec === 'lembretes' && <Lembretes />}
       {sec === 'financas' && <Financas />}
       {sec === 'perfil' && <Perfil />}
       {sec === 'definicoes' && <Definicoes />}

@@ -254,6 +254,9 @@ textarea{width:100%;resize:vertical}
 .tk-expand svg{transition:transform .2s}.tk-expand[aria-expanded=true] svg{transform:rotate(90deg)}
 /* Task editor: subtasks and notes */
 .field-error{color:var(--error);font-size:12px;font-weight:500}
+.reminder-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.reminder-field{display:flex;flex-direction:column;gap:6px;color:var(--mu);font-size:12px;font-weight:500}.reminder-field .seg button{flex:1}
+.tk.reminder.completing::after{content:"✓ Concluído"}
 .dl [aria-invalid=true]{border-color:var(--error)}
 .auto-grow{display:block;resize:none;line-height:1.55;overflow-wrap:anywhere}
 .task-notes-field{display:grid;gap:6px;min-width:0}
