@@ -36,6 +36,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
   const phone = useIsPhone()
   const now = useNow(), today = todayIso(), nowTime = hm(now.getHours() * 60 + now.getMinutes())
   const [open, setOpen] = useState(true)
+  const newTaskInput = useRef<HTMLInputElement>(null)
   const [txt, setTxt] = useState(''); const [p, setP] = useState<Priority>('media'); const [du, setDu] = useState(''); const [duTime, setDuTime] = useState(''); const [effort, setEffort] = useState<Effort | ''>('')
   const [ed, setEd] = useState<Task | null>(null)
   // The subtasks when the editor opened, to tell this edit apart from what a sync brings in meanwhile.
@@ -171,7 +172,10 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
       </div>}
     </div></div>
     <form className="tadd" onSubmit={add}>
-      <input value={txt} maxLength={90} placeholder="Nova tarefa…" aria-label="Nova tarefa" required autoComplete="off" onChange={e => setTxt(e.target.value)} />
+      <div className="tadd-text">
+        <input ref={newTaskInput} value={txt} maxLength={90} placeholder="Nova tarefa…" aria-label="Nova tarefa" required autoComplete="off" onChange={e => setTxt(e.target.value)} />
+        {txt && <button type="button" className="x tadd-clear" title="Limpar texto" aria-label="Limpar texto" onClick={() => { setTxt(''); newTaskInput.current?.focus() }}>✕</button>}
+      </div>
       {phone ? <div className="tadd-fields">
         <label>Esforço<Select<Effort | ''> value={effort} onChange={setEffort} options={EFFORT_OPTIONS} /></label>
         <label>Prioridade<Select<Priority> value={p} onChange={setP} options={PRIORITY_OPTIONS} /></label>

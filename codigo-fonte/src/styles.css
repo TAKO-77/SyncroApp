@@ -217,7 +217,7 @@ textarea{width:100%;resize:vertical}
 /* Tasks */
 .tasks-main{max-width:760px}
 .tasks-list{margin-top:12px}
-.tadd{padding:18px;border:1px solid var(--l1);border-radius:20px;background:var(--s1);display:grid;gap:12px}.tadd>input{width:100%;font-size:15px}
+.tadd{padding:18px;border:1px solid var(--l1);border-radius:20px;background:var(--s1);display:grid;gap:12px}.tadd-text{position:relative}.tadd-text>input{width:100%;font-size:15px;padding-right:44px}.tadd-clear{position:absolute;top:50%;right:6px;transform:translateY(-50%);display:grid;place-items:center;width:32px;height:32px;border-radius:999px}
 .tsub{display:flex;justify-content:flex-end;margin:10px 0 6px}
 .tk{position:relative;display:flex;align-items:center;gap:12px;height:56px;margin-bottom:8px;padding:0 14px;border:1px solid var(--l1);border-left:3px solid var(--c);border-radius:14px;background:var(--s1)}.tk:hover{background:var(--s2)}
 .rc{appearance:none;width:21px;height:21px;border:1.5px solid var(--l2);border-radius:50%;cursor:pointer;flex:none;display:grid;place-content:center;padding:0;background:none;box-shadow:none}.rc:hover{border-color:var(--ac-fill)}.rc:checked{background:var(--ac-fill);border-color:var(--ac-fill)}.rc:checked:after{content:"";width:5px;height:9px;border:solid var(--accent-text);border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
