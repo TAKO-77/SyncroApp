@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { applyRemote, coalesce, diffRows, emptyRows, fromRows, mergeWithServer, toRows, type Rows, type SyncOp } from '../codigo-fonte/src/lib/sync/rows.ts'
 import type { AppData } from '../codigo-fonte/src/types.ts'
 import { markDone, purgeExpired } from '../codigo-fonte/src/lib/cleanup.ts'
-import { monthTotals, ymAdd } from '../codigo-fonte/src/lib/finance.ts'
+import { monthTotals, overallBalance, ymAdd } from '../codigo-fonte/src/lib/finance.ts'
 import { daysLeft, upcomingSpecialDays } from '../codigo-fonte/src/lib/specialDays.ts'
 import { dueForTime, dueKey, isOverdue } from '../codigo-fonte/src/lib/taskDue.ts'
 import { parseQ } from '../codigo-fonte/src/lib/quick.ts'
@@ -900,6 +900,21 @@ test('dragging in Geral leaves hidden tasks in their places', () => {
   assert.deepEqual(movedOrder(['a', 'x', 'b', 'y', 'c'], ['c', 'a', 'b']), ['c', 'x', 'a', 'y', 'b'])
   assert.deepEqual(movedOrder(['a', 'b'], ['b', 'a']), ['b', 'a'])
   assert.deepEqual(movedOrder(['a', 'b', 'c'], ['a', 'b']), ['a', 'b', 'c'])
+})
+
+test('the overall balance adds every month up to the one asked', () => {
+  const rec = (id: string, t: 'in' | 'out', a: number, date: string, end = '') => ({ id, t, k: 'rec' as const, n: id, a, date, end, c: '' })
+  const one = (id: string, t: 'in' | 'out', a: number, date: string) => ({ id, t, k: 'one' as const, n: id, a, date, end: '', c: '' })
+  assert.equal(overallBalance([], '2026-03'), 0)
+  assert.equal(overallBalance([one('a', 'in', 100, '2026-01-10'), one('b', 'out', 30, '2026-02-05'), one('c', 'in', 5, '2026-03-31')], '2026-03'), 75)
+  assert.equal(overallBalance([rec('s', 'in', 1000, '2026-01-01')], '2026-03'), 3000, 'a recurring record with no end counts every month')
+  assert.equal(overallBalance([rec('r', 'out', 100, '2026-01-01', '2026-02')], '2026-06'), -200, 'a recurring record stops at its end')
+  const future = [one('a', 'in', 100, '2026-01-10'), one('b', 'in', 50, '2026-04-01'), rec('s', 'in', 10, '2026-05-01')]
+  assert.equal(overallBalance(future, '2026-03'), 100, 'records that start later do not count')
+  assert.equal(overallBalance([one('a', 'in', 0.1, '2026-01-01'), one('b', 'in', 0.2, '2026-01-02')], '2026-01'), 0.3)
+  const months = [rec('s', 'in', 1000, '2026-01-01'), one('o', 'out', 250, '2026-02-03')]
+  const { i, o } = monthTotals(months, '2026-03')
+  assert.equal(overallBalance(months, '2026-03'), overallBalance(months, '2026-02') + i - o, 'last month plus this month')
 })
 
 for (const name of results) console.log(`PASS ${name}`)

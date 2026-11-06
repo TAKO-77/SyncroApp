@@ -1,9 +1,9 @@
 import { FIN_CATS, PALETTE, finCat } from '../../lib/palette'
-import { eur, monthTotals, activeIn, ymAdd } from '../../lib/finance'
+import { eur, monthTotals, activeIn, overallBalance, ymAdd } from '../../lib/finance'
 import { useState, type FormEvent } from 'react'
 import { useStore } from '../../store/useStore'
 import { MN, parse } from '../../lib/dates'
-import { Modal, todayIso, uid } from '../../components/common'
+import { Modal, todayIso, uid, useArrowKeys } from '../../components/common'
 import { Donut } from '../../components/Donut'
 import type { Finance } from '../../types'
 import { DatePicker, MonthPicker } from '../../components/DatePicker'
@@ -20,8 +20,9 @@ export function Financas() {
   const [ym, setYm] = useState(todayIso().slice(0, 7))
   const [hide, setHide] = useState(true)
   const [f, setF] = useState<F | null>(null)
+  useArrowKeys(step => setYm(ymAdd(ym, step)))
   const T = monthTotals(data.fin, ym), bal = T.i - T.o
-  const [y, m] = ym.split('-').map(Number)
+  const overall = overallBalance(data.fin, todayIso().slice(0, 7))
   const months = Array.from({ length: 6 }, (_, k) => ymAdd(ym, k - 5)).map(q => ({ q, ...monthTotals(data.fin, q) }))
   const mx = Math.max(1, ...months.flatMap(x => [x.i, x.o]))
   const cats = FIN_CATS.map(c => ({ ...c, v: T.cat[c.id] ?? 0 })).filter(c => c.v > 0).sort((a, b) => b.v - a.v)
@@ -47,13 +48,14 @@ export function Financas() {
       <button className="btn" onClick={() => setHide(!hide)}>{hide ? 'Mostrar valores' : 'Ocultar valores'}</button>
       <button className="btn pri" onClick={() => open()}>Novo registo</button></div></div>
     <div className="bar"><button className="btn sq" onClick={() => setYm(ymAdd(ym, -1))} aria-label="Mês anterior">‹</button>
-      <span className="rg cap">{new Date(y, m - 1, 1).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}</span>
+      <MonthPicker required aria-label="Escolher mês e ano" value={ym} onChange={setYm} />
       <button className="btn sq" onClick={() => setYm(ymAdd(ym, 1))} aria-label="Mês seguinte">›</button>
       <button className="btn ghost" onClick={() => setYm(todayIso().slice(0, 7))}>Hoje</button></div>
     <div className={'fwrap' + mask}>
       {!data.fin.length ? <div className="fc"><EmptyState icon={<Wallet size={22} strokeWidth={1.5} />} title="Ainda não há registos" text="Começa por adicionar o teu ordenado (ganho mensal recorrente) e as despesas fixas." action={<button className="btn pri" onClick={() => open()}>Novo registo</button>} /></div> : <>
         <div className="fk">
           <div className="fc"><span className="fl">Saldo do mês</span><span className="kpi-row"><b className={'fv big ' + (bal < 0 ? 'neg' : 'pos')}>{bal > 0 ? '+' : ''}<CountUp value={bal} format={eur} /></b><Sparkline values={months.map(x => x.i - x.o)} color={bal >= 0 ? 'var(--success)' : 'var(--error)'} label="Saldo dos últimos 6 meses" /></span><small>{T.i ? (bal >= 0 ? `Taxa de poupança de ${Math.round(bal / T.i * 100)}%` : 'Despesas acima dos ganhos') : 'Sem ganhos registados neste mês'}</small></div>
+          <div className="fc"><span className="fl">Saldo geral</span><b className={'fv big ' + (overall < 0 ? 'neg' : 'pos')}>{overall > 0 ? '+' : ''}<CountUp value={overall} format={eur} /></b><small>Soma de todos os registos até este mês</small></div>
           <div className="fc"><span className="fl">Ganhos</span><b className="fv"><CountUp value={T.i} format={eur} /></b></div>
           <div className="fc"><span className="fl">Despesas</span><b className="fv"><CountUp value={T.o} format={eur} /></b></div></div>
         <div className="fc"><span className="fl">Evolução · últimos 6 meses</span>

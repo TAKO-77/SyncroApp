@@ -15,3 +15,14 @@ export function monthTotals(fin: Finance[], ym: string) {
   fin.forEach(e => { if (!activeIn(e, ym)) return; if (e.t === 'in') r.i += e.a; else { r.o += e.a; r[e.k] += e.a; r.cat[e.c] = (r.cat[e.c] ?? 0) + e.a } })
   return r
 }
+
+/** All money recorded up to month `ym`: each month's balance added to the total of the months before it. */
+export function overallBalance(fin: Finance[], ym: string) {
+  if (!fin.length) return 0
+  let total = 0
+  for (let month = fin.reduce((first, e) => e.date.slice(0, 7) < first ? e.date.slice(0, 7) : first, ym); month <= ym; month = ymAdd(month, 1)) {
+    const { i, o } = monthTotals(fin, month)
+    total += i - o
+  }
+  return Math.round(total * 100) / 100
+}

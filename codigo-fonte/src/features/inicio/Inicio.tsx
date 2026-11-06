@@ -86,7 +86,7 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
         <span className="kpi-strip prio-strip" aria-hidden="true">{PRIOS.map(p => { const k = pending.filter(t => t.p === p).length; return k ? <i key={p} style={{ flexGrow: k, ['--c' as string]: PC[p] }} /> : null })}</span>
         <span className="kpi-f">{dueToday ? `${dueToday} para hoje` : 'Nenhuma para hoje'}</span>
       </button>
-      <button type="button" className="card kpi" onClick={() => go('financas')}>
+      <button type="button" className="card kpi" aria-label={hide && data.fin.length ? 'Mostrar valores' : 'Abrir Finanças'} onClick={() => { if (hide && data.fin.length) setHide(false); else go('financas') }}>
         <span className="card-h"><span className="kpi-l cap">Saldo de {new Date(+ym.slice(0, 4), +ym.slice(5) - 1, 1).toLocaleDateString('pt-PT', { month: 'long' })}</span>{T.i > 0 && <span className={'trend ' + (bal >= 0 ? 'up' : 'down') + money}>{bal >= 0 ? `Poupas ${Math.round(bal / T.i * 100)}%` : 'Acima dos ganhos'}</span>}</span>
         <span className="kpi-row"><b className={'kpi-v num' + money}>{bal > 0 ? '+' : ''}<CountUp value={bal} format={eur} /></b>
           {data.fin.length > 0 && <span className={money.trim()}><Sparkline values={months.map(x => x.i - x.o)} color={bal >= 0 ? 'var(--success)' : 'var(--error)'} label="Saldo dos últimos 6 meses" /></span>}</span>
