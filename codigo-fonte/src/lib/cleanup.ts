@@ -21,13 +21,18 @@ const shift = (day: string, months: number, days: number) => {
 /**
  * Deletes tasks completed TASK_DAYS or more days ago and one-off events more than EVENT_MONTHS in the past.
  * Completed tasks without a date (from before dates were recorded) start counting today.
+ * Subtasks leave with their main task, which waits while it has a pending subtask.
  * Mutates `d` and returns whether anything changed.
  */
 export function purgeExpired(d: AppData, today: string): boolean {
   let changed = false
   for (const t of d.tasks) if (t.d && !t.doneAt) { t.doneAt = today; changed = true }
   const taskCutoff = shift(today, 0, -TASK_DAYS), eventCutoff = shift(today, -EVENT_MONTHS, 0)
-  const tasks = d.tasks.filter(t => !(t.d && t.doneAt && t.doneAt <= taskCutoff))
+  const ids = new Set(d.tasks.map(t => t.id))
+  const isSubtask = (t: Task) => !!t.parentId && ids.has(t.parentId)
+  const waiting = new Set(d.tasks.filter(t => isSubtask(t) && !t.d).map(t => t.parentId))
+  const expired = new Set(d.tasks.filter(t => t.d && t.doneAt && t.doneAt <= taskCutoff && !isSubtask(t) && !waiting.has(t.id)).map(t => t.id))
+  const tasks = d.tasks.filter(t => !expired.has(t.id) && !(t.parentId && expired.has(t.parentId)))
   const ev = d.ev.filter(e => e.rep !== 'none' || e.date >= eventCutoff)
   if (tasks.length !== d.tasks.length) { d.tasks = tasks; changed = true }
   if (ev.length !== d.ev.length) { d.ev = ev; changed = true }

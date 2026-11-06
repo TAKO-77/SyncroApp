@@ -24,7 +24,7 @@ A app web abre sem ligação com os dados guardados no dispositivo e sincroniza 
 - **Início:** o ecrã de arranque, com um resumo de todas as abas: quantos eventos e tarefas tens para hoje, a agenda do dia, as tarefas (filtradas por hoje, semana ou todas), o saldo do mês e os próximos dias especiais. Cada cartão abre a aba correspondente e as tarefas podem ser concluídas diretamente no Início.
 - **Agenda:** planeamento diário e semanal, categorias e eventos recorrentes. Podes definir horários ao minuto, arrastar e redimensionar eventos.
 - **Calendário:** dias especiais, aniversários e uma lista com as marcações dos próximos 31 dias.
-- **Tarefas:** prioridades, esforço estimado, datas limite, espaços de trabalho e notas.
+- **Tarefas:** prioridades, esforço estimado, datas limite, espaços de trabalho, notas e subtarefas.
 - **Finanças:** registo de receitas e despesas, incluindo movimentos recorrentes.
 - **Perfil:** nome, foto, horários de sono para cada dia da semana e distribuição do tempo. Podes aplicar o horário de um dia à semana toda.
 - **Definições:** modo claro ou escuro, abertura automática da barra lateral e importação/exportação de cópias de segurança.

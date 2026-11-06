@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as RPE } from 'react'
+import { ChevronRight } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { Modal, todayIso, uid, useIsPhone, useNow } from '../../components/common'
 import type { Effort, Priority, Task } from '../../types'
 import { NoteCard } from './NoteCard'
 import { NoteGrid } from './NoteGrid'
+import { SubtaskList } from './SubtaskList'
+import { AutoGrowTextarea } from '../../components/AutoGrowTextarea'
+import { addSubtaskDraft, applySubtaskEdits, hasBlankSubtask, splitSubtasks, withoutTask, type SubtaskDraft } from '../../lib/subtasks'
+import { TASK_NOTES_WARN, taskNotesCount, taskNotesError } from '../../lib/taskNotes'
 import { DatePicker } from '../../components/DatePicker'
 import { TimePicker } from '../../components/TimePicker'
 import { confirmDialog } from '../../store/confirm'
@@ -33,6 +38,35 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
   const [open, setOpen] = useState(true)
   const [txt, setTxt] = useState(''); const [p, setP] = useState<Priority>('media'); const [du, setDu] = useState(''); const [duTime, setDuTime] = useState(''); const [effort, setEffort] = useState<Effort | ''>('')
   const [ed, setEd] = useState<Task | null>(null)
+  // The subtasks when the editor opened, to tell this edit apart from what a sync brings in meanwhile.
+  const [edBaseSubtasks, setEdBaseSubtasks] = useState<SubtaskDraft[]>([])
+  const [edSubtasks, setEdSubtasks] = useState<SubtaskDraft[]>([])
+  const [edNewSubtask, setEdNewSubtask] = useState('')
+  const { main, children } = splitSubtasks(data.tasks)
+  const openEditor = (t: Task) => {
+    const drafts = (children.get(t.id) ?? []).map(({ id, t: title, d }) => ({ id, t: title, d }))
+    setEd({ ...t }); setEdBaseSubtasks(drafts); setEdSubtasks(drafts); setEdNewSubtask('')
+  }
+  // A subtask cannot have subtasks of its own, and it follows its main task's workspace.
+  const editingSubtask = !!ed && !main.some(t => t.id === ed.id)
+  const saveEditor = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!ed) return
+    const v = ed.t.trim()
+    if (!v) return
+    if (hasBlankSubtask(edSubtasks) || taskNotesError(ed.n)) { e.currentTarget.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(); return }
+    // A title typed but not yet added is still something the user meant to keep.
+    const drafts = addSubtaskDraft(edSubtasks, edNewSubtask, uid('t')) ?? edSubtasks
+    update(d => {
+      const x = d.tasks.find(t => t.id === ed.id)
+      if (!x) return
+      Object.assign(x, { ...ed, t: v })
+      if (!editingSubtask) applySubtaskEdits(d, x, edBaseSubtasks, drafts, today)
+    })
+    setEd(null)
+  }
+  const [expanded, setExpanded] = useState<string[]>([])
+  const toggleExpanded = (id: string) => setExpanded(list => list.includes(id) ? list.filter(x => x !== id) : [...list, id])
   const [workspaceMenu, setWorkspaceMenu] = useState(false)
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
   const [sortBy, setSortBy] = useState<SortBy>(readSort)
@@ -58,9 +92,11 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
   }
   const listRef = useRef<HTMLDivElement>(null)
   const dragStart = (e: RPE, id: string) => {
-    if (e.button !== 0 || !listRef.current) return
+    // A row moves among its siblings, with its subtasks: main tasks in the list, subtasks under their main task.
+    const siblings = e.currentTarget.closest('.tk-group')?.parentElement
+    if (e.button !== 0 || !siblings) return
     e.preventDefault()
-    const rows = [...listRef.current.querySelectorAll<HTMLElement>('.tk')], i0 = rows.findIndex(r => r.dataset.id === id), n = rows.length
+    const rows = [...siblings.children] as HTMLElement[], i0 = rows.findIndex(r => r.dataset.group === id), n = rows.length
     if (n < 2) return
     // Rows can differ in height: the dragged row takes a neighbour's place once its edge passes that neighbour's middle.
     const row = rows[i0], sy = e.clientY, sc = scrollY, tops = rows.map(r => r.offsetTop), middles = rows.map((r, k) => tops[k] + r.offsetHeight / 2)
@@ -79,10 +115,10 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
       removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up)
       rows.forEach(r => { r.style.transform = ''; r.classList.remove('drag') })
       if (ni === i0) return
-      const ids = rows.map(r => r.dataset.id as string), [mvd] = ids.splice(i0, 1); ids.splice(ni, 0, mvd)
+      const ids = rows.map(r => r.dataset.group as string), [mvd] = ids.splice(i0, 1); ids.splice(ni, 0, mvd)
       update(d => { const slots: number[] = []; d.tasks.forEach((t, k) => { if (ids.includes(t.id)) slots.push(k) }); const by = Object.fromEntries(d.tasks.map(t => [t.id, t])); slots.forEach((k, j) => { d.tasks[k] = by[ids[j]] }) })
       // The stored order now matches what the user arranged, so keep showing it.
-      setSortBy('custom')
+      if (siblings === listRef.current) setSortBy('custom')
     }
     addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up)
   }
@@ -90,7 +126,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
   const activeWorkspaceId = workspace?.id ?? 'geral'
   useEffect(() => setEditingNoteId(null), [activeWorkspaceId])
   const notes = data.notes.filter(n => n.workspaceId === activeWorkspaceId)
-  const scoped = workspace?.id === 'geral' ? data.tasks : data.tasks.filter(t => (t.workspaceId ?? 'geral') === workspace?.id)
+  const scoped = workspace?.id === 'geral' ? main : main.filter(t => (t.workspaceId ?? 'geral') === workspace?.id)
   const nOpen = scoped.filter(t => !t.d).length
   const list = scoped.filter(t => open ? !t.d : t.d).map((task, index) => ({ task, index })).sort((a, b) => {
     if (sortBy === 'custom') return a.index - b.index
@@ -150,21 +186,15 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
       </>}
     </form>
     {list.length > 1 && <div className="tsub"><label>Ordenar por<Select<SortBy> value={sortBy} onChange={setSortBy} options={[{ value: 'priority', label: 'Relevância' }, { value: 'effort', label: 'Tempo estimado' }, { value: 'due', label: 'Data limite' }, { value: 'custom', label: 'Customizado' }]} /></label></div>}
-    <div className="tasks-list" ref={listRef}>{list.length ? list.map(t => { const [lbl, late] = dueLabel(t, today, nowTime)
-      const done = completing.includes(t.id)
-      return <div key={t.id} data-id={t.id} className={'tk' + (t.d ? ' dn' : '') + (done ? ' completing' : '')} style={{ ['--c' as string]: PC[t.p] }}>
-        {open && <span className="hnd" title="Arrastar" onPointerDown={e => dragStart(e, t.id)}>⋮⋮</span>}
-        <span className="rc-wrap"><input className="rc" type="checkbox" checked={t.d || done} aria-label="Concluída" onChange={e => toggleDone(t.id, e.target.checked)} />
-          {done && <span className="burst" aria-hidden="true">{BURST.map(a => <i key={a} style={{ ['--a' as string]: `${a}deg` }} />)}</span>}</span>
-        <span className="tt2" onClick={() => setEd({ ...t })}><span className="tt2-text">{t.t}</span></span>
-        <span className="tk-meta">
-          {t.n && <small className="tm" title="Tem notas">≡</small>}
-          {lbl && <small className={'tm' + (late ? ' late' : '')}>{lbl}</small>}
-          {t.effort && <button className="lt" style={{ ['--c' as string]: LV[t.effort].c }} title={LV[t.effort].t}>{LV[t.effort].n}</button>}
-          <button className="pp2" onClick={() => patch(t.id, x => { x.p = NX[x.p] })}>{PN[t.p]}</button>
-        </span>
-        <button className="x" aria-label="Remover" onClick={() => update(d => { d.tasks = d.tasks.filter(x => x.id !== t.id) })}>✕</button>
-      </div> }) : <div className="tem">{open ? 'Tudo em dia. Adiciona a próxima tarefa acima.' : 'Ainda nada concluído.'}</div>}</div>
+    <div className="tasks-list" ref={listRef}>{list.length ? list.map(t => {
+      const subs = children.get(t.id) ?? [], isExpanded = subs.length > 0 && expanded.includes(t.id)
+      return <div key={t.id} data-group={t.id} className="tk-group">
+        {renderRow(t, subs, isExpanded)}
+        {isExpanded && <div id={`subtasks-${t.id}`} className="tk-children" role="group" aria-label={`Subtarefas de ${t.t}`}>
+          {subs.map(s => <div key={s.id} data-group={s.id} className="tk-group">{renderRow(s, [], false, true)}</div>)}
+        </div>}
+      </div>
+    }) : <div className="tem">{open ? 'Tudo em dia. Adiciona a próxima tarefa acima.' : 'Ainda nada concluído.'}</div>}</div>
     </div>
     {activeWorkspaceId !== 'geral' && <div className="task-notes">
       <div className="task-notes-head"><label>Tópicos e notas</label><button type="button" className="btn" onClick={addNote}>+ Nova nota</button></div>
@@ -176,17 +206,42 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
         : <div className="task-notes-content"><span className="mu">Ainda não há tópicos ou notas neste espaço.</span></div>}
       <small>Notas independentes do espaço “{workspace?.name ?? 'Geral'}”.</small>
     </div>}
-    {ed && <Modal title="Editar tarefa" onClose={() => setEd(null)}>
-      <form className="fgrid" onSubmit={e => { e.preventDefault(); const v = ed.t.trim(); if (!v) return; patch(ed.id, x => Object.assign(x, { ...ed, t: v })); setEd(null) }}>
+    {ed && <Modal title={editingSubtask ? 'Editar subtarefa' : 'Editar tarefa'} onClose={() => setEd(null)}>
+      <form className="fgrid" onSubmit={saveEditor}>
         <label className="w">Nome<input value={ed.t} required maxLength={90} onChange={e => setEd({ ...ed, t: e.target.value })} /></label>
+        {!editingSubtask && <SubtaskList subtasks={edSubtasks} onChange={setEdSubtasks} newTitle={edNewSubtask} onNewTitle={setEdNewSubtask} />}
         <label>Data limite<DatePicker value={ed.due} onChange={due => setEd({ ...ed, due, dueTime: due ? ed.dueTime : '' })} /></label>
         <label>Hora limite<TimePicker value={ed.dueTime ?? ''} onChange={dueTime => setEd({ ...ed, dueTime, due: dueForTime(ed.due, dueTime, today) })} /></label>
         <label className="w">Prioridade<Select<Priority> value={ed.p} onChange={p => setEd({ ...ed, p })} options={PRIORITY_OPTIONS} /></label>
-        <label className="w">Espaço de trabalho<Select value={ed.workspaceId ?? 'geral'} onChange={workspaceId => setEd({ ...ed, workspaceId })} options={data.workspaces.map(w => ({ value: w.id, label: w.name }))} /></label>
+        {!editingSubtask && <label className="w">Espaço de trabalho<Select value={ed.workspaceId ?? 'geral'} onChange={workspaceId => setEd({ ...ed, workspaceId })} options={data.workspaces.map(w => ({ value: w.id, label: w.name }))} /></label>}
         <label className="w">Esforço<Select<Effort | ''> value={ed.effort ?? ''} onChange={effort => setEd({ ...ed, effort })} options={EFFORT_OPTIONS} /></label>
-        <label className="w">Notas<textarea rows={3} maxLength={400} value={ed.n ?? ''} onChange={e => setEd({ ...ed, n: e.target.value })} /></label>
+        <div className="w task-notes-field">
+          <label>Notas<AutoGrowTextarea value={ed.n ?? ''} aria-invalid={!!taskNotesError(ed.n)} aria-describedby={taskNotesError(ed.n) ? 'task-notes-error' : undefined} onChange={e => setEd({ ...ed, n: e.target.value })} /></label>
+          {taskNotesError(ed.n) ? <small id="task-notes-error" className="field-error" role="alert">{taskNotesError(ed.n)}</small>
+            : (ed.n ?? '').length >= TASK_NOTES_WARN && <small className="mu num">{taskNotesCount(ed.n)}</small>}
+        </div>
         <label className="w ck"><input type="checkbox" checked={ed.d} onChange={e => setEd({ ...ed, d: e.target.checked })} /> Concluída</label>
-        <div className="acts w"><button type="button" className="btn dng" onClick={() => { const id = ed.id; update(d => { d.tasks = d.tasks.filter(x => x.id !== id) }); setEd(null) }}>Apagar</button><span className="sp" /><button type="button" className="btn" onClick={() => setEd(null)}>Cancelar</button><button className="btn pri" type="submit">Guardar</button></div>
+        <div className="acts w"><button type="button" className="btn dng" onClick={() => { const id = ed.id; update(d => { d.tasks = withoutTask(d.tasks, id) }); setEd(null) }}>Apagar</button><span className="sp" /><button type="button" className="btn" onClick={() => setEd(null)}>Cancelar</button><button className="btn pri" type="submit">Guardar</button></div>
       </form></Modal>}
   </section>
+
+  /** One task row. A subtask stays visible when ticked, struck through under its main task. */
+  function renderRow(t: Task, subs: Task[], isExpanded: boolean, isSubtask = false) {
+    const [lbl, late] = dueLabel(t, today, nowTime)
+    const done = completing.includes(t.id)
+    return <div data-id={t.id} className={'tk' + (t.d ? ' dn' : '') + (done ? ' completing' : '')} style={{ ['--c' as string]: PC[t.p] }}>
+        {open && <span className="hnd" title="Arrastar" onPointerDown={e => dragStart(e, t.id)}>⋮⋮</span>}
+        <span className="rc-wrap"><input className="rc" type="checkbox" checked={t.d || done} aria-label="Concluída" onChange={e => { const checked = e.target.checked; if (isSubtask) patch(t.id, x => markDone(x, checked)); else toggleDone(t.id, checked) }} />
+          {done && <span className="burst" aria-hidden="true">{BURST.map(a => <i key={a} style={{ ['--a' as string]: `${a}deg` }} />)}</span>}</span>
+        <span className="tt2" onClick={() => openEditor(t)}><span className="tt2-text">{t.t}</span></span>
+        <span className="tk-meta">
+          {subs.length > 0 && <button type="button" className="tk-expand" aria-expanded={isExpanded} aria-controls={isExpanded ? `subtasks-${t.id}` : undefined} aria-label={`${isExpanded ? 'Recolher' : 'Expandir'} subtarefas de ${t.t}, ${subs.filter(s => s.d).length} de ${subs.length} concluídas`} title={isExpanded ? 'Recolher subtarefas' : 'Ver subtarefas'} onClick={() => toggleExpanded(t.id)}><ChevronRight size={14} strokeWidth={1.5} aria-hidden="true" /><span className="num">{subs.filter(s => s.d).length}/{subs.length}</span></button>}
+          {t.n && <small className="tm" title="Tem notas">≡</small>}
+          {lbl && <small className={'tm' + (late ? ' late' : '')}>{lbl}</small>}
+          {t.effort && <button className="lt" style={{ ['--c' as string]: LV[t.effort].c }} title={LV[t.effort].t}>{LV[t.effort].n}</button>}
+          <button className="pp2" onClick={() => patch(t.id, x => { x.p = NX[x.p] })}>{PN[t.p]}</button>
+        </span>
+        <button className="x" aria-label="Remover" onClick={() => update(d => { d.tasks = withoutTask(d.tasks, t.id) })}>✕</button>
+      </div>
+  }
 }

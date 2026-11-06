@@ -10,6 +10,10 @@ import { WEEK_RANGE, clipToWeek, weekScale } from '../codigo-fonte/src/lib/agend
 import { eventsOn } from '../codigo-fonte/src/lib/recurrence.ts'
 import { reminderText, remindersBetween } from '../codigo-fonte/src/lib/reminders.ts'
 import { expirySeconds, isPushEndpoint, localMinutes, reminderText as serverText, remindersAt } from '../supabase/functions/send-reminders/rules.ts'
+import { addSubtaskDraft, applySubtaskEdits, hasBlankSubtask, splitSubtasks, withoutTask } from '../codigo-fonte/src/lib/subtasks.ts'
+import { TASK_NOTES_MAX, taskNotesError } from '../codigo-fonte/src/lib/taskNotes.ts'
+import { parseAppData } from '../codigo-fonte/src/lib/schema.ts'
+import { readFileSync } from 'node:fs'
 
 // Checks the mapping between the local document and the Supabase rows used by the sync engine.
 const base = (): AppData => ({
@@ -415,6 +419,132 @@ test('server and Windows app write the same notification text', () => {
 test('the server only calls known push services', () => {
   for (const ok of ['https://fcm.googleapis.com/fcm/send/abc', 'https://web.push.apple.com/abc', 'https://updates.push.services.mozilla.com/wpush/v2/abc', 'https://wns2-par02p.notify.windows.com/w/?token=abc']) assert.equal(isPushEndpoint(ok), true, ok)
   for (const bad of ['http://fcm.googleapis.com/fcm/send/abc', 'https://evil.example/fcm.googleapis.com', 'https://fcm.googleapis.com.evil.example/x', 'https://notpush.apple.com/x', 'http://169.254.169.254/latest', 'não é url']) assert.equal(isPushEndpoint(bad), false, bad)
+})
+
+// Subtasks
+const sub = (id: string, parentId: string, extra: Partial<AppData['tasks'][number]> = {}): AppData['tasks'][number] => ({ id, t: id, due: '', p: 'media', d: false, effort: '', workspaceId: 'w1', parentId, ...extra })
+const withSubs = () => { const d = base(); d.tasks.push(sub('s1', 't1', { t: 'Primeira', due: '2026-11-10', dueTime: '09:00', p: 'urgente', effort: 'lig', n: 'Nota' }), sub('s2', 't1', { t: 'Segunda', d: true, doneAt: '2026-10-28' }), sub('s3', 't1', { t: 'Terceira' })); return d }
+
+test('a subtask is a task row with every task field and its parent', () => {
+  const d = withSubs(), rows = toRows(d)
+  assert.equal(rows.tasks.s1.parent_id, 't1')
+  assert.equal(rows.tasks.s1.due_time, '09:00')
+  assert.equal(rows.tasks.t1.parent_id, null, 'main tasks have no parent')
+  assert.deepEqual(fromRows(rows, { ...d, tasks: [] }).tasks, d.tasks, 'order, states and fields survive the rows')
+  assert.equal('parentId' in fromRows(rows, d).tasks[0], false)
+})
+
+test('old rows without a parent load as main tasks', () => {
+  const rows = toRows(base())
+  delete rows.tasks.t1.parent_id
+  const merged = applyRemote(emptyRows(), [{ table: 'tasks', row: { ...rows.tasks.t1, deleted: false } }], new Set())
+  assert.equal(merged.tasks.t1.parent_id, null)
+  assert.equal('parentId' in fromRows(merged, base()).tasks[0], false)
+  assert.deepEqual(diffRows(toRows(base()), merged).filter(o => o.id === 't1'), [], 'and is not seen as a local change')
+})
+
+test('the list separates main tasks from subtasks in stored order', () => {
+  const { main, children } = splitSubtasks(withSubs().tasks)
+  assert.deepEqual(main.map(t => t.id), ['t1', 't2'])
+  assert.deepEqual(children.get('t1')!.map(t => t.id), ['s1', 's2', 's3'])
+  assert.equal(children.has('t2'), false)
+})
+
+test('nothing stays hidden: only one level, and a missing parent shows the task', () => {
+  const d = base()
+  d.tasks.push(sub('orfa', 'apagada'), sub('s1', 't1'), sub('neta', 's1'), sub('propria', 'propria'))
+  const { main, children } = splitSubtasks(d.tasks)
+  assert.deepEqual(main.map(t => t.id), ['t1', 't2', 'orfa', 'neta', 'propria'])
+  assert.deepEqual(children.get('t1')!.map(t => t.id), ['s1'])
+})
+
+test('subtask titles are required', () => {
+  assert.equal(addSubtaskDraft([], '', 's1'), null)
+  assert.equal(addSubtaskDraft([], '   \t ', 's1'), null)
+  assert.deepEqual(addSubtaskDraft([{ id: 'a', t: 'x', d: true }], '  Nova  ', 's1'), [{ id: 'a', t: 'x', d: true }, { id: 's1', t: 'Nova', d: false }])
+  assert.equal(hasBlankSubtask([{ id: 'a', t: '  ', d: false }]), true)
+  assert.equal(hasBlankSubtask([{ id: 'a', t: 'x', d: false }]), false)
+})
+
+test('edits to different subtasks on two devices are both kept', () => {
+  const pc = withSubs(); pc.tasks[2].t = 'Primeira no PC'
+  const ops = diffRows(toRows(withSubs()), toRows(pc))
+  assert.deepEqual(ops.map(o => [o.id, o.fields]), [['s1', ['title']]], 'only that subtask and column are sent')
+  const server = { ...toRows(withSubs()).tasks.s1, done: true, notes: 'Do telemóvel' }
+  const row = mergeWithServer(ops[0], server)
+  assert.deepEqual([row.title, row.done, row.notes], ['Primeira no PC', true, 'Do telemóvel'], 'even the same subtask merges column by column')
+})
+
+test('the main editor applies only what changed and keeps what a sync brought in', () => {
+  const opened = [{ id: 's1', t: 'Primeira', d: false }, { id: 's2', t: 'Segunda', d: true }, { id: 's3', t: 'Terceira', d: false }]
+  const d = withSubs()
+  // From a sync while the editor was open: s1 got a priority and a new subtask appeared.
+  d.tasks[2].p = 'baixa'
+  d.tasks.push(sub('s5', 't1', { t: 'Remota' }))
+  const parent = d.tasks[0]; parent.workspaceId = 'geral'
+  applySubtaskEdits(d, parent, opened, [{ id: 's1', t: ' Editada ', d: true }, { id: 's3', t: 'Terceira', d: false }, { id: 'novo', t: 'Nova', d: false }], '2026-11-06')
+  const list = splitSubtasks(d.tasks).children.get('t1')!
+  assert.deepEqual(list.map(t => t.id), ['s1', 's3', 's5', 'novo'])
+  assert.deepEqual([list[0].t, list[0].d, list[0].doneAt, list[0].p, list[0].n], ['Editada', true, '2026-11-06', 'baixa', 'Nota'])
+  assert.deepEqual(list.map(t => t.workspaceId), ['geral', 'geral', 'geral', 'geral'], 'subtasks follow their main task')
+  assert.equal(list[3].p, 'media', 'a new subtask starts like a new task')
+  assert.equal(parent.d, false, 'ticking a subtask leaves the main task as it was')
+})
+
+test('deleting a task soft-deletes its subtasks too', () => {
+  const next = withSubs(); next.tasks = withoutTask(next.tasks, 't1')
+  assert.deepEqual(next.tasks.map(t => t.id), ['t2'])
+  assert.deepEqual(diffRows(toRows(withSubs()), toRows(next)).filter(o => o.deleted).map(o => o.id).sort(), ['s1', 's2', 's3', 't1'])
+  const one = withSubs(); one.tasks = withoutTask(one.tasks, 's2')
+  assert.deepEqual(one.tasks.map(t => t.id), ['t1', 't2', 's1', 's3'], 'deleting a subtask keeps the rest')
+})
+
+test('clean-up removes subtasks with their main task only', () => {
+  const kept = withSubs()
+  purgeExpired(kept, '2026-11-06')
+  assert.ok(kept.tasks.some(t => t.id === 's2'), 'a completed subtask stays while its main task is here')
+  const waiting = withSubs(); waiting.tasks[0].d = true; waiting.tasks[0].doneAt = '2026-10-20'
+  purgeExpired(waiting, '2026-11-06')
+  assert.ok(waiting.tasks.some(t => t.id === 't1'), 'a main task with a pending subtask is not removed')
+  const gone = withSubs(); gone.tasks[0].d = true; gone.tasks[0].doneAt = '2026-10-20'
+  gone.tasks.filter(t => t.parentId).forEach(t => { t.d = true; t.doneAt ??= '2026-11-05' })
+  purgeExpired(gone, '2026-11-06')
+  assert.deepEqual(gone.tasks.map(t => t.id), [], 'all done: they leave together (t2 expired as well)')
+})
+
+test('a subtask with a time limit reminds like any task', () => {
+  const d = withSubs(); d.tasks[2].dueTime = '10:00'; d.tasks[2].due = '2026-11-10'
+  const due = remindersBetween(d.tasks, new Date(2026, 10, 10, 9, 59), new Date(2026, 10, 10, 10, 1))
+  assert.ok(due.some(r => r.title === 'Primeira'))
+})
+
+test('completing a task and its subtasks are independent', () => {
+  const d = withSubs(), [t, s1] = [d.tasks[0], d.tasks[2]]
+  markDone(t, true, '2026-10-29')
+  assert.equal(s1.d, false)
+  markDone(t, false)
+  markDone(s1, true, '2026-10-29')
+  assert.equal(t.d, false)
+})
+
+test('loading keeps the parent and accepts old tasks', () => {
+  const loaded = parseAppData(clone(withSubs()))!
+  assert.equal(loaded.tasks[2].parentId, 't1')
+  assert.equal('parentId' in loaded.tasks[0], false, 'old tasks load unchanged')
+})
+
+test('notes limit is shared with the database and never cuts the text', () => {
+  assert.equal(TASK_NOTES_MAX, 10000)
+  assert.equal(taskNotesError('x'.repeat(TASK_NOTES_MAX)), null)
+  assert.equal(taskNotesError(undefined), null)
+  assert.match(taskNotesError('x'.repeat(TASK_NOTES_MAX + 3))!, /10\s?003 caracteres.*10\s?000.*Remove 3/)
+  const sql = readFileSync(new URL('../supabase/migrations/20261106000000_task_subtasks.sql', import.meta.url), 'utf8')
+  assert.ok(sql.includes(`char_length(notes) <= ${TASK_NOTES_MAX}`), 'the database check must use the same value')
+  // Long notes with line breaks survive the rows and the loader unchanged, even over the limit.
+  const notes = 'linha 1\n\n  linha 3\r\n' + 'y'.repeat(TASK_NOTES_MAX + 50)
+  const d = base(); d.tasks[0].n = notes
+  assert.equal(fromRows(toRows(d), d).tasks[0].n, notes)
+  assert.equal(parseAppData(clone(d))!.tasks[0].n, notes)
 })
 
 for (const name of results) console.log(`PASS ${name}`)

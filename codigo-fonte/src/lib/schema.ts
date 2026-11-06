@@ -1,4 +1,4 @@
-import { PALETTE, harmonizeDefaultColor } from './palette'
+import { PALETTE, harmonizeDefaultColor } from './palette.ts'
 import { z } from 'zod'
 import type { AppData } from '../types'
 

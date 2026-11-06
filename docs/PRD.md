@@ -20,7 +20,7 @@ Establish a seamless, cross-platform productivity ecosystem that allows users to
 - **Home:** The start screen, with a summary of every tab: today's agenda, the most urgent tasks, this month's balance and the next special days, each linking to its tab.
 - **Calendar:** A centralized view to schedule, manage, and visualize upcoming events and appointments.
 - **Agenda:** A dedicated daily and weekly breakdown of scheduled activities and time-blocks.
-- **To-do Tasks:** A task tracking system supporting effort levels, priority tags, and due dates categorized by workspaces.
+- **To-do Tasks:** A task tracking system supporting effort levels, priority tags, and due dates categorized by workspaces. Tasks can have notes (up to 10,000 characters) and one level of subtasks. A subtask is a normal task (due date and time, priority, effort, notes, reminders) shown indented under its main task when that task is expanded in the list; completing a task and completing its subtasks are independent.
 - **Profile Tab:** A user management area for settings, workspace configuration, and theme preferences (Light/Dark mode).
 
 # 06 Out of Scope (for now)
