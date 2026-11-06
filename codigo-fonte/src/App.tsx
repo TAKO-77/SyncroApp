@@ -39,9 +39,10 @@ export default function App() {
   const { data, sidebarAutoOpen, focusTimer, theme } = useStore()
   const phone = useIsPhone()
   const schedule = sec === 'agenda' || sec === 'calendario'
-  // On phones Agenda and Calendário share one bottom-bar item and switch inside the page.
+  const taskGroup = sec === 'tarefas' || sec === 'lembretes'
+  // On phones Agenda and Calendário share one bottom-bar item and switch inside the page, and so do Tarefas and Lembretes.
   const navSections = SECTIONS.filter(s => s.id !== 'definicoes' && s.id !== 'perfil' && !(phone && (s.id === 'calendario' || s.id === 'lembretes')))
-  const isCurrent = (id: Id) => sec === id || (phone && id === 'agenda' && schedule)
+  const isCurrent = (id: Id) => sec === id || (phone && ((id === 'agenda' && schedule) || (id === 'tarefas' && taskGroup)))
   useEffect(() => { setSidebarOpen(false) }, [sidebarAutoOpen])
   useEffect(() => applyTheme(theme), [theme])
   useEffect(() => {
@@ -81,6 +82,7 @@ export default function App() {
   }, [qa])
   const agendaPage = <Agenda anchor={anchor} setAnchor={setAnchor} view={agendaView} setView={setAgendaView} />
   const calendarPage = <Calendario onOpenDay={ds => { setAnchor(ds); setSec('agenda') }} />
+  const tasksPage = <Tarefas workspaceId={workspaceId} setWorkspaceId={setWorkspaceId} />
   return <div className={`app${sidebarOpen ? ' sidebar-open' : ''}${schedule ? ' schedule-layout' : ''}`}>
     <LogoFilter />
     <aside id="sidebar" className="sb" onMouseEnter={() => { if (sidebarAutoOpen) setSidebarOpen(true) }} onMouseLeave={() => { if (sidebarAutoOpen) setSidebarOpen(false) }} onFocus={() => { if (sidebarAutoOpen) setSidebarOpen(true) }} onBlur={e => { if (sidebarAutoOpen && !e.currentTarget.contains(e.relatedTarget as Node | null)) setSidebarOpen(false) }}>
@@ -97,13 +99,16 @@ export default function App() {
           <span>{DN[dow(now)]}, {now.getDate()} {MN[now.getMonth()]}</span><span className="mu num">{now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span><span className="date-pill-ic"><CalendarDays size={16} strokeWidth={1.5} aria-hidden="true" /></span></button>
           <button className="btn pri" onClick={() => setQa(true)} title="Adição rápida ( / )"><Plus size={16} strokeWidth={2} aria-hidden="true" />Adição rápida</button><ProfileButton active={sec === 'perfil'} onClick={() => setSec('perfil')} /></div></div>
       {phone && schedule && <div className="seg schedule-switch"><button aria-pressed={sec === 'agenda'} onClick={() => setSec('agenda')}>Agenda</button><button aria-pressed={sec === 'calendario'} onClick={() => setSec('calendario')}>Calendário</button><Glider /></div>}
+      {phone && taskGroup && <div className="seg schedule-switch"><button aria-pressed={sec === 'tarefas'} onClick={() => setSec('tarefas')}>Tarefas</button><button aria-pressed={sec === 'lembretes'} onClick={() => setSec('lembretes')}>Lembretes</button><Glider /></div>}
       {sec === 'inicio' && <Inicio go={setSec} />}
       {phone && schedule ? <SwipePager page={sec === 'agenda' ? 0 : 1} onChange={p => setSec(p ? 'calendario' : 'agenda')} pages={[agendaPage, calendarPage]} /> : <>
         {sec === 'agenda' && agendaPage}
         {sec === 'calendario' && calendarPage}
       </>}
-      {sec === 'tarefas' && <Tarefas workspaceId={workspaceId} setWorkspaceId={setWorkspaceId} />}
-      {sec === 'lembretes' && <Lembretes />}
+      {phone && taskGroup ? <SwipePager page={sec === 'tarefas' ? 0 : 1} onChange={p => setSec(p ? 'lembretes' : 'tarefas')} pages={[tasksPage, <Lembretes />]} /> : <>
+        {sec === 'tarefas' && tasksPage}
+        {sec === 'lembretes' && <Lembretes />}
+      </>}
       {sec === 'financas' && <Financas />}
       {sec === 'perfil' && <Perfil />}
       {sec === 'definicoes' && <Definicoes />}

@@ -546,6 +546,8 @@ main>.page{animation:page-in .35s cubic-bezier(.2,.75,.25,1) backwards}
   .pager{display:flex;align-items:flex-start;gap:16px;overflow:hidden;touch-action:pan-y;transition:height .25s ease}
   .pager-panel{flex:0 0 100%;min-width:0}
   .pager-panel>.page{display:flex;flex-direction:column;min-height:0}
+  /* A short list still leaves room to swipe back, down to the bottom bar. */
+  .pager-panel>.tasks-page{min-height:calc(100dvh - 260px)}
   .calendar-page .upcoming-compact .upcoming-list{overscroll-behavior-x:contain}
   /* Compact greeting, so the summary cards start higher. */
   .top>div:first-child:not(:empty){margin-bottom:12px}
