@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { Dashboard } from './Dashboard'
-import { SleepSettings } from './SleepSettings'
 import { NotifyChoice } from './NotifyChoice'
 
 export function Perfil() {
@@ -53,7 +52,6 @@ export function Perfil() {
         <button className="btn pri" type="submit">Guardar</button>
       </form>
       <NotifyChoice />
-      <SleepSettings />
       <h2 className="sub">Onde gasto o tempo</h2>
       <Dashboard />
     </section>

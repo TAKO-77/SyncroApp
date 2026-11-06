@@ -15,6 +15,7 @@ import { TASK_NOTES_MAX, taskNotesError } from '../codigo-fonte/src/lib/taskNote
 import { parseAppData } from '../codigo-fonte/src/lib/schema.ts'
 import { applyReminderEdit, concludeReminder, reminderAlertsBetween, lastOccurrence, leadAvailable, occurrenceAfter, reminderError, reminderStatus, reopenReminder } from '../codigo-fonte/src/lib/reminderItems.ts'
 import type { ReminderItem } from '../codigo-fonte/src/types.ts'
+import { sleepIv, sleepSchedule, sleepTargetDays, sleepWeek } from '../codigo-fonte/src/lib/sleep.ts'
 import { readFileSync } from 'node:fs'
 
 // Checks the mapping between the local document and the Supabase rows used by the sync engine.
@@ -837,6 +838,32 @@ test('the choice of notifications syncs and defaults to tasks as well', () => {
   const rows = toRows(base()); delete rows.profiles.profile.notify_tasks
   assert.equal(fromRows(rows, base()).notifyTasks, true, 'a profile row from before the column')
   for (const kind of ['soon', 'due', '1w', '1d', '1h', '10m', 'at']) assert.ok(readFileSync(new URL('../supabase/migrations/20261106000002_reminder_notifications.sql', import.meta.url), 'utf8').includes(`'${kind}'`), kind)
+})
+
+test('the sleep window applies a schedule only to the days chosen', () => {
+  const none = { all: false, week: false, weekend: false }
+  assert.deepEqual(sleepTargetDays(1, none), [1], 'only the day clicked')
+  assert.deepEqual(sleepTargetDays(1, { ...none, week: true }), [0, 1, 2, 3, 4])
+  assert.deepEqual(sleepTargetDays(1, { ...none, weekend: true }), [1], 'a weekday has no weekend box')
+  assert.deepEqual(sleepTargetDays(1, { all: false, week: true, weekend: true }), [0, 1, 2, 3, 4])
+  assert.deepEqual(sleepTargetDays(5, none), [5], 'Saturday alone')
+  assert.deepEqual(sleepTargetDays(6, { ...none, weekend: true }), [5, 6])
+  assert.deepEqual(sleepTargetDays(6, { ...none, week: true }), [6], 'the weekend has no remaining weekdays')
+  assert.deepEqual(sleepTargetDays(3, { ...none, all: true }), [0, 1, 2, 3, 4, 5, 6])
+})
+
+test('saving sleep keeps the other days, including schedules from the old format', () => {
+  const legacy = { bed: '23:30', wake: '07:30', wk: true, bed2: '00:30', wake2: '09:30' }
+  const daily = sleepWeek(legacy, [1], { bed: '22:00', wake: '06:00' })
+  assert.equal(daily.length, 7)
+  assert.deepEqual(daily[1], { bed: '22:00', wake: '06:00' })
+  assert.deepEqual(daily[0], { bed: '23:30', wake: '07:30' })
+  assert.deepEqual(daily[5], { bed: '00:30', wake: '09:30' })
+  assert.notEqual(daily[0], daily[2], 'each day is its own object')
+  const next = { ...legacy, daily }
+  assert.deepEqual(sleepSchedule(next, 1), { bed: '22:00', wake: '06:00' })
+  assert.deepEqual(sleepIv(next, '2026-11-03'), [[0, 360], [1320, 1440]], 'a Tuesday in the Agenda')
+  assert.deepEqual(sleepWeek(next, [0, 1, 2, 3, 4, 5, 6], { bed: '01:00', wake: '08:00' }).map(s => s.bed), Array(7).fill('01:00'))
 })
 
 for (const name of results) console.log(`PASS ${name}`)

@@ -13,6 +13,7 @@ import { TimePicker } from '../../components/TimePicker'
 import { Select } from '../../components/Select'
 import { Glider } from '../../components/Glider'
 import { WEEK_RANGE, clipToWeek, weekScale } from '../../lib/agendaFit'
+import { SleepWindow } from './SleepWindow'
 
 type L = DayEvent & { l: number; n: number }
 function lanes(list: DayEvent[]): L[] {
@@ -36,6 +37,7 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
   const [form, setForm] = useState<Form | null>(null)
   const [err, setErr] = useState('')
   const [cm, setCm] = useState(false)
+  const [sleepDay, setSleepDay] = useState<string | null>(null)
   const now = useNow(), box = useRef<HTMLDivElement>(null)
   const nowM = now.getHours() * 60 + now.getMinutes(), td = iso(now)
   useEffect(() => { if (box.current) box.current.scrollTop = Math.max(0, nowM - 90) }, []) // eslint-disable-line
@@ -99,8 +101,8 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
         {days.map(d => {
           const ds = iso(d), evs = narrow ? clipToWeek(eventsFor(ds)) : eventsFor(ds)
           return <div key={ds} data-d={ds} className={'col' + (ds === td ? ' td' : '')} style={{ height: gridHeight }}
-            onClick={e => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('slp') || (e.target as HTMLElement).classList.contains('past')) openNew(ds, Math.max(0, Math.min(1439, Math.round(range.from + (e.clientY - e.currentTarget.getBoundingClientRect().top) / px)))) }}>
-            {sleepIv(data.sleep, ds).map(([a, b]) => [Math.max(a, range.from), Math.min(b, range.to)]).filter(([a, b]) => b > a).map(([a, b], i) => <div key={i} className="slp" style={{ top: y(a), height: (b - a) * px }}>{!narrow && b - a > 90 && <span>Sono</span>}</div>)}
+            onClick={e => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('past')) openNew(ds, Math.max(0, Math.min(1439, Math.round(range.from + (e.clientY - e.currentTarget.getBoundingClientRect().top) / px)))) }}>
+            {sleepIv(data.sleep, ds).map(([a, b]) => [Math.max(a, range.from), Math.min(b, range.to)]).filter(([a, b]) => b > a).map(([a, b], i) => <button key={i} type="button" className="slp" aria-label={`Editar o sono de ${DN[dow(d)]}, dia ${d.getDate()}`} title="Editar o horário de sono" style={{ top: y(a), height: (b - a) * px }} onClick={() => setSleepDay(ds)}>{!narrow && b - a > 90 && <span>Sono</span>}</button>)}
             {lanes(evs).map(e => { const h = Math.max(narrow ? 16 : 18, dur(e) * px - 1), w = 100 / e.n, gap = narrow ? 1 : 2, night = crossesMidnight({ start: e.realStart, end: e.realEnd }), full = (mins(e.realEnd) - mins(e.realStart) + 1440) % 1440
               return <div key={`${e.id}:${e.day}`} className={'ev' + (!narrow && h < 44 ? ' sm' : '') + (narrow && (e.n > 1 || h < 26) ? ' tight' : '') + (e.cont ? ' from-prev' : night ? ' to-next' : '')} title={e.title} style={{ ['--c' as string]: color(e), top: y(mins(e.start)), height: h, left: `calc(${e.l * w}% + ${gap}px)`, width: `calc(${w}% - ${gap * 2}px)` }} onClick={() => openEdit(e.id, e.day)}>
                 <b>{e.title}</b><small>{e.cont ? `até às ${e.realEnd}` : `${e.realStart}–${e.realEnd}`}{h < 44 ? '' : ' · ' + fmt(full)}</small></div> })}
@@ -110,6 +112,7 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
       </div>
     </div>
     {cm && <CategoryManager list="cats" title="Categorias da Agenda" description="Define o nome e a cor usadas nos eventos." onClose={() => setCm(false)} />}
+    {sleepDay && <SleepWindow ds={sleepDay} onClose={() => setSleepDay(null)} />}
     {form && <Modal title={form.id ? 'Editar evento' : 'Novo evento'} onClose={() => setForm(null)}>
       <form className="fgrid" onSubmit={save}>
         <label className="w">Título<input value={form.title} maxLength={80} required autoFocus onChange={e => setForm({ ...form, title: e.target.value })} /></label>

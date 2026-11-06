@@ -142,7 +142,7 @@ One family: **Manrope** (400, 500, 600, 700), loaded from Google Fonts in `codig
 ## Screens
 - **Início (`features/inicio/Inicio.tsx`):** four KPI cards (agenda, tasks, month balance, special days), then a two-column grid with today's agenda, the most urgent tasks, a six-month finance chart with the top expense categories, and the next special days.
 - **Sign-in and desktop-only screens (`.auth`, `.auth-card`):** centred card, max-width 400px, 20px radius, logo on top.
-- **Phone forms:** the task form uses `Select` menus for effort and priority instead of chips, in a two-column grid with the date and time. Sleep shows "Dias úteis" and "Fim de semana" (`.sleep-group`) with each day inside a collapsible `.sleep-more`; a time left empty means the days in that group differ. Settings notes use 12px.
+- **Phone forms:** the task form uses `Select` menus for effort and priority instead of chips, in a two-column grid with the date and time. Settings notes use 12px.
 - **Theme Toggle:** "Modo claro" checkbox in Settings; stored in `localStorage` (`syncro-theme`), dark by default.
 
 # 07 Motion
