@@ -18,18 +18,19 @@ import { LK, LV, PC, PN, dueLabel } from '../../lib/tasks'
 import { dueForTime, dueKey } from '../../lib/taskDue'
 import { hm } from '../../lib/dates'
 import { Glider } from '../../components/Glider'
+import { movedOrder, orderByIds, parseOrder, parseSort, parseSortMap, withSort, withoutSort, type SortBy, type SortMap } from '../../lib/taskSort'
 
 const NX: Record<Priority, Priority> = { urgente: 'alta', alta: 'media', media: 'baixa', baixa: 'urgente' }
-type SortBy = 'priority' | 'effort' | 'due' | 'custom'
 const SORT_KEY = 'syncro-task-sort'
+const WORKSPACE_SORT_KEY = 'syncro-task-sort-by-workspace'
+const GERAL_ORDER_KEY = 'syncro-task-order-geral'
 const COMPLETE_MS = 1300
 const PRIORITIES: Priority[] = ['urgente', 'alta', 'media', 'baixa']
 const PRIORITY_OPTIONS = PRIORITIES.map(k => ({ value: k, label: PN[k], color: PC[k] }))
 const EFFORT_OPTIONS: { value: Effort | ''; label: string; hint?: string; color?: string }[] = [{ value: '', label: 'Sem definir' }, ...LK.map(k => ({ value: k, label: LV[k].n, hint: LV[k].t, color: LV[k].c }))]
 const BURST = Array.from({ length: 10 }, (_, i) => i * 36)
-const readSort = (): SortBy => {
-  try { const v = localStorage.getItem(SORT_KEY); return v === 'effort' || v === 'due' || v === 'custom' ? v : 'priority' } catch { return 'priority' }
-}
+const readStored = (key: string) => { try { return localStorage.getItem(key) } catch { return null } }
+const writeStored = (key: string, value: string) => { try { localStorage.setItem(key, value) } catch { /* armazenamento indisponível */ } }
 
 export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; setWorkspaceId: (id: string) => void }) {
   const { data, update } = useStore()
@@ -70,8 +71,12 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
   const toggleExpanded = (id: string) => setExpanded(list => list.includes(id) ? list.filter(x => x !== id) : [...list, id])
   const [workspaceMenu, setWorkspaceMenu] = useState(false)
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
-  const [sortBy, setSortBy] = useState<SortBy>(readSort)
-  useEffect(() => { try { localStorage.setItem(SORT_KEY, sortBy) } catch { /* armazenamento indisponível */ } }, [sortBy])
+  const [sorts, setSorts] = useState<SortMap>(() => parseSortMap(readStored(WORKSPACE_SORT_KEY)))
+  const [oldSort] = useState<SortBy>(() => parseSort(readStored(SORT_KEY)))
+  useEffect(() => writeStored(WORKSPACE_SORT_KEY, JSON.stringify(sorts)), [sorts])
+  // Geral shows every workspace, so its custom order is kept apart from the order of data.tasks.
+  const [geralOrder, setGeralOrder] = useState<string[] | null>(() => parseOrder(readStored(GERAL_ORDER_KEY)))
+  useEffect(() => { if (geralOrder) writeStored(GERAL_ORDER_KEY, JSON.stringify(geralOrder)) }, [geralOrder])
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   // Tasks being ticked off play the completion animation before they leave the pending list.
   const [completing, setCompleting] = useState<string[]>([])
@@ -117,19 +122,27 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
       rows.forEach(r => { r.style.transform = ''; r.classList.remove('drag') })
       if (ni === i0) return
       const ids = rows.map(r => r.dataset.group as string), [mvd] = ids.splice(i0, 1); ids.splice(ni, 0, mvd)
-      update(d => { const slots: number[] = []; d.tasks.forEach((t, k) => { if (ids.includes(t.id)) slots.push(k) }); const by = Object.fromEntries(d.tasks.map(t => [t.id, t])); slots.forEach((k, j) => { d.tasks[k] = by[ids[j]] }) })
+      const inMainList = siblings === listRef.current
+      if (inMainList && activeWorkspaceId === 'geral') setGeralOrder(movedOrder(orderByIds(main, geralOrder ?? []).map(t => t.id), ids))
+      else {
+        // Geral keeps the order it shows now when another workspace changes data.tasks.
+        if (inMainList && !geralOrder) setGeralOrder(main.map(t => t.id))
+        update(d => { const slots: number[] = []; d.tasks.forEach((t, k) => { if (ids.includes(t.id)) slots.push(k) }); const by = Object.fromEntries(d.tasks.map(t => [t.id, t])); slots.forEach((k, j) => { d.tasks[k] = by[ids[j]] }) })
+      }
       // The stored order now matches what the user arranged, so keep showing it.
-      if (siblings === listRef.current) setSortBy('custom')
+      if (inMainList) setSort('custom')
     }
     addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up)
   }
   const workspace = data.workspaces.find(w => w.id === workspaceId) ?? data.workspaces[0]
   const activeWorkspaceId = workspace?.id ?? 'geral'
+  const sortBy = sorts[activeWorkspaceId] ?? oldSort
+  const setSort = (sort: SortBy) => setSorts(map => withSort(map, activeWorkspaceId, sort))
   useEffect(() => setEditingNoteId(null), [activeWorkspaceId])
   const notes = data.notes.filter(n => n.workspaceId === activeWorkspaceId)
   const scoped = workspace?.id === 'geral' ? main : main.filter(t => (t.workspaceId ?? 'geral') === workspace?.id)
   const nOpen = scoped.filter(t => !t.d).length
-  const list = scoped.filter(t => open ? !t.d : t.d).map((task, index) => ({ task, index })).sort((a, b) => {
+  const list = (sortBy === 'custom' && activeWorkspaceId === 'geral' && geralOrder ? orderByIds(scoped, geralOrder) : scoped).filter(t => open ? !t.d : t.d).map((task, index) => ({ task, index })).sort((a, b) => {
     if (sortBy === 'custom') return a.index - b.index
     if (sortBy === 'priority') return ({ urgente: 0, alta: 1, media: 2, baixa: 3 }[a.task.p] - { urgente: 0, alta: 1, media: 2, baixa: 3 }[b.task.p]) || a.index - b.index
     if (sortBy === 'effort') return ((a.task.effort ? LK.indexOf(a.task.effort as Effort) : 99) - (b.task.effort ? LK.indexOf(b.task.effort as Effort) : 99)) || a.index - b.index
@@ -147,7 +160,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
     const target = data.workspaces.find(w => w.id === id)
     if (!target || id === 'geral') return
     if (!await confirmDialog({ title: `Eliminar o espaço “${target.name}”?`, message: 'As tarefas serão movidas para Geral e as notas deste espaço serão apagadas.', confirmLabel: 'Eliminar', danger: true })) return
-    update(d => { d.tasks.forEach(t => { if (t.workspaceId === id) t.workspaceId = 'geral' }); d.workspaces = d.workspaces.filter(w => w.id !== id); d.notes = d.notes.filter(n => n.workspaceId !== id) })
+    update(d => { d.tasks.forEach(t => { if (t.workspaceId === id) t.workspaceId = 'geral' }); d.workspaces = d.workspaces.filter(w => w.id !== id); d.notes = d.notes.filter(n => n.workspaceId !== id) }); setSorts(map => withoutSort(map, id))
     setWorkspaceId('geral')
   }
   const add = (e: FormEvent) => { e.preventDefault(); const v = txt.trim(); if (!v) return; update(d => { d.tasks.push({ id: uid('t'), t: v, due: du, dueTime: duTime, p, d: false, effort, workspaceId: workspace?.id ?? 'geral' }) }); setTxt(''); setDu(''); setDuTime(''); setEffort(''); setP('media'); setOpen(true) }
@@ -189,7 +202,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
         {dueClock}<button className="btn pri sp-l" type="submit">Adicionar</button></div>
       </>}
     </form>
-    {list.length > 1 && <div className="tsub"><label>Ordenar por<Select<SortBy> value={sortBy} onChange={setSortBy} options={[{ value: 'priority', label: 'Relevância' }, { value: 'effort', label: 'Tempo estimado' }, { value: 'due', label: 'Data limite' }, { value: 'custom', label: 'Customizado' }]} /></label></div>}
+    {list.length > 1 && <div className="tsub"><label>Ordenar por<Select<SortBy> value={sortBy} onChange={setSort} options={[{ value: 'priority', label: 'Relevância' }, { value: 'effort', label: 'Tempo estimado' }, { value: 'due', label: 'Data limite' }, { value: 'custom', label: 'Customizado' }]} /></label></div>}
     <div className="tasks-list" ref={listRef}>{list.length ? list.map(t => {
       const subs = children.get(t.id) ?? [], isExpanded = subs.length > 0 && expanded.includes(t.id)
       return <div key={t.id} data-group={t.id} className="tk-group">

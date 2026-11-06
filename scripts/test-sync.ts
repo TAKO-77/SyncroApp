@@ -16,6 +16,7 @@ import { parseAppData } from '../codigo-fonte/src/lib/schema.ts'
 import { applyReminderEdit, concludeReminder, reminderAlertsBetween, lastOccurrence, leadAvailable, occurrenceAfter, reminderError, reminderStatus, reopenReminder } from '../codigo-fonte/src/lib/reminderItems.ts'
 import type { ReminderItem } from '../codigo-fonte/src/types.ts'
 import { sleepIv, sleepSchedule, sleepTargetDays, sleepWeek } from '../codigo-fonte/src/lib/sleep.ts'
+import { movedOrder, orderByIds, parseOrder, parseSort, parseSortMap, withSort, withoutSort } from '../codigo-fonte/src/lib/taskSort.ts'
 import { readFileSync } from 'node:fs'
 
 // Checks the mapping between the local document and the Supabase rows used by the sync engine.
@@ -864,6 +865,41 @@ test('saving sleep keeps the other days, including schedules from the old format
   assert.deepEqual(sleepSchedule(next, 1), { bed: '22:00', wake: '06:00' })
   assert.deepEqual(sleepIv(next, '2026-11-03'), [[0, 360], [1320, 1440]], 'a Tuesday in the Agenda')
   assert.deepEqual(sleepWeek(next, [0, 1, 2, 3, 4, 5, 6], { bed: '01:00', wake: '08:00' }).map(s => s.bed), Array(7).fill('01:00'))
+})
+
+test('each workspace keeps its own task sort', () => {
+  assert.equal(parseSort('due'), 'due', 'the sort saved before workspaces had their own')
+  assert.equal(parseSort(null), 'priority')
+  assert.equal(parseSort('outro'), 'priority')
+  assert.deepEqual(parseSortMap(null), {})
+  assert.deepEqual(parseSortMap('nao e json'), {})
+  assert.deepEqual(parseSortMap('[1]'), {})
+  assert.deepEqual(parseSortMap('{"w1":"due","w2":"outro","w3":5}'), { w1: 'due' }, 'invalid values are dropped')
+  const map = { w1: 'due' as const }
+  const changed = withSort(map, 'w2', 'custom')
+  assert.deepEqual(changed, { w1: 'due', w2: 'custom' })
+  assert.deepEqual(map, { w1: 'due' }, 'the old map is untouched')
+  assert.deepEqual(withoutSort(changed, 'w1'), { w2: 'custom' })
+  assert.deepEqual(withoutSort(changed, 'nenhum'), changed)
+})
+
+test('the custom order of Geral follows its own list', () => {
+  const tasks = ['a', 'b', 'c', 'd'].map(id => ({ id }))
+  const ids = (list: { id: string }[]) => list.map(t => t.id)
+  assert.deepEqual(ids(orderByIds(tasks, ['c', 'a', 'b', 'd'])), ['c', 'a', 'b', 'd'])
+  assert.deepEqual(ids(orderByIds(tasks, ['c', 'a'])), ['c', 'a', 'b', 'd'], 'tasks not in the list go last, in their order')
+  assert.deepEqual(ids(orderByIds(tasks, ['apagada', 'd', 'b'])), ['d', 'b', 'a', 'c'], 'deleted ids are ignored')
+  assert.deepEqual(ids(orderByIds(tasks, [])), ['a', 'b', 'c', 'd'])
+  assert.deepEqual(parseOrder(null), null)
+  assert.deepEqual(parseOrder('nao e json'), null)
+  assert.deepEqual(parseOrder('{}'), null)
+  assert.deepEqual(parseOrder('["a",1,"b"]'), ['a', 'b'])
+})
+
+test('dragging in Geral leaves hidden tasks in their places', () => {
+  assert.deepEqual(movedOrder(['a', 'x', 'b', 'y', 'c'], ['c', 'a', 'b']), ['c', 'x', 'a', 'y', 'b'])
+  assert.deepEqual(movedOrder(['a', 'b'], ['b', 'a']), ['b', 'a'])
+  assert.deepEqual(movedOrder(['a', 'b', 'c'], ['a', 'b']), ['a', 'b', 'c'])
 })
 
 for (const name of results) console.log(`PASS ${name}`)
