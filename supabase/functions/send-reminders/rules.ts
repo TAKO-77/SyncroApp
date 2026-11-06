@@ -1,8 +1,9 @@
 // Which reminders a device should receive. Free of runtime imports so scripts/test-sync.ts can run it with Node.
 // The wording matches codigo-fonte/src/lib/reminders.ts, which the Windows app uses; a test keeps them equal.
 
-export type ReminderKind = 'soon' | 'due'
+export type ReminderKind = 'soon' | 'due' | '1w' | '1d' | '1h' | '10m' | 'at'
 export interface TaskRow { id: string; title: string; due: string; due_time: string }
+export interface ReminderRow { id: string; title: string; date: string; time: string; frequency: 'none' | 'daily' | 'weekly'; lead_time: '' | '1w' | '1d' | '1h' | '10m'; end_date: string | null; done_until: string }
 export interface Reminder { taskId: string; kind: ReminderKind; title: string; time: string; due: string }
 
 /** The job runs every minute; a wider window covers a run that failed. `reminders_sent` stops repeats. */
@@ -30,16 +31,50 @@ export function remindersAt(tasks: TaskRow[], now: number): Reminder[] {
   return out.sort((a, b) => a.at - b.at).map(({ at: _at, ...r }) => r)
 }
 
-/** How long the push service keeps trying a sleeping phone: "soon" only until the limit, "due" for one more hour. */
-export const expirySeconds = (list: Reminder[]) => (list.some(r => r.kind === 'due') ? 3600 : 55 * 60)
+const LEAD_MINUTES = { '1w': 7 * 1440, '1d': 1440, '1h': 60, '10m': 10 } as const
+const dayMinutes = (day: string) => { const [year, month, date] = day.split('-').map(Number); return minutes(year, month, date, 0, 0) }
+const timeMinutes = (time: string) => { const [hour, minute] = time.split(':').map(Number); return hour * 60 + minute }
+const stampMinutes = (stamp: string) => stamp ? dayMinutes(stamp.slice(0, 10)) + timeMinutes(stamp.slice(11)) : -Infinity
 
-const line = (r: Pick<Reminder, 'kind' | 'title'>) => r.kind === 'soon' ? `Falta 1 hora para ${r.title}` : `Chegou a hora limite de ${r.title}`
+/** The user's reminders due now: the same rule as `reminderAlertsBetween` in codigo-fonte/src/lib/reminderItems.ts, which a test compares. */
+export function reminderAlertsAt(rows: ReminderRow[], now: number): Reminder[] {
+  const out: Reminder[] = []
+  const arrived = (at: number) => now >= at && now < at + WINDOW_MINUTES
+  for (const r of rows) {
+    const start = dayMinutes(r.date), time = timeMinutes(r.time), done = stampMinutes(r.done_until)
+    if (Number.isNaN(start + time)) continue
+    const alert = (kind: ReminderKind, day: string) => out.push({ taskId: `reminder:${r.id}`, kind, title: r.title, time: r.time, due: day })
+    if (r.frequency === 'none') {
+      if (start + time <= done) continue
+      if (arrived(start + time)) alert('at', r.date)
+      if (r.lead_time && arrived(start + time - LEAD_MINUTES[r.lead_time])) alert(r.lead_time, r.date)
+      continue
+    }
+    const step = (r.frequency === 'daily' ? 1 : 7) * 1440, last = r.end_date ? dayMinutes(r.end_date) : -Infinity
+    // The window can reach back across midnight.
+    for (const day of [now - WINDOW_MINUTES, now].map(m => m - ((m % 1440) + 1440) % 1440).filter((d, i, all) => all.indexOf(d) === i)) {
+      if (day < start || day > last || (day - start) % step || day + time <= done) continue
+      if (arrived(day + time)) alert('at', new Date(day * 60000).toISOString().slice(0, 10))
+    }
+  }
+  return out
+}
+
+/** How long the push service keeps trying a sleeping phone: never past the moment announced, nor over an hour late. */
+const EXPIRY_SECONDS: Record<ReminderKind, number> = { soon: 55 * 60, due: 3600, '1w': 3600, '1d': 3600, '1h': 55 * 60, '10m': 9 * 60, at: 3600 }
+export const expirySeconds = (list: Reminder[]) => Math.max(...list.map(r => EXPIRY_SECONDS[r.kind]))
+
+const WORDING: Record<ReminderKind, string> = { soon: 'Falta 1 hora para', due: 'Chegou a hora limite de', '1w': 'Falta 1 semana para', '1d': 'Falta 1 dia para', '1h': 'Falta 1 hora para', '10m': 'Faltam 10 minutos para', at: 'Chegou a hora de' }
+const line = (r: Pick<Reminder, 'kind' | 'title'>) => `${WORDING[r.kind]} ${r.title}`
+
+/** The tab a notification opens: Lembretes only when all it announces are reminders. */
+export const noticeTarget = (list: Pick<Reminder, 'taskId'>[]) => list.every(r => r.taskId.startsWith('reminder:')) ? 'lembretes' : 'tarefas'
 
 export function reminderText(list: Pick<Reminder, 'kind' | 'title'>[]): { title: string; body: string } {
   // iPhones always add "from Syncro" under the title, so the app's name would only repeat there.
   if (list.length === 1) return { title: line(list[0]), body: '' }
   const extra = list.length - 3
-  return { title: `${list.length} avisos de tarefas`, body: list.slice(0, 3).map(line).join('\n') + (extra > 0 ? `\ne mais ${extra}` : '') }
+  return { title: `${list.length} avisos do Syncro`, body: list.slice(0, 3).map(line).join('\n') + (extra > 0 ? `\ne mais ${extra}` : '') }
 }
 
 const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /(^|\.)push\.apple\.com$/, /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/]

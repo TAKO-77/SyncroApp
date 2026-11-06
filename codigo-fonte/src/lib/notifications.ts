@@ -1,9 +1,14 @@
 import { desktop } from './desktop'
 import { pull } from './sync/engine'
-import { reminderText, remindersBetween } from './reminders'
+import { noticeTarget, reminderText, remindersBetween } from './reminders'
+import { reminderAlertsBetween, toStamp } from './reminderItems'
 import { useStore } from '../store/useStore'
 
-// Checks for task reminders while the Windows host is running and asks it to show them.
+// Checks for reminders and task limits while the Windows host is running and asks it to show them.
+
+const TARGET_KEY = 'syncro-notice-target'
+/** The tab to open when a Windows notification is clicked: the host only reports the click, so the last one sent decides. */
+export const noticeSection = () => { try { return localStorage.getItem(TARGET_KEY) === 'lembretes' ? 'lembretes' as const : 'tarefas' as const } catch { return 'tarefas' as const } }
 
 const CHECK_MS = 20 * 1000
 /** After a longer gap (computer asleep, app just opened) other devices may have changed the tasks. */
@@ -29,9 +34,12 @@ async function check() {
     // The first check only starts the clock, and a clock moved backwards starts it again.
     const since = before && before <= now ? before : now
     // Time passes while notifications are off, so turning them back on does not bring old reminders.
-    const due = notifications ? remindersBetween(data.tasks, since, now) : []
+    const due = notifications ? [...(data.notifyTasks ? remindersBetween(data.tasks, since, now) : []), ...reminderAlertsBetween(data.reminders, toStamp(since), toStamp(now))] : []
     writeChecked(key, now)
-    if (due.length) desktop.postMessage('syncro:notify:' + JSON.stringify(reminderText(due)))
+    if (due.length) {
+      try { localStorage.setItem(TARGET_KEY, noticeTarget(due)) } catch { /* armazenamento indisponível */ }
+      desktop.postMessage('syncro:notify:' + JSON.stringify(reminderText(due)))
+    }
   } finally { checking = false }
 }
 

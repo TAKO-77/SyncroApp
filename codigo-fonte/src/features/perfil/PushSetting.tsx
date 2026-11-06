@@ -25,8 +25,8 @@ export function PushSetting() {
   return <>
     <h2 className="sub">Notificações</h2>
     {note ? <p className="mu">{note}</p> : <>
-      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={state === 'on'} disabled={busy} onChange={e => void toggle(e.target.checked)} /> Avisar sobre tarefas com hora limite</label>
-      <p className="mu">1 hora antes e à hora limite, mesmo com a app fechada. Só neste dispositivo.</p>
+      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={state === 'on'} disabled={busy} onChange={e => void toggle(e.target.checked)} /> Receber notificações neste dispositivo</label>
+      <p className="mu">Dos lembretes e, se o escolheres no Perfil, das tarefas com hora limite, mesmo com a app fechada.</p>
       {error && <p className="neg" role="alert">{error}</p>}
     </>}
   </>

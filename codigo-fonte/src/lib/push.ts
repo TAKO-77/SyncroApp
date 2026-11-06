@@ -68,11 +68,11 @@ export async function refreshPush() {
   if (subscription) await save(subscription).catch(() => undefined)
 }
 
-/** Whether the app was opened by tapping a notification; clears the mark so a reload starts normally. */
+/** The tab to open when the app was started by tapping a notification; clears the mark so a reload starts normally. */
 export function takeOpenRequest() {
-  const url = new URL(location.href)
-  if (url.searchParams.get('abrir') !== 'tarefas') return false
+  const url = new URL(location.href), target = url.searchParams.get('abrir')
+  if (target !== 'tarefas' && target !== 'lembretes') return null
   url.searchParams.delete('abrir')
   history.replaceState(null, '', url)
-  return true
+  return target
 }

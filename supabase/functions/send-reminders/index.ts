@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { ApplicationServer, importVapidKeys, PushMessageError, Urgency } from 'jsr:@negrel/webpush@0.5.0'
-import { expirySeconds, isPushEndpoint, localMinutes, reminderText, remindersAt, type TaskRow } from './rules.ts'
+import { expirySeconds, isPushEndpoint, localMinutes, noticeTarget, reminderAlertsAt, reminderText, remindersAt, type ReminderRow, type TaskRow } from './rules.ts'
 
 // Called every minute by pg_cron (see the push_notifications migration). Sends each device the reminders now due.
 
@@ -27,6 +27,20 @@ Deno.serve(async req => {
     if (data.length < PAGE) break
   }
 
+  // A week ahead for the earliest warning; repeating reminders started long ago, so their final day decides.
+  const items: (ReminderRow & { user_id: string })[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error: reminderError } = await db.from('reminders').select('id, user_id, title, date, time, frequency, lead_time, end_date, done_until')
+      .eq('deleted', false).is('done_at', null).lte('date', day(9)).or(`date.gte.${day(-1)},end_date.gte.${day(-1)}`)
+      .order('user_id').order('id').range(from, from + PAGE - 1)
+    if (reminderError) return Response.json({ error: reminderError.message }, { status: 500 })
+    items.push(...data)
+    if (data.length < PAGE) break
+  }
+  const { data: onlyReminders, error: profileError } = await db.from('profiles').select('user_id').eq('notify_tasks', false)
+  if (profileError) return Response.json({ error: profileError.message }, { status: 500 })
+  const remindersOnly = new Set(onlyReminders.map(p => p.user_id))
+
   const server = await ApplicationServer.new({
     contactInformation: 'https://app.getsyncro.workers.dev',
     vapidKeys: await importVapidKeys(JSON.parse(Deno.env.get('VAPID_KEYS')!)),
@@ -38,7 +52,10 @@ Deno.serve(async req => {
     if (!isPushEndpoint(device.endpoint)) { await db.from('push_subscriptions').delete().eq('endpoint', device.endpoint); continue }
     let local: number
     try { local = localMinutes(now, device.time_zone) } catch { failed++; continue }
-    const due = remindersAt(tasks.filter(t => t.user_id === device.user_id), local)
+    const due = [
+      ...(remindersOnly.has(device.user_id) ? [] : remindersAt(tasks.filter(t => t.user_id === device.user_id), local)),
+      ...reminderAlertsAt(items.filter(r => r.user_id === device.user_id), local),
+    ]
     if (!due.length) continue
 
     // Claims them first, so an overlapping run cannot send the same reminder twice.
@@ -52,7 +69,7 @@ Deno.serve(async req => {
 
     try {
       await server.subscribe({ endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } })
-        .pushTextMessage(JSON.stringify(reminderText(fresh)), { ttl: expirySeconds(fresh), urgency: Urgency.High })
+        .pushTextMessage(JSON.stringify({ ...reminderText(fresh), open: noticeTarget(fresh) }), { ttl: expirySeconds(fresh), urgency: Urgency.High })
       sent += fresh.length
     } catch (err) {
       failed++

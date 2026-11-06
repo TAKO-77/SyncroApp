@@ -255,6 +255,7 @@ textarea{width:100%;resize:vertical}
 /* Task editor: subtasks and notes */
 .field-error{color:var(--error);font-size:12px;font-weight:500}
 .reminder-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.notify-choice{width:fit-content;max-width:100%;margin-bottom:8px}
 .reminder-field{display:flex;flex-direction:column;gap:6px;color:var(--mu);font-size:12px;font-weight:500}.reminder-field .seg button{flex:1}
 .tk.reminder.completing::after{content:"✓ Concluído"}
 .dl [aria-invalid=true]{border-color:var(--error)}

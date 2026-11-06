@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { Dashboard } from './Dashboard'
 import { SleepSettings } from './SleepSettings'
+import { NotifyChoice } from './NotifyChoice'
 
 export function Perfil() {
   const { data, update } = useStore()
@@ -51,6 +52,7 @@ export function Perfil() {
         <label>Nome<input value={name} maxLength={24} onChange={e => setName(e.target.value)} required /></label>
         <button className="btn pri" type="submit">Guardar</button>
       </form>
+      <NotifyChoice />
       <SleepSettings />
       <h2 className="sub">Onde gasto o tempo</h2>
       <Dashboard />

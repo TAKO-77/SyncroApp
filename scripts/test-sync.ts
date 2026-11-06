@@ -8,12 +8,12 @@ import { dueForTime, dueKey, isOverdue } from '../codigo-fonte/src/lib/taskDue.t
 import { parseQ } from '../codigo-fonte/src/lib/quick.ts'
 import { WEEK_RANGE, clipToWeek, weekScale } from '../codigo-fonte/src/lib/agendaFit.ts'
 import { eventsOn } from '../codigo-fonte/src/lib/recurrence.ts'
-import { reminderText, remindersBetween } from '../codigo-fonte/src/lib/reminders.ts'
-import { expirySeconds, isPushEndpoint, localMinutes, reminderText as serverText, remindersAt } from '../supabase/functions/send-reminders/rules.ts'
+import { noticeTarget, reminderText, remindersBetween } from '../codigo-fonte/src/lib/reminders.ts'
+import { expirySeconds, isPushEndpoint, localMinutes, noticeTarget as serverTarget, reminderAlertsAt, reminderText as serverText, remindersAt, type ReminderRow } from '../supabase/functions/send-reminders/rules.ts'
 import { addSubtaskDraft, applySubtaskEdits, hasBlankSubtask, splitSubtasks, withoutTask } from '../codigo-fonte/src/lib/subtasks.ts'
 import { TASK_NOTES_MAX, taskNotesError } from '../codigo-fonte/src/lib/taskNotes.ts'
 import { parseAppData } from '../codigo-fonte/src/lib/schema.ts'
-import { applyReminderEdit, concludeReminder, lastOccurrence, leadAvailable, occurrenceAfter, reminderError, reminderStatus, reopenReminder } from '../codigo-fonte/src/lib/reminderItems.ts'
+import { applyReminderEdit, concludeReminder, reminderAlertsBetween, lastOccurrence, leadAvailable, occurrenceAfter, reminderError, reminderStatus, reopenReminder } from '../codigo-fonte/src/lib/reminderItems.ts'
 import type { ReminderItem } from '../codigo-fonte/src/types.ts'
 import { readFileSync } from 'node:fs'
 
@@ -33,7 +33,7 @@ const base = (): AppData => ({
   cats: [{ id: 'presencial', name: 'Estudo presencial', color: '#cf7f7f' }, { id: 'exercicio', name: 'Exercício', color: '#8bb08b' }],
   dayCats: [{ id: 'aniv', name: 'Aniversário', color: '#cf7f7f', icon: '🎂' }, { id: 'novo', name: 'Novo', color: '#d2bd62' }],
   sleep: { bed: '23:30', wake: '07:30', wk: false, bed2: '00:30', wake2: '09:30' },
-  name: 'Ana', reset: '2026-10-21',
+  name: 'Ana', reset: '2026-10-21', notifyTasks: true,
   notes: [{ id: 'n1', workspaceId: 'w1', text: '- [ ] rever' }, { id: 'n2', workspaceId: 'w1', text: 'Ideias' }],
   reminders: [
     { id: 'r1', title: 'Consulta', date: '2026-11-20', time: '15:00', repeat: 'none', lead: '1d', until: '', doneUntil: '', doneAt: '' },
@@ -419,8 +419,15 @@ test('server and Windows app write the same notification text', () => {
   for (const list of [[kind('soon', 0)], [kind('due', 0)]]) assert.deepEqual(serverText(list), { title: reminderText(list).body, body: '' })
   for (const list of [[kind('soon', 0), kind('due', 1)], [0, 1, 2, 3, 4].map(i => kind('due', i))]) {
     assert.equal(serverText(list).body, reminderText(list).body)
-    assert.equal(serverText(list).title, `${list.length} avisos de tarefas`)
+    assert.equal(serverText(list).title, `${list.length} avisos do Syncro`)
   }
+  for (const k of ['1w', '1d', '1h', '10m', 'at'] as const) {
+    const list = [{ taskId: 'reminder:r', kind: k, title: 'Consulta', time: '15:00', due: '2026-11-20' }]
+    assert.deepEqual(serverText(list), { title: reminderText(list).body, body: '' }, k)
+  }
+  assert.equal(reminderText([{ taskId: 'reminder:r', kind: '10m', title: 'Consulta', time: '15:00' }]).body, 'Faltam 10 minutos para Consulta')
+  assert.equal(reminderText([{ taskId: 'reminder:r', kind: '1w', title: 'Consulta', time: '15:00' }]).body, 'Falta 1 semana para Consulta')
+  assert.equal(reminderText([{ taskId: 'reminder:r', kind: 'at', title: 'Consulta', time: '15:00' }]).body, 'Chegou a hora de Consulta')
 })
 
 test('the server only calls known push services', () => {
@@ -707,6 +714,129 @@ test('editing clears what does not apply and keeps a repeating reminder\'s progr
   const shortened = reminder({ repeat: 'daily', until: '2026-11-10', doneUntil: '2026-11-05T09:00' })
   applyReminderEdit(shortened, { title: 'Teste', date: '2026-11-02', time: '09:00', repeat: 'daily', lead: '', until: '2026-11-05' }, '2026-11-06')
   assert.equal(shortened.doneAt, '2026-11-06', 'nothing left after the new final day')
+})
+
+const alertsAt = (r: ReminderItem, since: string, now: string) => reminderAlertsBetween([r], since, now).map(a => a.kind)
+
+test('a one-off reminder without early warning notifies only at its time', () => {
+  const r = reminder()
+  assert.deepEqual(alertsAt(r, '2026-11-02T08:59', '2026-11-02T09:00'), ['at'])
+  assert.deepEqual(alertsAt(r, '2026-11-02T08:58', '2026-11-02T08:59'), [])
+  assert.deepEqual(alertsAt(r, '2026-11-02T09:00', '2026-11-02T09:01'), [], 'it does not repeat')
+})
+
+test('each early warning fires at its moment, and the time still notifies', () => {
+  const moments = { '1w': '2026-11-13T15:00', '1d': '2026-11-19T15:00', '1h': '2026-11-20T14:00', '10m': '2026-11-20T14:50' } as const
+  for (const [lead, moment] of Object.entries(moments) as [keyof typeof moments, string][]) {
+    const r = reminder({ date: '2026-11-20', time: '15:00', lead })
+    const before = new Date(Date.parse(moment + 'Z') - 60000).toISOString().slice(0, 16)
+    assert.deepEqual(alertsAt(r, before, moment), [lead], lead)
+    assert.deepEqual(alertsAt(r, moment, moment), [], lead)
+    assert.deepEqual(alertsAt(r, '2026-11-20T14:59', '2026-11-20T15:00'), ['at'], lead)
+  }
+})
+
+test('a daily reminder notifies once per day up to its final day, a weekly one only on its weekday', () => {
+  const daily = reminder({ repeat: 'daily', until: '2026-11-04' })
+  for (const day of ['02', '03', '04']) assert.deepEqual(alertsAt(daily, `2026-11-${day}T08:59`, `2026-11-${day}T09:00`), ['at'], day)
+  assert.deepEqual(alertsAt(daily, '2026-11-05T08:59', '2026-11-05T09:00'), [], 'after the final day')
+  const weekly = reminder({ repeat: 'weekly', until: '2026-12-01' })
+  assert.deepEqual(alertsAt(weekly, '2026-11-09T08:59', '2026-11-09T09:00'), ['at'], 'the same weekday')
+  assert.deepEqual(alertsAt(weekly, '2026-11-10T08:59', '2026-11-10T09:00'), [])
+})
+
+test('what was concluded no longer notifies, and a late occurrence does not repeat', () => {
+  const early = reminder({ date: '2026-11-20', time: '15:00', lead: '1d', doneUntil: '2026-11-20T15:00', doneAt: '2026-11-18' })
+  assert.deepEqual(alertsAt(early, '2026-11-19T14:59', '2026-11-19T15:00'), [], 'its early warning')
+  assert.deepEqual(alertsAt(early, '2026-11-20T14:59', '2026-11-20T15:00'), [], 'its time')
+  const daily = reminder({ repeat: 'daily', until: '2026-11-10', doneUntil: '2026-11-03T09:00' })
+  assert.deepEqual(alertsAt(daily, '2026-11-03T08:59', '2026-11-03T09:00'), [], 'concluded ahead of time')
+  assert.deepEqual(alertsAt(daily, '2026-11-04T08:59', '2026-11-04T09:00'), ['at'], 'the next one still notifies')
+  assert.deepEqual(alertsAt(reminder(), '2026-11-02T09:01', '2026-11-02T12:00'), [], 'late and already notified')
+})
+
+test('after a gap only the latest notification comes, up to an hour late', () => {
+  const daily = reminder({ repeat: 'daily', until: '2026-11-30' })
+  assert.deepEqual(alertsAt(daily, '2026-11-02T08:00', '2026-11-06T09:30'), ['at'], 'one, not five')
+  assert.deepEqual(alertsAt(daily, '2026-11-02T08:00', '2026-11-06T10:01'), [], 'too late')
+  const lead = reminder({ date: '2026-11-20', time: '15:00', lead: '1w' })
+  assert.deepEqual(alertsAt(lead, '2026-11-13T14:00', '2026-11-13T15:40'), ['1w'])
+  assert.deepEqual(alertsAt(lead, '2026-11-13T14:00', '2026-11-16T15:00'), [], 'it would no longer be true')
+  const both = reminder({ date: '2026-11-20', time: '15:00', lead: '10m' })
+  assert.deepEqual(alertsAt(both, '2026-11-20T14:00', '2026-11-20T15:05'), ['at'], 'the time, not an early warning already past')
+})
+
+const toRow = (r: ReminderItem): ReminderRow => ({ id: r.id, title: r.title, date: r.date, time: r.time, frequency: r.repeat, lead_time: r.lead, end_date: r.until || null, done_until: r.doneUntil })
+const wallMinutes = (stamp: string) => Date.parse(stamp + 'Z') / 60000
+const wallStamp = (m: number) => new Date(m * 60000).toISOString().slice(0, 16)
+
+test('Windows and the server send the same reminders, minute by minute', () => {
+  const items = [
+    reminder({ id: 'plain', date: '2026-11-03', time: '00:02' }),
+    reminder({ id: 'week', date: '2026-11-10', time: '23:58', lead: '1w' }),
+    reminder({ id: 'day', date: '2026-11-04', time: '00:03', lead: '1d' }),
+    reminder({ id: 'hour', date: '2026-11-04', time: '00:30', lead: '1h' }),
+    reminder({ id: 'ten', date: '2026-11-04', time: '00:05', lead: '10m' }),
+    reminder({ id: 'daily', date: '2026-11-02', time: '00:01', repeat: 'daily', until: '2026-11-08' }),
+    reminder({ id: 'late', date: '2026-11-02', time: '23:59', repeat: 'daily', until: '2026-11-08', doneUntil: '2026-11-05T23:59' }),
+    reminder({ id: 'weekly', date: '2026-11-02', time: '12:00', repeat: 'weekly', until: '2026-11-16' }),
+    reminder({ id: 'done', date: '2026-11-05', time: '10:00', lead: '1h', doneUntil: '2026-11-05T10:00', doneAt: '2026-11-01' }),
+  ]
+  const from = wallMinutes('2026-11-01T00:00'), to = wallMinutes('2026-11-18T00:00')
+  const seen = { windows: new Set<string>(), server: new Set<string>() }
+  let sent = 0
+  for (let m = from; m <= to; m++) {
+    for (const a of reminderAlertsBetween(items, wallStamp(m - 1), wallStamp(m))) { seen.windows.add(`${a.taskId} ${a.kind} ${wallStamp(m)}`); sent++ }
+    // Only the first minute of the server's window: reminders_sent stops the rest.
+    for (const a of reminderAlertsAt(items.map(toRow), m)) {
+      const first = reminderAlertsAt(items.map(toRow), m - 1).some(b => b.taskId === a.taskId && b.kind === a.kind && b.due === a.due)
+      if (!first) seen.server.add(`${a.taskId} ${a.kind} ${wallStamp(m)}`)
+    }
+  }
+  assert.deepEqual([...seen.server].sort(), [...seen.windows].sort())
+  assert.equal(seen.windows.size, sent, 'nothing fires twice')
+  const count = (id: string) => [...seen.windows].filter(k => k.startsWith(`reminder:${id} `)).length
+  assert.deepEqual([count('plain'), count('week'), count('day'), count('hour'), count('ten'), count('daily'), count('late'), count('weekly'), count('done')], [1, 2, 2, 2, 2, 7, 3, 3, 0])
+})
+
+test('the server keeps retrying within its window and marks the occurrence for reminders_sent', () => {
+  const r = toRow(reminder({ id: 'x', repeat: 'daily', date: '2026-11-02', time: '23:58', until: '2026-11-04' }))
+  for (const stamp of ['2026-11-03T23:58', '2026-11-04T00:02']) {
+    const [alert] = reminderAlertsAt([r], wallMinutes(stamp))
+    assert.deepEqual({ ...alert }, { taskId: 'reminder:x', kind: 'at', title: 'Teste', time: '23:58', due: '2026-11-03' }, stamp)
+  }
+  assert.deepEqual(reminderAlertsAt([r], wallMinutes('2026-11-04T00:03')), [])
+})
+
+test('a sleeping phone never gets a warning after the moment it announces', () => {
+  const list = (kind: '1w' | '1d' | '1h' | '10m' | 'at') => [{ taskId: 'reminder:r', kind, title: 'T', time: '15:00', due: '2026-11-20' }]
+  assert.equal(expirySeconds(list('10m')), 540)
+  assert.equal(expirySeconds(list('1h')), 3300)
+  assert.equal(expirySeconds(list('1w')), 3600)
+  assert.equal(expirySeconds(list('at')), 3600)
+  assert.equal(expirySeconds([...list('10m'), ...list('at')]), 3600)
+})
+
+test('a notification opens Lembretes only when it announces nothing else', () => {
+  for (const target of [noticeTarget, serverTarget]) {
+    assert.equal(target([{ taskId: 'reminder:r' }]), 'lembretes')
+    assert.equal(target([{ taskId: 'reminder:r' }, { taskId: 't1' }]), 'tarefas')
+    assert.equal(target([{ taskId: 't1' }]), 'tarefas')
+  }
+})
+
+test('the choice of notifications syncs and defaults to tasks as well', () => {
+  const { notifyTasks: _gone, ...old } = base()
+  assert.equal(parseAppData(clone(old))!.notifyTasks, true, 'old data and backups')
+  const d = base(); d.notifyTasks = false
+  assert.equal(parseAppData(clone(d))!.notifyTasks, false)
+  assert.equal(fromRows(toRows(d), base()).notifyTasks, false)
+  const ops = diffRows(toRows(base()), toRows(d))
+  assert.equal(ops.length, 1)
+  assert.deepEqual(ops[0].fields, ['notify_tasks'])
+  const rows = toRows(base()); delete rows.profiles.profile.notify_tasks
+  assert.equal(fromRows(rows, base()).notifyTasks, true, 'a profile row from before the column')
+  for (const kind of ['soon', 'due', '1w', '1d', '1h', '10m', 'at']) assert.ok(readFileSync(new URL('../supabase/migrations/20261106000002_reminder_notifications.sql', import.meta.url), 'utf8').includes(`'${kind}'`), kind)
 })
 
 for (const name of results) console.log(`PASS ${name}`)

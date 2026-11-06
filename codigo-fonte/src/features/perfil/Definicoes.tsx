@@ -92,8 +92,8 @@ export function Definicoes() {
     {!desktop && <PushSetting />}
     {desktop && <>
       <h2 className="sub">Notificações</h2>
-      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={notifications} onChange={e => setNotifications(e.target.checked)} /> Avisar sobre tarefas com hora limite</label>
-      <p className="mu">Avisa 1 hora antes e quando a hora chega. Ao fechar a janela, o Syncro continua a correr junto ao relógio do Windows para poder avisar. Para o encerrar, escolhe Sair nesse ícone.</p>
+      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={notifications} onChange={e => setNotifications(e.target.checked)} /> Receber notificações neste computador</label>
+      <p className="mu">Dos lembretes e, se o escolheres no Perfil, das tarefas com hora limite. Ao fechar a janela, o Syncro continua a correr junto ao relógio do Windows para poder avisar. Para o encerrar, escolhe Sair nesse ícone.</p>
     </>}
     <h2 className="sub">Aparência</h2>
     <label className="ck"><input type="checkbox" className="sw" role="switch" checked={theme === 'light'} onChange={e => switchTheme(e.target.checked ? 'light' : 'dark', e.currentTarget)} /> Modo claro</label>

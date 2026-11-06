@@ -19,7 +19,7 @@ import { SwipePager } from './components/SwipePager'
 import { cleanUpNoteImages } from './lib/noteImages'
 import { purgeExpired } from './lib/cleanup'
 import { desktop } from './lib/desktop'
-import { startReminders } from './lib/notifications'
+import { noticeSection, startReminders } from './lib/notifications'
 import { refreshPush, takeOpenRequest } from './lib/push'
 import { Glider } from './components/Glider'
 import { RevealText } from './components/RevealText'
@@ -30,7 +30,7 @@ const SECTIONS = [{ id: 'inicio', label: 'Início', icon: House }, { id: 'agenda
 type Id = typeof SECTIONS[number]['id']
 
 export default function App() {
-  const [sec, setSec] = useState<Id>(() => takeOpenRequest() ? 'tarefas' : 'inicio')
+  const [sec, setSec] = useState<Id>(() => takeOpenRequest() ?? 'inicio')
   const [anchor, setAnchor] = useState(todayIso())
   const [agendaView, setAgendaView] = useState<AgendaView>('week')
   const [workspaceId, setWorkspaceId] = useState('geral')
@@ -63,10 +63,14 @@ export default function App() {
   useEffect(startReminders, [])
   useEffect(() => { void refreshPush() }, [])
   useEffect(() => {
-    // Clicking a notification opens the tasks; the message comes from the Windows host or the service worker.
+    // Clicking a notification opens its tab; the message comes from the Windows host or the service worker.
     const source = desktop ?? ('serviceWorker' in navigator ? navigator.serviceWorker : null)
     if (!source) return
-    const onMessage = (event: Event) => { if (((event as MessageEvent).data as { type?: string } | null)?.type === 'syncro:open-tasks') setSec('tarefas') }
+    const onMessage = (event: Event) => {
+      const type = ((event as MessageEvent).data as { type?: string } | null)?.type
+      if (type === 'syncro:open-reminders') setSec('lembretes')
+      else if (type === 'syncro:open-tasks') setSec(noticeSection())
+    }
     source.addEventListener('message', onMessage)
     return () => source.removeEventListener('message', onMessage)
   }, [])

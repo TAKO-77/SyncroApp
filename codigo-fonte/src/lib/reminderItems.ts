@@ -1,4 +1,5 @@
 import type { ReminderItem, ReminderLead } from '../types'
+import type { Reminder } from './reminders'
 
 // The user's reminders: their occurrences and whether they are late or concluded. An occurrence is a local
 // 'YYYY-MM-DDTHH:MM' string, so they compare as text. Kept free of runtime imports so scripts/test-sync.ts can run it with Node.
@@ -69,9 +70,37 @@ export function reopenReminder(r: ReminderItem) {
 /** Whether an early warning is still ahead; one whose moment has passed could never fire. */
 export function leadAvailable(r: Pick<ReminderItem, 'date' | 'time'>, lead: ReminderLead, now: string): boolean {
   if (!lead || !r.date || !r.time) return true
+  return leadMoment(r, lead) > now
+}
+
+const leadMoment = (r: Pick<ReminderItem, 'date' | 'time'>, lead: Exclude<ReminderLead, ''>) => {
   const [hour, minute] = r.time.split(':').map(Number), total = hour * 60 + minute - LEAD_MINUTES[lead]
   const days = Math.floor(total / 1440), rest = total - days * 1440
-  return at(addDays(r.date, days), `${pad(Math.floor(rest / 60))}:${pad(rest % 60)}`) > now
+  return at(addDays(r.date, days), `${pad(Math.floor(rest / 60))}:${pad(rest % 60)}`)
+}
+
+const LATE_LIMIT_MINUTES = 60
+const stampMinutes = (s: string) => dayNumber(s.slice(0, 10)) * 1440 + Number(s.slice(11, 13)) * 60 + Number(s.slice(14, 16))
+
+/**
+ * Notifications whose moment fell after `since` and up to `now`, both as stamps. Each one fires once, and after a gap
+ * (computer asleep or off) a reminder gives only its latest, up to an hour late, instead of a series of old ones.
+ * send-reminders/rules.ts has the same rule for phones, and a test keeps them equal.
+ */
+export function reminderAlertsBetween(items: ReminderItem[], since: string, now: string): Reminder[] {
+  const nowMinutes = stampMinutes(now)
+  const fresh = (moment: string) => moment > since && moment <= now && nowMinutes - stampMinutes(moment) <= LATE_LIMIT_MINUTES
+  const out: Reminder[] = []
+  for (const r of items) {
+    const alert = (kind: Reminder['kind'], occurrence: string) => out.push({ taskId: `reminder:${r.id}`, kind, title: r.title, time: occurrence.slice(11) })
+    const last = lastOccurrence(r, now)
+    if (last && last > r.doneUntil && fresh(last)) alert('at', last)
+    if (r.repeat === 'none' && r.lead) {
+      const first = at(r.date, r.time)
+      if (first > now && first > r.doneUntil && fresh(leadMoment(r, r.lead))) alert(r.lead, first)
+    }
+  }
+  return out
 }
 
 /**

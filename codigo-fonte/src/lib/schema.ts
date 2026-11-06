@@ -43,12 +43,13 @@ const schema = z.object({
   notes: z.array(z.object({ id: z.string(), workspaceId: z.string(), text: z.string().max(5000) })).default([]),
   taskNotes: z.record(z.string()).optional(),
   reminders: z.array(item).default([]),
+  notifyTasks: z.boolean().default(true),
 }).passthrough()
 
 export const emptyData = (): AppData => ({
   ev: [], tasks: [], workspaces: [{ id: 'geral', name: 'Geral' }], fin: [], days: [], cats: DEFAULT_CATS.map(c => ({ ...c })),
   dayCats: DEFAULT_DAY_CATS.map(c => ({ ...c })),
-  sleep: { ...DEFAULT_SLEEP }, reset: '', notes: [], reminders: [],
+  sleep: { ...DEFAULT_SLEEP }, reset: '', notes: [], reminders: [], notifyTasks: true,
 })
 
 /** Aceita tanto o formato exportado pela versão HTML ({app,v,data}) como o objeto direto. */

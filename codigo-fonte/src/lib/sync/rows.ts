@@ -17,7 +17,7 @@ export interface SyncOp { table: Table; id: string; row: Row; deleted: boolean; 
 
 export const PROFILE_ID = 'profile'
 const FIELDS: Record<Table, readonly string[]> = {
-  profiles: ['name', 'photo', 'sleep', 'reset'],
+  profiles: ['name', 'photo', 'sleep', 'reset', 'notify_tasks'],
   workspaces: ['id', 'name', 'notes', 'position'],
   tasks: ['id', 'title', 'due', 'due_time', 'priority', 'done', 'done_at', 'effort', 'workspace_id', 'parent_id', 'notes', 'position'],
   event_categories: ['id', 'name', 'color', 'position'],
@@ -41,7 +41,7 @@ const byId = <T extends { id: string }>(table: Table, items: T[], map: (item: T,
 
 export function toRows(d: AppData): Rows {
   return {
-    profiles: { [PROFILE_ID]: canonical('profiles', { name: d.name ?? '', photo: d.photo ?? null, sleep: d.sleep, reset: d.reset ?? '' }) },
+    profiles: { [PROFILE_ID]: canonical('profiles', { name: d.name ?? '', photo: d.photo ?? null, sleep: d.sleep, reset: d.reset ?? '', notify_tasks: d.notifyTasks ?? true }) },
     workspaces: byId('workspaces', d.workspaces, (w, position) => ({ ...w, notes: d.taskNotes?.[w.id] ?? '', position })),
     tasks: byId('tasks', d.tasks, (t, position) => ({ id: t.id, title: t.t, due: t.due || null, due_time: t.dueTime || null, priority: t.p, done: t.d, done_at: t.doneAt || null, effort: t.effort || null, workspace_id: t.workspaceId ?? 'geral', parent_id: t.parentId || null, notes: t.n ?? '', position })),
     event_categories: byId('event_categories', d.cats, (c, position) => ({ ...c, position })),
@@ -68,6 +68,7 @@ export function fromRows(rows: Rows, base: AppData): AppData {
     photo: p ? opt<string>(p.photo) : base.photo,
     sleep: p?.sleep ? p.sleep as Sleep : base.sleep,
     reset: p ? str(p.reset) : base.reset,
+    notifyTasks: p ? p.notify_tasks !== false : base.notifyTasks,
     workspaces: workspaces.map(w => ({ id: str(w.id), name: str(w.name) })),
     taskNotes: Object.fromEntries(workspaces.filter(w => w.notes).map(w => [str(w.id), str(w.notes)])),
     tasks: ordered(rows.tasks).map(t => ({ id: str(t.id), t: str(t.title), due: str(t.due), p: t.priority as Priority, d: Boolean(t.done), effort: (t.effort ?? '') as Effort | '', workspaceId: str(t.workspace_id) || 'geral', ...(t.due_time ? { dueTime: str(t.due_time) } : {}), ...(t.done_at ? { doneAt: str(t.done_at) } : {}), ...(t.notes ? { n: str(t.notes) } : {}), ...(t.parent_id ? { parentId: str(t.parent_id) } : {}) })),

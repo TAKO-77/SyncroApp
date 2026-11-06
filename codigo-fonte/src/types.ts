@@ -24,6 +24,8 @@ export interface AppData {
   ev: PEvent[]; tasks: Task[]; workspaces: TaskWorkspace[]; fin: Finance[]; days: SpecialDay[]
   cats: Category[]; dayCats: Category[]; sleep: Sleep; name?: string; photo?: string; reset: string
   notes: WorkspaceNote[]; reminders: ReminderItem[]
+  /** False when only reminders should notify. */
+  notifyTasks: boolean
   /** Legacy single note per workspace; moved into `notes` by `parseAppData`. */
   taskNotes?: Record<string, string>
 }
