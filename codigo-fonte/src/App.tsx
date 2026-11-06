@@ -14,7 +14,7 @@ import { ProfileButton } from './features/perfil/ProfileButton'
 import { QuickAdd } from './components/QuickAdd'
 import { Toast } from './components/Toast'
 import { applyTheme, useStore } from './store/useStore'
-import { LogoFilter, todayIso, useIsPhone, useNow } from './components/common'
+import { LogoFilter, todayIso, useIsPhone, useNow, useArrowScroll } from './components/common'
 import { SwipePager } from './components/SwipePager'
 import { cleanUpNoteImages } from './lib/noteImages'
 import { purgeExpired } from './lib/cleanup'
@@ -74,6 +74,7 @@ export default function App() {
     source.addEventListener('message', onMessage)
     return () => source.removeEventListener('message', onMessage)
   }, [])
+  useArrowScroll()
   const now = useNow(10000), h = now.getHours()
   const g = h < 6 ? 'Boa noite' : h < 13 ? 'Bom dia' : h < 20 ? 'Boa tarde' : 'Boa noite'
   useEffect(() => {

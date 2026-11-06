@@ -5,7 +5,7 @@ import { useStore } from '../../store/useStore'
 import { DN, MN, dow, fmt, hm, iso, mins, parse } from '../../lib/dates'
 import { crossesMidnight, eventsOn, type DayEvent } from '../../lib/recurrence'
 import { sleepIv } from '../../lib/sleep'
-import { Modal, uid, useIsPhone, useNow } from '../../components/common'
+import { Modal, uid, useArrowKeys, useIsPhone, useNow } from '../../components/common'
 import { CategoryManager } from '../../components/CategoryManager'
 import type { PEvent, Rep } from '../../types'
 import { DatePicker } from '../../components/DatePicker'
@@ -59,6 +59,7 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
     .sort((a, b) => (a.h || '99').localeCompare(b.h || '99'))
   const label = N === 7 ? `${first.getDate()} ${MN[first.getMonth()]} – ${last.getDate()} ${MN[last.getMonth()]} ${last.getFullYear()}` : `${DN[dow(A)]}, ${A.getDate()} ${MN[A.getMonth()]} ${A.getFullYear()}`
   const move = (k: number) => { const d = new Date(A); d.setDate(d.getDate() + k * N); setAnchor(iso(d)) }
+  useArrowKeys(move)
   const color = (e: PEvent) => data.cats.find(c => c.id === e.cat)?.color ?? e.color ?? PALETTE.neutral
 
   const openNew = (ds: string, m: number) => { setErr(''); setForm({ ds, title: '', start: hm(m), end: hm(Math.min(m + 60, 1439)), date: ds, rep: 'none', days: [], cat: data.cats[0]?.id ?? '' }) }

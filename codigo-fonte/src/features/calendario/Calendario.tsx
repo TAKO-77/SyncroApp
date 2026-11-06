@@ -2,7 +2,7 @@ import { PALETTE } from '../../lib/palette'
 import { useState, type FormEvent } from 'react'
 import { useStore } from '../../store/useStore'
 import { DN, dow, iso, parse } from '../../lib/dates'
-import { Modal, todayIso, uid } from '../../components/common'
+import { Modal, todayIso, uid, useArrowKeys } from '../../components/common'
 import { CategoryManager } from '../../components/CategoryManager'
 import type { SpecialDay } from '../../types'
 import { daysLeft, upcomingSpecialDays } from '../../lib/specialDays'
@@ -24,6 +24,7 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
   const sdOn = (ds: string) => data.days.filter(x => x.y ? ds >= x.s && ds.slice(5) === x.s.slice(5) : ds >= x.s && ds <= (x.e || x.s)).sort((a, b) => (a.h || '99').localeCompare(b.h || '99'))
   const upcoming = upcomingSpecialDays(data.days, today)
   const shift = (k: number) => { const d = new Date(first); d.setMonth(d.getMonth() + k); setM(iso(d)) }
+  useArrowKeys(shift)
   const blank = (): F => ({ n: '', ty: data.dayCats.some(t => t.id === 'evento') ? 'evento' : data.dayCats[0]?.id ?? '', s: m.slice(0, 7) === today.slice(0, 7) ? today : m, e: '', h: '', o: '', y: false })
   const save = (ev: FormEvent) => {
     ev.preventDefault(); if (!f) return

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { CalendarDays } from 'lucide-react'
 import { DN, MN, dow, iso, parse } from '../lib/dates'
 import { todayIso } from './common'
@@ -84,13 +84,28 @@ function MonthGrid({ value, min, required, onPick }: { value: string; min?: stri
   const [year, setYear] = useState(Number((value || min || todayIso()).slice(0, 4)))
   const months = MN.map((_, i) => `${year}-${String(i + 1).padStart(2, '0')}`)
   const initial = months.includes(value) ? value : months.find(v => !min || v >= min)
+  const grid = useRef<HTMLDivElement>(null), focusMonth = useRef<number | null>(null)
+  useEffect(() => {
+    if (focusMonth.current !== null) (grid.current?.children[focusMonth.current] as HTMLElement | undefined)?.focus()
+    focusMonth.current = null
+  }, [year])
+  /** Keeps moving into the next or previous year at the edges of the grid. */
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const i = [...e.currentTarget.children].indexOf(document.activeElement as Element)
+    const target = e.key === 'PageUp' ? [year - 1, i] : e.key === 'PageDown' ? [year + 1, i] : e.key === 'ArrowLeft' && i === 0 ? [year - 1, 11] : e.key === 'ArrowRight' && i === 11 ? [year + 1, 0] : null
+    if (!target) { moveFocus(e, { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -3, ArrowDown: 3 }); return }
+    e.preventDefault()
+    if (i < 0 || (min && `${target[0]}-${String(target[1] + 1).padStart(2, '0')}` < min)) return
+    focusMonth.current = target[1]
+    setYear(target[0])
+  }
   return <>
     <div className="cal-head">
       <button type="button" className="cal-nav" aria-label="Ano anterior" onClick={() => setYear(year - 1)}>‹</button>
       <strong>{year}</strong>
       <button type="button" className="cal-nav" aria-label="Ano seguinte" onClick={() => setYear(year + 1)}>›</button>
     </div>
-    <div className="cal-months" onKeyDown={e => moveFocus(e, { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -3, ArrowDown: 3 })}>
+    <div className="cal-months" ref={grid} onKeyDown={onKeyDown}>
       {months.map((v, i) => <button key={v} type="button" className="pk-opt" tabIndex={v === initial ? 0 : -1} data-initial={v === initial || undefined}
         aria-selected={v === value} aria-label={`${MONTHS[i]} de ${year}`} disabled={!!min && v < min} onClick={() => onPick(v)}>{MN[i]}</button>)}
     </div>
