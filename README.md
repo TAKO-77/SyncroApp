@@ -1,8 +1,95 @@
-# Syncro para Windows
+<p align="center">
+  <img src="codigo-fonte/public/icons/pwa-192.png" alt="Logótipo do Syncro" width="96" height="96">
+</p>
 
-O Syncro reúne a agenda, o calendário, as tarefas e as finanças numa aplicação para organizar o dia a dia.
+<h1 align="center">Syncro</h1>
+
+<p align="center">
+  <strong>Agenda, calendário, tarefas, lembretes e finanças num só lugar.</strong><br>
+  No computador e no telemóvel, sempre sincronizado.
+</p>
+
+<p align="center">
+  <a href="https://github.com/TAKO-77/SyncroApp/releases/latest"><img alt="Versão mais recente" src="https://img.shields.io/github/v/release/TAKO-77/SyncroApp?style=flat-square&label=vers%C3%A3o&color=f5a524"></a>
+  <img alt="Windows, Android e iPhone" src="https://img.shields.io/badge/Windows%20%C2%B7%20Android%20%C2%B7%20iPhone-1c1c1c?style=flat-square">
+  <a href="https://app.getsyncro.workers.dev"><img alt="App web" src="https://img.shields.io/badge/app%20web-abrir-f5a524?style=flat-square"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/TAKO-77/SyncroApp/releases/latest/download/SyncroSetup.exe"><strong>Descarregar para Windows</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://app.getsyncro.workers.dev"><strong>Abrir no browser</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#telemóvel"><strong>Instalar no telemóvel</strong></a>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="docs/images/inicio-light.png">
+    <img src="docs/images/inicio-dark.png" alt="Ecrã Início do Syncro com a agenda do dia, tarefas pendentes, saldo do mês e próximos dias especiais" width="900">
+  </picture>
+</p>
+
+## Porquê o Syncro
+
+- **Tudo num ecrã.** O Início resume o dia: eventos, tarefas, saldo do mês e datas importantes.
+- **Funciona sem Internet.** As alterações aparecem de imediato e sincronizam quando houver ligação.
+- **Em todos os dispositivos.** Aplicação para Windows e app web instalável no Android e no iPhone, com a mesma conta.
+- **Avisa a tempo.** Notificações das tarefas com hora limite e dos lembretes, no computador e no telemóvel.
+- **Modo claro e escuro**, atalhos de teclado e adição rápida em linguagem natural (`/` ou `Ctrl+K`).
+
+## Funcionalidades
+
+### Agenda
+
+Planeamento diário e semanal, com categorias coloridas, eventos recorrentes e eventos que atravessam a meia-noite. O horário de sono de cada dia da semana aparece na grelha e edita-se diretamente na Agenda.
+
+<p align="center"><img src="docs/images/agenda-dark.png" alt="Vista semanal da Agenda com aulas, almoço, estudo e ginásio" width="900"></p>
+
+### Tarefas
+
+Prioridades, esforço estimado, data e hora limite, subtarefas e espaços de trabalho com notas próprias. Cada espaço de trabalho pode ter a sua ordenação.
+
+<p align="center"><img src="docs/images/tarefas-dark.png" alt="Lista de tarefas com prioridades, esforço e datas limite" width="900"></p>
+
+### Finanças
+
+Receitas e despesas, movimentos recorrentes, saldo do mês e saldo geral, evolução dos últimos seis meses e despesas por categoria.
+
+<p align="center"><img src="docs/images/financas-dark.png" alt="Finanças com saldo do mês, evolução dos últimos seis meses e despesas por categoria" width="900"></p>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Calendário</h3>
+      <p>Aniversários, exames, consultas e viagens, com a lista do que aí vem nos próximos 31 dias.</p>
+      <img src="docs/images/calendario-dark.png" alt="Calendário mensal com dias especiais">
+    </td>
+    <td width="50%" valign="top">
+      <h3>Lembretes</h3>
+      <p>Lembretes únicos, com aviso antecipado, ou repetidos todos os dias ou todas as semanas.</p>
+      <img src="docs/images/lembretes-dark.png" alt="Lista de lembretes pendentes">
+    </td>
+  </tr>
+</table>
+
+### No telemóvel
+
+<p align="center">
+  <img src="docs/images/telemovel-inicio-dark.png" alt="Início no telemóvel" width="240">
+  &nbsp;
+  <img src="docs/images/telemovel-agenda-dark.png" alt="Agenda semanal no telemóvel" width="240">
+  &nbsp;
+  <img src="docs/images/telemovel-financas-dark.png" alt="Finanças no telemóvel" width="240">
+</p>
+
+Em ecrãs pequenos, a navegação passa para uma barra no fundo e Agenda/Calendário e Tarefas/Lembretes partilham o mesmo separador.
+
+> As imagens usam dados de demonstração.
 
 ## Instalar
+
+### Windows
 
 1. Abre a [versão mais recente](https://github.com/TAKO-77/SyncroApp/releases/latest).
 2. Descarrega e executa **SyncroSetup.exe**.
@@ -10,28 +97,23 @@ O Syncro reúne a agenda, o calendário, as tarefas e as finanças numa aplicaç
 
 A aplicação requer o Microsoft Edge WebView2 Runtime. O instalador verifica se está disponível e indica como o instalar, caso seja necessário.
 
-### No telemóvel
+### Telemóvel
 
-O Syncro também pode ser instalado como app web (PWA):
+O Syncro também pode ser instalado como app web (PWA) a partir de [app.getsyncro.workers.dev](https://app.getsyncro.workers.dev):
 
-- **Android (Chrome):** abre o endereço do Syncro e escolhe **⋮ → Instalar app**.
-- **iPhone (Safari):** abre o endereço do Syncro e escolhe **Partilhar → Adicionar ao ecrã principal**.
+- **Android (Chrome):** abre o endereço e escolhe **⋮ → Instalar app**.
+- **iPhone (Safari):** abre o endereço e escolhe **Partilhar → Adicionar ao ecrã principal**. As notificações no iPhone só funcionam com a app instalada desta forma.
 
 A app web abre sem ligação com os dados guardados no dispositivo e sincroniza com a mesma conta da aplicação Windows.
 
-## Funcionalidades
+## Atalhos
 
-- **Início:** o ecrã de arranque, com um resumo de todas as abas: quantos eventos e tarefas tens para hoje, a agenda do dia, as tarefas (filtradas por hoje, semana ou todas), o saldo do mês e os próximos dias especiais. Cada cartão abre a aba correspondente e as tarefas podem ser concluídas diretamente no Início.
-- **Agenda:** planeamento diário e semanal, categorias e eventos recorrentes. Podes definir horários ao minuto, arrastar e redimensionar eventos.
-- **Calendário:** dias especiais, aniversários e uma lista com as marcações dos próximos 31 dias.
-- **Tarefas:** prioridades, esforço estimado, datas limite, espaços de trabalho, notas e subtarefas.
-- **Finanças:** registo de receitas e despesas, incluindo movimentos recorrentes.
-- **Perfil:** nome, foto, horários de sono para cada dia da semana e distribuição do tempo. Podes aplicar o horário de um dia à semana toda.
-- **Definições:** modo claro ou escuro, abertura automática da barra lateral e importação/exportação de cópias de segurança.
-
-A barra lateral pode abrir ao passar o rato ou através do botão manual. Os ícones permitem mudar de aba com a barra fechada. Em ecrãs pequenos, a navegação aparece no fundo. As teclas 1 a 7 mudam de aba (Início, Agenda, Calendário, Tarefas, Finanças, Perfil e Definições) e a tecla / ou Ctrl+K abre a adição rápida.
-
-O Syncro funciona na aplicação para Windows e também num navegador, onde pode ser instalado como app (PWA).
+| Tecla | Ação |
+| --- | --- |
+| `1` a `8` | Início, Agenda, Calendário, Tarefas, Lembretes, Finanças, Perfil e Definições |
+| `/` ou `Ctrl+K` | Adição rápida |
+| `←` `→` | Período anterior ou seguinte na Agenda, no Calendário e nas Finanças |
+| `↑` `↓` | Deslocar a grelha da Agenda ou a página |
 
 ## Dados e cópias de segurança
 
@@ -54,6 +136,8 @@ O atualizador usa apenas releases públicas estáveis, com tag numérica (`v2.3.
 Na app web, quando é publicada uma versão nova aparece o aviso **Nova versão disponível**; a versão nova só é aplicada quando escolhes **Recarregar**.
 
 **Versões 2.3.0 e 2.3.1:** têm um erro na leitura dos anexos da release. É necessário descarregar e instalar manualmente a versão 2.3.2 uma vez, por cima da instalação existente, sem desinstalar. As atualizações futuras passam a usar o atualizador corrigido.
+
+---
 
 ## Desenvolvimento
 
