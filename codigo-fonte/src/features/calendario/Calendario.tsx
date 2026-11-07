@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore'
 import { DN, dow, iso, parse } from '../../lib/dates'
 import { Modal, todayIso, uid, useArrowKeys } from '../../components/common'
 import { CategoryManager } from '../../components/CategoryManager'
+import { DayIcon } from '../../components/DayIcon'
 import type { SpecialDay } from '../../types'
 import { daysLeft, upcomingSpecialDays } from '../../lib/specialDays'
 import { DatePicker } from '../../components/DatePicker'
@@ -19,7 +20,6 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
   const [f, setF] = useState<F | null>(null)
   const [cm, setCm] = useState(false)
   const sdT = (x: SpecialDay) => data.dayCats.find(t => t.id === x.ty) ?? NO_CAT
-  const icon = (t: { icon?: string }) => t.icon ? `${t.icon} ` : ''
   const first = parse(m), dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate(), rows = Math.ceil((dow(first) + dim) / 7)
   const sdOn = (ds: string) => data.days.filter(x => x.y ? ds >= x.s && ds.slice(5) === x.s.slice(5) : ds >= x.s && ds <= (x.e || x.s)).sort((a, b) => (a.h || '99').localeCompare(b.h || '99'))
   const upcoming = upcomingSpecialDays(data.days, today)
@@ -48,7 +48,7 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
       {upcoming.length ? <div className="upcoming-list">{upcoming.map(({ item, date }) => {
         const type = sdT(item), left = daysLeft(date, today)
         return <div className="upcoming-item" key={item.id} style={{ ['--c' as string]: type.color }}>
-          <span className="upcoming-icon">{type.icon}</span><span className="upcoming-name"><b>{item.n}</b><small>{parse(date).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })}{item.h ? ` · ${item.h}` : ''}</small></span>
+          <span className="upcoming-icon"><DayIcon icon={type.icon} /></span><span className="upcoming-name"><b>{item.n}</b><small>{parse(date).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })}{item.h ? ` · ${item.h}` : ''}</small></span>
           <span className="upcoming-count">{left === 0 ? 'Hoje' : `em ${left} ${left === 1 ? 'dia' : 'dias'}`}</span>
         </div>
       })}</div> : <p className="mu upcoming-empty">Sem marcações nos próximos 31 dias.</p>}
@@ -58,14 +58,14 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
       {cells.map(d => { const ds = iso(d), sds = sdOn(ds)
         return <div key={ds} className={'mc' + (d.getMonth() !== first.getMonth() ? ' out' : '') + (ds === today ? ' td' : '')} onClick={() => onOpenDay(ds)}>
           <span className="mn">{d.getDate()}</span>
-          {sds.map(x => { const t = sdT(x); return <i key={x.id} className="sdp" style={{ ['--c' as string]: t.color }} onClick={e => { e.stopPropagation(); setF({ ...x }) }}>{icon(t)}{x.n}</i> })}
+          {sds.map(x => { const t = sdT(x); return <i key={x.id} className="sdp" style={{ ['--c' as string]: t.color }} onClick={e => { e.stopPropagation(); setF({ ...x }) }}><DayIcon icon={t.icon} size={12} />{x.n}</i> })}
         </div> })}
     </div>
     {cm && <CategoryManager list="dayCats" title="Categorias do Calendário" description="Define o nome e a cor usadas nos dias especiais." onClose={() => setCm(false)} />}
     {f && <Modal title={f.id ? 'Editar dia especial' : 'Novo dia especial'} onClose={() => setF(null)}>
       <form className="fgrid" onSubmit={save}>
         <label className="w">Título<input value={f.n} required maxLength={60} autoFocus onChange={e => setF({ ...f, n: e.target.value })} /></label>
-        <div className="w cats">{data.dayCats.map(t => <label key={t.id} className="cp"><input type="radio" name="sd" checked={f.ty === t.id} onChange={() => setF({ ...f, ty: t.id, y: !f.id && t.id === 'aniv' ? true : f.y })} /><span style={{ ['--c' as string]: t.color }}>{icon(t)}{t.name}</span></label>)}</div>
+        <div className="w cats">{data.dayCats.map(t => <label key={t.id} className="cp"><input type="radio" name="sd" checked={f.ty === t.id} onChange={() => setF({ ...f, ty: t.id, y: !f.id && t.id === 'aniv' ? true : f.y })} /><span style={{ ['--c' as string]: t.color }}><DayIcon icon={t.icon} size={14} />{t.name}</span></label>)}</div>
         <label>Início<DatePicker required value={f.s} onChange={s => setF({ ...f, s })} /></label>
         {!f.y && <label>Fim (opcional)<DatePicker value={f.e} min={f.s} onChange={e => setF({ ...f, e })} /></label>}
         <label>Hora (opcional)<TimePicker value={f.h} onChange={h => setF({ ...f, h })} /></label>

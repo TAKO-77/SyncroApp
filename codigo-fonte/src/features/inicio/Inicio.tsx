@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore'
 import { FIN_CATS, PALETTE } from '../../lib/palette'
 import { MN, fmt, hm, iso, mins, parse } from '../../lib/dates'
 import { eventsOn } from '../../lib/recurrence'
+import { DayIcon } from '../../components/DayIcon'
 import { eur, monthTotals, ymAdd } from '../../lib/finance'
 import { daysLeft, upcomingSpecialDays } from '../../lib/specialDays'
 import { PC, PN, dueLabel, tasksDueBy, urgentTasks } from '../../lib/tasks'
@@ -96,7 +97,7 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
         <span className="card-h"><span className="kpi-l">Próximos 31 dias</span>{first && <span className="trend acc">{inDays(daysLeft(first.date, today))}</span>}</span>
         <b className="kpi-v num"><CountUp value={upcoming.length} /> <small>{upcoming.length === 1 ? 'dia especial' : 'dias especiais'}</small></b>
         <span className="kpi-strip month-strip" aria-hidden="true">{Array.from({ length: 31 }, (_, k) => <i key={k} className={k === 0 ? 'today' : undefined} data-on={marked.has(k) || undefined} style={marked.has(k) ? { ['--c' as string]: marked.get(k) } : undefined} />)}</span>
-        <span className="kpi-f">{first ? `${dayType(first.item.ty)?.icon ?? '📌'} ${first.item.n}` : 'Nada marcado'}</span>
+        <span className="kpi-f">{first ? <><DayIcon icon={dayType(first.item.ty)?.icon} size={14} />{first.item.n}</> : 'Nada marcado'}</span>
       </button>
     </div>
 
@@ -146,7 +147,7 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
         {upcoming.length ? <div className="hl">{upcoming.slice(0, LIMIT).map(({ item, date }) => {
           const type = dayType(item.ty), d = parse(date)
           return <div key={item.id} className="hl-row" style={{ ['--c' as string]: type?.color ?? PALETTE.neutral }}>
-            <span className="hl-icon" aria-hidden="true">{type?.icon ?? '📌'}</span>
+            <span className="hl-icon" aria-hidden="true"><DayIcon icon={type?.icon} size={18} /></span>
             <span className="hl-main"><b>{item.n}</b><small>{d.getDate()} {MN[d.getMonth()]}{item.h ? ` · ${item.h}` : ''}</small></span>
             <span className="tag">{inDays(daysLeft(date, today))}</span>
           </div>
