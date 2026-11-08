@@ -43,6 +43,17 @@ async function check() {
   } finally { checking = false }
 }
 
+/**
+ * Tells the Windows host whether the X keeps Syncro running next to the clock: only worth it when this computer
+ * notifies. Sent at start and on every change; a host that never hears it keeps running.
+ */
+export function shareBackgroundChoice() {
+  if (!desktop) return
+  const send = (on: boolean) => desktop!.postMessage(`syncro:background:${on ? 'on' : 'off'}`)
+  send(useStore.getState().notifications)
+  useStore.subscribe((s, prev) => { if (s.notifications !== prev.notifications) send(s.notifications) })
+}
+
 /** Starts the checks and returns the function that stops them. */
 export function startReminders(): () => void {
   if (!desktop) return () => undefined

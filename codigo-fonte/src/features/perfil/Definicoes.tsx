@@ -94,7 +94,7 @@ export function Definicoes() {
     {desktop && <>
       <h2 className="sub">Notificações</h2>
       <label className="ck"><input type="checkbox" className="sw" role="switch" checked={notifications} onChange={e => setNotifications(e.target.checked)} /> Receber notificações neste computador</label>
-      <p className="mu">Dos lembretes e, se o escolheres no Perfil, das tarefas com hora limite. Ao fechar a janela, o Syncro continua a correr junto ao relógio do Windows para poder avisar. Para o encerrar, escolhe Sair nesse ícone.</p>
+      <p className="mu">Dos lembretes e, se o escolheres no Perfil, das tarefas com hora limite. Com esta opção ativa, ao fechar a janela o Syncro continua a correr junto ao relógio do Windows para poder avisar; para o encerrar, escolhe Sair nesse ícone. Desativada, fechar a janela encerra o Syncro.</p>
     </>}
     <h2 className="sub">Aparência</h2>
     <label className="ck"><input type="checkbox" className="sw" role="switch" checked={theme === 'light'} onChange={e => switchTheme(e.target.checked ? 'light' : 'dark', e.currentTarget)} /> Modo claro</label>

@@ -55,6 +55,7 @@ internal sealed class PlannerWindow : Form
     private const string LatestReleaseApi = "https://api.github.com/repos/TAKO-77/SyncroApp/releases/latest";
     private readonly WebView2 view = new WebView2();
     private const string NotifyPrefix = "syncro:notify:";
+    private const string BackgroundPrefix = "syncro:background:";
     private const string ToastAppId = "Syncro.Desktop";
     private readonly List<object> recentToasts = new List<object>();
     private const int WM_QUERYENDSESSION = 0x0011;
@@ -62,6 +63,8 @@ internal sealed class PlannerWindow : Form
     private bool checkingUpdates;
     private bool exiting;
     private bool balloonOpensTasks;
+    // The X only hides the window while this computer receives notifications; the page says which at start-up.
+    private bool runInBackground = true;
 
     public PlannerWindow(EventWaitHandle showRequest)
     {
@@ -119,7 +122,7 @@ internal sealed class PlannerWindow : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        if (!exiting && e.CloseReason == CloseReason.UserClosing)
+        if (!exiting && e.CloseReason == CloseReason.UserClosing && runInBackground)
         {
             e.Cancel = true;
             Hide();
@@ -345,6 +348,7 @@ internal sealed class PlannerWindow : Form
             if (message == "syncro:check-for-updates") await CheckForUpdates(true);
             else if (message == "syncro:version") PublishUpdateStatus("", checkingUpdates);
             else if (message.StartsWith(NotifyPrefix, StringComparison.Ordinal)) ShowNotification(message.Substring(NotifyPrefix.Length));
+            else if (message.StartsWith(BackgroundPrefix, StringComparison.Ordinal)) runInBackground = message.Substring(BackgroundPrefix.Length) != "off";
         };
         view.Source = new Uri("https://planner.local/index.html");
         await CheckForUpdates();
