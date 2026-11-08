@@ -1,9 +1,9 @@
-import { PALETTE } from '../../lib/palette'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Plus, Tags } from 'lucide-react'
 import { useStore } from '../../store/useStore'
-import { DN, MN, dow, fmt, hm, iso, mins, parse } from '../../lib/dates'
-import { crossesMidnight, eventsOn, type DayEvent } from '../../lib/recurrence'
+import { DN, MN, dow, fmt, hm, iso, mins, minuteOfDay, p2, parse, spanMinutes } from '../../lib/dates'
+import { categoryColor, crossesMidnight, eventColor, eventMinutes, eventsOn, type DayEvent } from '../../lib/recurrence'
+import { specialDaysOn } from '../../lib/specialDays'
 import { sleepIv } from '../../lib/sleep'
 import { Modal, uid, useArrowKeys, useIsPhone, useNow } from '../../components/common'
 import { CategoryManager } from '../../components/CategoryManager'
@@ -26,7 +26,6 @@ function lanes(list: DayEvent[]): L[] {
   list.forEach(e => { if (cl.length && mins(e.start) >= end) { flush(); end = 0 } cl.push({ ...e, l: 0, n: 1 }); end = Math.max(end, mins(e.end)) })
   flush(); return out
 }
-const dur = (e: PEvent) => Math.max(0, mins(e.end) - mins(e.start))
 interface Form { id?: string; ds: string; title: string; start: string; end: string; date: string; rep: Rep; days: number[]; cat: string }
 
 export type AgendaView = 'week' | 'day'
@@ -39,7 +38,7 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
   const [cm, setCm] = useState(false)
   const [sleepDay, setSleepDay] = useState<string | null>(null)
   const now = useNow(), box = useRef<HTMLDivElement>(null)
-  const nowM = now.getHours() * 60 + now.getMinutes(), td = iso(now)
+  const nowM = minuteOfDay(now), td = iso(now)
   useEffect(() => { if (box.current) box.current.scrollTop = Math.max(0, nowM - 90) }, []) // eslint-disable-line
 
   const A = parse(anchor), N = view === 'week' ? 7 : 1
@@ -54,13 +53,10 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
   const eventsFor = (ds: string) => eventsOn(data, ds).filter(e => !fcat || e.cat === fcat)
   const y = (m: number) => (m - range.from) * px
   const gridHeight = y(range.to)
-  const specialDaysOn = (ds: string) => data.days
-    .filter(x => x.y ? ds >= x.s && ds.slice(5) === x.s.slice(5) : ds >= x.s && ds <= (x.e || x.s))
-    .sort((a, b) => (a.h || '99').localeCompare(b.h || '99'))
   const label = N === 7 ? `${first.getDate()} ${MN[first.getMonth()]} – ${last.getDate()} ${MN[last.getMonth()]} ${last.getFullYear()}` : `${DN[dow(A)]}, ${A.getDate()} ${MN[A.getMonth()]} ${A.getFullYear()}`
   const move = (k: number) => { const d = new Date(A); d.setDate(d.getDate() + k * N); setAnchor(iso(d)) }
   useArrowKeys(move)
-  const color = (e: PEvent) => data.cats.find(c => c.id === e.cat)?.color ?? e.color ?? PALETTE.neutral
+  const color = (e: PEvent) => eventColor(data.cats, e)
 
   const openNew = (ds: string, m: number) => { setErr(''); setForm({ ds, title: '', start: hm(m), end: hm(Math.min(m + 60, 1439)), date: ds, rep: 'none', days: [], cat: data.cats[0]?.id ?? '' }) }
   const openEdit = (id: string, ds: string) => {
@@ -71,7 +67,7 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
     ev.preventDefault(); const f = form; if (!f) return
     if (f.end === f.start) { setErr('O fim tem de ser diferente do início'); return }
     const dd = f.rep === 'custom' ? (f.days.length ? [...f.days].sort() : [dow(parse(f.date))]) : undefined
-    const o = { title: f.title.trim(), start: f.start, end: f.end, date: f.date, rep: f.rep, days: dd, cat: f.cat, color: data.cats.find(c => c.id === f.cat)?.color }
+    const o = { title: f.title.trim(), start: f.start, end: f.end, date: f.date, rep: f.rep, days: dd, cat: f.cat, color: categoryColor(data.cats, f.cat) }
     update(d => { if (f.id) { const b = d.ev.find(x => x.id === f.id); if (b) Object.assign(b, o) } else d.ev.push({ ...o, id: uid('e'), done: {} }) })
     setAnchor(f.date); setForm(null)
   }
@@ -96,15 +92,15 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
         {days.map(d => <div key={iso(d)} className={'hd' + (iso(d) === td ? ' td' : '')}><span className="dw">{DN[dow(d)]}</span><b className="dd">{d.getDate()}</b>
           {narrow && (() => { const hidden = eventsFor(iso(d)).length - clipToWeek(eventsFor(iso(d))).length
             return hidden > 0 && <button type="button" className="hd-more" aria-label={`${hidden} fora do horário, abrir este dia`} title="Fora do horário das 8:00 às 20:00" onClick={() => { setAnchor(iso(d)); setView('day') }}>+{hidden}</button> })()}
-          {specialDaysOn(iso(d)).map(x => <span className="agenda-special" key={x.id} title={x.o || x.n}>{x.h ? `${x.h} · ` : ''}{x.n}</span>)}
+          {specialDaysOn(data.days, iso(d)).map(x => <span className="agenda-special" key={x.id} title={x.o || x.n}>{x.h ? `${x.h} · ` : ''}{x.n}</span>)}
         </div>)}
-        <div className="tc" style={{ height: gridHeight }}>{Array.from({ length: (range.to - range.from) / 60 + (narrow ? 1 : 0) }, (_, i) => range.from / 60 + i).map(h => <div key={h} style={{ top: y(h * 60) }}>{narrow ? `${h}h` : `${String(h).padStart(2, '0')}:00`}</div>)}</div>
+        <div className="tc" style={{ height: gridHeight }}>{Array.from({ length: (range.to - range.from) / 60 + (narrow ? 1 : 0) }, (_, i) => range.from / 60 + i).map(h => <div key={h} style={{ top: y(h * 60) }}>{narrow ? `${h}h` : `${p2(h)}:00`}</div>)}</div>
         {days.map(d => {
           const ds = iso(d), evs = narrow ? clipToWeek(eventsFor(ds)) : eventsFor(ds)
           return <div key={ds} data-d={ds} className={'col' + (ds === td ? ' td' : '')} style={{ height: gridHeight }}
             onClick={e => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('past')) openNew(ds, Math.max(0, Math.min(1439, Math.round(range.from + (e.clientY - e.currentTarget.getBoundingClientRect().top) / px)))) }}>
             {sleepIv(data.sleep, ds).map(([a, b]) => [Math.max(a, range.from), Math.min(b, range.to)]).filter(([a, b]) => b > a).map(([a, b], i) => <button key={i} type="button" className="slp" aria-label={`Editar o sono de ${DN[dow(d)]}, dia ${d.getDate()}`} title="Editar o horário de sono" style={{ top: y(a), height: (b - a) * px }} onClick={() => setSleepDay(ds)}>{!narrow && b - a > 90 && <span>Sono</span>}</button>)}
-            {lanes(evs).map(e => { const h = Math.max(narrow ? 16 : 18, dur(e) * px - 1), w = 100 / e.n, gap = narrow ? 1 : 2, night = crossesMidnight({ start: e.realStart, end: e.realEnd }), full = (mins(e.realEnd) - mins(e.realStart) + 1440) % 1440
+            {lanes(evs).map(e => { const h = Math.max(narrow ? 16 : 18, eventMinutes(e) * px - 1), w = 100 / e.n, gap = narrow ? 1 : 2, night = crossesMidnight({ start: e.realStart, end: e.realEnd }), full = spanMinutes(e.realStart, e.realEnd)
               return <div key={`${e.id}:${e.day}`} className={'ev' + (!narrow && h < 44 ? ' sm' : '') + (narrow && (e.n > 1 || h < 26) ? ' tight' : '') + (e.cont ? ' from-prev' : night ? ' to-next' : '')} title={e.title} style={{ ['--c' as string]: color(e), top: y(mins(e.start)), height: h, left: `calc(${e.l * w}% + ${gap}px)`, width: `calc(${w}% - ${gap * 2}px)` }} onClick={() => openEdit(e.id, e.day)}>
                 <b>{e.title}</b><small>{e.cont ? `até às ${e.realEnd}` : `${e.realStart}–${e.realEnd}`}{h < 44 ? '' : ' · ' + fmt(full)}</small></div> })}
             {ds === td && <><div className="past" style={{ height: Math.max(0, Math.min(y(nowM), gridHeight)) }} />{nowM >= range.from && nowM < range.to && <div className="now" style={{ top: y(nowM) }} />}</>}

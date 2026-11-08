@@ -1,5 +1,11 @@
-import type { AppData, PEvent } from '../types'
-import { dow, iso, mins, parse } from './dates.ts'
+import type { AppData, Category, PEvent } from '../types'
+import { addDays, dow, mins, parse } from './dates.ts'
+import { PALETTE } from './palette.ts'
+
+/** The colour an event copies from its category when saved. */
+export const categoryColor = (cats: Category[], id: string) => cats.find(c => c.id === id)?.color
+/** The colour an event is drawn in: its category's now, else the one it copied, else neutral. */
+export const eventColor = (cats: Category[], e: Pick<PEvent, 'cat' | 'color'>) => categoryColor(cats, e.cat) ?? e.color ?? PALETTE.neutral
 
 /**
  * The part of an event on one day. `start` and `end` are clipped to that day (`end` may be 24:00),
@@ -7,10 +13,13 @@ import { dow, iso, mins, parse } from './dates.ts'
  */
 export interface DayEvent extends PEvent { day: string; cont: boolean; realStart: string; realEnd: string }
 
+/** Minutes an event part takes on its day. */
+export const eventMinutes = (e: { start: string; end: string }) => Math.max(0, mins(e.end) - mins(e.start))
+
 /** An end before the start means the event finishes the next day. */
 export const crossesMidnight = (e: { start: string; end: string }) => e.end < e.start
 
-export function occurs(e: PEvent, ds: string): boolean {
+function occurs(e: PEvent, ds: string): boolean {
   if (ds < e.date) return false
   if (e.ex?.[ds]?.x) return false
   const d = parse(ds)
@@ -25,10 +34,9 @@ export function occurs(e: PEvent, ds: string): boolean {
 
 const withOverride = (e: PEvent, ds: string): PEvent => { const x = e.ex?.[ds]; return x && !x.x ? { ...e, ...x } : e }
 
-/** Eventos de um dia, já com as exceções aplicadas e ordenados, incluindo a continuação dos que passaram a meia-noite. */
+/** Events of one day with their exceptions applied, sorted, including the part of those that crossed midnight. */
 export function eventsOn(data: AppData, ds: string): DayEvent[] {
-  const y = parse(ds); y.setDate(y.getDate() - 1)
-  const prev = iso(y)
+  const prev = addDays(ds, -1)
   return data.ev.flatMap(e => {
     const parts: DayEvent[] = []
     if (occurs(e, ds)) {

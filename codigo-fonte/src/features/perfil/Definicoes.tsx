@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { applyTheme, useStore } from '../../store/useStore'
+import { useStore, type Theme } from '../../store/useStore'
+import { reducedMotion } from '../../lib/media'
 import { parseAppData } from '../../lib/schema'
 import { desktop } from '../../lib/desktop'
 import { PushSetting } from './PushSetting'
-import { flush, pull, useSync, type SyncStatus } from '../../lib/sync/engine'
+import { syncNow, useSync, type SyncStatus } from '../../lib/sync/engine'
 import { signOut, useAuth } from '../../store/useAuth'
 import { confirmDialog } from '../../store/confirm'
 
@@ -16,12 +17,12 @@ export function Definicoes() {
   const sync = useSync()
   const [msg, setMsg] = useState('')
   /** Changes the theme with a circle that grows from the switch over the old screen (View Transitions). */
-  const switchTheme = (next: 'dark' | 'light', from: HTMLElement) => {
+  const switchTheme = (next: Theme, from: HTMLElement) => {
     const doc = document as Document & { startViewTransition?: (cb: () => void) => { ready: Promise<void> } }
-    if (!doc.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) { setTheme(next); return }
+    if (!doc.startViewTransition || reducedMotion()) { setTheme(next); return }
     const r = from.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2
     const end = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
-    doc.startViewTransition(() => { flushSync(() => setTheme(next)); applyTheme(next) }).ready.then(() => {
+    doc.startViewTransition(() => flushSync(() => setTheme(next))).ready.then(() => {
       document.documentElement.animate({ clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${end}px at ${x}px ${y}px)`] },
         { duration: 600, easing: 'cubic-bezier(.4,0,.2,1)', pseudoElement: '::view-transition-new(root)' })
     }).catch(() => undefined)
@@ -79,7 +80,7 @@ export function Definicoes() {
     <p className="mu" role="status" aria-live="polite">{offline ? 'Sessão sem ligação — a usar os dados guardados neste dispositivo.' : SYNC_LABEL[sync.status]}{sync.pending ? ` · ${sync.pending} por enviar` : ''}{sync.lastSync && sync.status === 'synced' ? ` · ${new Date(sync.lastSync).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>
     {sync.rejected > 0 && <p className="mu">{sync.rejected} alteraç{sync.rejected === 1 ? 'ão foi recusada' : 'ões foram recusadas'} pelo servidor por conterem dados inválidos.</p>}
     <div className="row">
-      <button className="btn" disabled={sync.status === 'syncing'} onClick={() => { void flush().then(pull) }}>Sincronizar agora</button>
+      <button className="btn" disabled={sync.status === 'syncing'} onClick={() => { void syncNow() }}>Sincronizar agora</button>
       <button className="btn" onClick={leave}>Terminar sessão</button>
     </div>
     <h2 className="sub">Atualizações</h2>

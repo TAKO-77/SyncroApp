@@ -1,27 +1,26 @@
 import { useState } from 'react'
 import { ArrowUpRight, CalendarHeart, CalendarPlus, CheckCheck, Eye, EyeOff, Wallet } from 'lucide-react'
 import { useStore } from '../../store/useStore'
-import { FIN_CATS, PALETTE } from '../../lib/palette'
-import { MN, fmt, hm, iso, mins, parse } from '../../lib/dates'
-import { eventsOn } from '../../lib/recurrence'
+import { PALETTE } from '../../lib/palette'
+import { addDays, fmt, hm, mins, minuteOfDay, shortDate, todayIso } from '../../lib/dates'
+import { eventColor, eventMinutes, eventsOn } from '../../lib/recurrence'
+import { MonthTip, IN_COLOR, OUT_COLOR, monthShort } from '../../components/MonthTip'
 import { DayIcon } from '../../components/DayIcon'
-import { eur, monthTotals, ymAdd } from '../../lib/finance'
+import { eur, monthTotals, recentMonths, spendByCategory } from '../../lib/finance'
 import { daysLeft, upcomingSpecialDays } from '../../lib/specialDays'
-import { PC, PN, dueLabel, tasksDueBy, urgentTasks } from '../../lib/tasks'
+import { PC, PN, PRIORITIES, dueLabel, markDone, tasksDueBy, urgentTasks } from '../../lib/tasks'
 import { isOverdue } from '../../lib/taskDue'
-import { markDone } from '../../lib/cleanup'
-import { todayIso, useNow } from '../../components/common'
+import { useNow } from '../../components/common'
 import { CountUp } from '../../components/CountUp'
 import { Sparkline } from '../../components/Sparkline'
 import { EmptyState } from '../../components/EmptyState'
-import type { PEvent, Priority } from '../../types'
+import type { PEvent } from '../../types'
 import { Glider } from '../../components/Glider'
 
 export type HomeTarget = 'agenda' | 'calendario' | 'tarefas' | 'financas'
 const LIMIT = 5
 const inDays = (n: number) => n === 0 ? 'Hoje' : n === 1 ? 'Amanhã' : `em ${n} dias`
 const count = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
-const PRIOS: Priority[] = ['urgente', 'alta', 'media', 'baixa']
 /** Position of a time of day on the Agenda KPI strip, which spans 06:00–24:00. */
 const dayPos = (m: number) => Math.min(100, Math.max(0, (m - 360) / 1080 * 100))
 type Range = 'hoje' | 'semana' | 'todas'
@@ -44,25 +43,23 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
   const { data, update } = useStore()
   const [hide, setHide] = useState(true)
   const [range, setRange] = useState<Range>('hoje')
-  const now = useNow(30000), today = todayIso(), nowM = now.getHours() * 60 + now.getMinutes()
+  const now = useNow(30000), today = todayIso(), nowM = minuteOfDay(now)
 
-  const color = (e: PEvent) => data.cats.find(c => c.id === e.cat)?.color ?? e.color ?? PALETTE.neutral
+  const color = (e: PEvent) => eventColor(data.cats, e)
   const catName = (e: PEvent) => data.cats.find(c => c.id === e.cat)?.name
   const events = eventsOn(data, today)
-  const planned = events.reduce((s, e) => s + Math.max(0, mins(e.end) - mins(e.start)), 0)
+  const planned = events.reduce((s, e) => s + eventMinutes(e), 0)
   const next = events.find(e => mins(e.end) > nowM)
 
   const pending = urgentTasks(data.tasks)
   const nowTime = hm(nowM)
   const late = pending.filter(t => isOverdue(t, today, nowTime)).length
   const dueToday = pending.filter(t => t.due === today && !isOverdue(t, today, nowTime)).length
-  const weekEnd = parse(today); weekEnd.setDate(weekEnd.getDate() + 6)
-  const shown = range === 'todas' ? pending : tasksDueBy(pending, range === 'hoje' ? today : iso(weekEnd))
+  const shown = range === 'todas' ? pending : tasksDueBy(pending, range === 'hoje' ? today : addDays(today, 6))
 
   const ym = today.slice(0, 7), T = monthTotals(data.fin, ym), bal = T.i - T.o
-  const months = Array.from({ length: 6 }, (_, k) => ymAdd(ym, k - 5)).map(q => ({ q, ...monthTotals(data.fin, q) }))
-  const mx = Math.max(1, ...months.flatMap(x => [x.i, x.o]))
-  const spend = FIN_CATS.map(c => ({ ...c, v: T.cat[c.id] ?? 0 })).filter(c => c.v > 0).sort((a, b) => b.v - a.v).slice(0, 4)
+  const { months, max: mx } = recentMonths(data.fin, ym)
+  const spend = spendByCategory(T).slice(0, 4)
   const money = hide ? ' blurred' : ''
 
   const upcoming = upcomingSpecialDays(data.days, today)
@@ -84,7 +81,7 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
       <button type="button" className="card kpi" onClick={() => go('tarefas')}>
         <span className="card-h"><span className="kpi-l">Tarefas pendentes</span>{late ? <span className="trend down">{late} {late === 1 ? 'atrasada' : 'atrasadas'}</span> : pending.length ? <span className="trend up">Em dia</span> : null}</span>
         <b className="kpi-v num"><CountUp value={pending.length} /></b>
-        <span className="kpi-strip prio-strip" aria-hidden="true">{PRIOS.map(p => { const k = pending.filter(t => t.p === p).length; return k ? <i key={p} style={{ flexGrow: k, ['--c' as string]: PC[p] }} /> : null })}</span>
+        <span className="kpi-strip prio-strip" aria-hidden="true">{PRIORITIES.map(p => { const k = pending.filter(t => t.p === p).length; return k ? <i key={p} style={{ flexGrow: k, ['--c' as string]: PC[p] }} /> : null })}</span>
         <span className="kpi-f">{dueToday ? `${dueToday} para hoje` : 'Nenhuma para hoje'}</span>
       </button>
       <button type="button" className="card kpi" aria-label={hide && data.fin.length ? 'Mostrar valores' : 'Abrir Finanças'} onClick={() => { if (hide && data.fin.length) setHide(false); else go('financas') }}>
@@ -134,8 +131,8 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
           <span className="card-acts">{data.fin.length > 0 && <button type="button" className="btn ghost sm" aria-pressed={!hide} onClick={() => setHide(!hide)}>{hide ? <Eye size={15} strokeWidth={1.5} aria-hidden="true" /> : <EyeOff size={15} strokeWidth={1.5} aria-hidden="true" />}{hide ? 'Mostrar valores' : 'Ocultar valores'}</button>}{more('financas', 'Ver finanças')}</span></div>
         {data.fin.length ? <div className={'home-fin' + money}>
           <div className="mini-bars" role="img" aria-label="Ganhos e despesas dos últimos 6 meses">{months.map((x, k) => <span key={x.q} className={x.q === ym ? 'on' : ''} style={{ ['--i' as string]: k }}>
-            <span className="ctip"><b>{MN[+x.q.slice(5) - 1]}</b><span><i style={{ background: PALETTE.sage }} />Ganhos {eur(x.i)}</span><span><i style={{ background: PALETTE.clay }} />Despesas {eur(x.o)}</span></span>
-            <span className="mb"><i style={{ height: `${x.i / mx * 100}%`, background: PALETTE.sage }} /><i style={{ height: `${x.o / mx * 100}%`, background: PALETTE.clay }} /></span><small>{MN[+x.q.slice(5) - 1]}</small></span>)}</div>
+            <MonthTip month={x} />
+            <span className="mb"><i style={{ height: `${x.i / mx * 100}%`, background: IN_COLOR }} /><i style={{ height: `${x.o / mx * 100}%`, background: OUT_COLOR }} /></span><small>{monthShort(x.q)}</small></span>)}</div>
           <div className="spend">{spend.length ? spend.map((c, k) => <div key={c.id} className="spend-row" style={{ ['--c' as string]: c.color, ['--i' as string]: k }}>
             <span className="spend-h"><span>{c.name}</span><b className="num">{eur(c.v)}</b></span><span className="spend-bar"><i style={{ width: `${c.v / spend[0].v * 100}%` }} /></span></div>)
             : <p className="mu">Sem despesas este mês.</p>}</div>
@@ -145,10 +142,10 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
       <article className="card">
         <div className="card-h"><h3>Próximos dias especiais</h3>{more('calendario', 'Abrir calendário')}</div>
         {upcoming.length ? <div className="hl">{upcoming.slice(0, LIMIT).map(({ item, date }) => {
-          const type = dayType(item.ty), d = parse(date)
+          const type = dayType(item.ty)
           return <div key={item.id} className="hl-row" style={{ ['--c' as string]: type?.color ?? PALETTE.neutral }}>
             <span className="hl-icon" aria-hidden="true"><DayIcon icon={type?.icon} size={18} /></span>
-            <span className="hl-main"><b>{item.n}</b><small>{d.getDate()} {MN[d.getMonth()]}{item.h ? ` · ${item.h}` : ''}</small></span>
+            <span className="hl-main"><b>{item.n}</b><small>{shortDate(date)}{item.h ? ` · ${item.h}` : ''}</small></span>
             <span className="tag">{inDays(daysLeft(date, today))}</span>
           </div>
         })}</div> : <EmptyState compact icon={<CalendarHeart size={18} strokeWidth={1.5} />} title="Nada marcado" text="Sem dias especiais nos próximos 31 dias." />}

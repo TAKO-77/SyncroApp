@@ -1,47 +1,30 @@
 import { create } from 'zustand'
 import type { AppData } from '../types'
 import { emptyData, parseAppData } from '../lib/schema'
+import { readFlag, readItem, writeItem } from '../lib/storage'
 
 // Data saved before accounts existed, kept under the key of the original HTML version.
 export const LEGACY_KEY = 'wayne'
+const THEME_KEY = 'syncro-theme'
 const SIDEBAR_AUTO_OPEN_KEY = 'syncro-sidebar-auto-open'
 const FOCUS_TIMER_KEY = 'syncro-focus-timer'
 const NOTIFICATIONS_KEY = 'syncro-notifications'
 export const cacheKey = (userId: string) => `syncro-data:${userId}`
 
-function loadSidebarAutoOpen(): boolean {
-  try { return localStorage.getItem(SIDEBAR_AUTO_OPEN_KEY) !== 'false' } catch { return true }
-}
-
-function loadFocusTimer(): boolean {
-  try { return localStorage.getItem(FOCUS_TIMER_KEY) !== 'false' } catch { return true }
-}
-
-function loadNotifications(): boolean {
-  try { return localStorage.getItem(NOTIFICATIONS_KEY) !== 'false' } catch { return true }
-}
-
 export function readData(key: string): AppData | null {
-  try {
-    const raw = localStorage.getItem(key)
-    if (raw) return parseAppData(JSON.parse(raw))
-  } catch { /* dados corrompidos */ }
-  return null
+  const raw = readItem(key)
+  try { return raw ? parseAppData(JSON.parse(raw)) : null } catch { return null }
 }
-const persist = (userId: string | null, d: AppData) => {
-  if (!userId) return
-  try { localStorage.setItem(cacheKey(userId), JSON.stringify(d)) } catch { /* quota */ }
-}
+const persist = (userId: string | null, d: AppData) => { if (userId) writeItem(cacheKey(userId), JSON.stringify(d)) }
 
-type Theme = 'dark' | 'light'
-// Applies the theme to <html> and to the browser/PWA status bar colour (the --bg token of each theme).
-export function applyTheme(theme: Theme) {
+export type Theme = 'dark' | 'light'
+// Sets the theme on <html> and the browser/PWA status bar colour (the --bg token of each theme).
+function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#e9e9e5' : '#0c0d0d')
 }
-function loadTheme(): Theme {
-  try { return localStorage.getItem('syncro-theme') === 'light' ? 'light' : 'dark' } catch { return 'dark' }
-}
+const initialTheme: Theme = readItem(THEME_KEY) === 'light' ? 'light' : 'dark'
+applyTheme(initialTheme)
 
 // Set by the sync engine so local changes are queued for upload.
 let onCommit: (prev: AppData, next: AppData) => void = () => {}
@@ -68,47 +51,39 @@ interface Store {
   undo: () => void
 }
 
-export const useStore = create<Store>((set, get) => ({
-  theme: loadTheme(),
-  setTheme: theme => {
-    try { localStorage.setItem('syncro-theme', theme) } catch { /* armazenamento indisponível */ }
-    set({ theme })
-  },
-  sidebarAutoOpen: loadSidebarAutoOpen(),
-  setSidebarAutoOpen: enabled => {
-    try { localStorage.setItem(SIDEBAR_AUTO_OPEN_KEY, String(enabled)) } catch { /* armazenamento indisponível */ }
-    set({ sidebarAutoOpen: enabled })
-  },
-  focusTimer: loadFocusTimer(),
-  setFocusTimer: enabled => {
-    try { localStorage.setItem(FOCUS_TIMER_KEY, String(enabled)) } catch { /* armazenamento indisponível */ }
-    set({ focusTimer: enabled })
-  },
-  notifications: loadNotifications(),
-  setNotifications: enabled => {
-    try { localStorage.setItem(NOTIFICATIONS_KEY, String(enabled)) } catch { /* armazenamento indisponível */ }
-    set({ notifications: enabled })
-  },
-  userId: null,
-  data: emptyData(),
-  history: [],
-  hydrate: (userId, d) => { persist(userId, d); set({ userId, data: d, history: [] }) },
-  applyRemote: d => { persist(get().userId, d); set({ data: d, history: [] }) },
-  update: fn => {
-    const { data, history, userId } = get()
-    const next = structuredClone(data)
-    fn(next)
-    persist(userId, next)
-    set({ data: next, history: [...history.slice(-29), JSON.stringify(data)] })
-    onCommit(data, next)
-  },
-  replace: d => get().update(x => Object.assign(x, d)),
-  undo: () => {
-    const { history, data, userId } = get()
-    if (!history.length) return
-    const prev = JSON.parse(history[history.length - 1]) as AppData
-    persist(userId, prev)
-    set({ data: prev, history: history.slice(0, -1) })
-    onCommit(data, prev)
-  },
-}))
+export const useStore = create<Store>((set, get) => {
+  const flag = (key: string, field: 'sidebarAutoOpen' | 'focusTimer' | 'notifications') =>
+    (enabled: boolean) => { writeItem(key, String(enabled)); set({ [field]: enabled }) }
+  return {
+    theme: initialTheme,
+    setTheme: theme => { writeItem(THEME_KEY, theme); applyTheme(theme); set({ theme }) },
+    sidebarAutoOpen: readFlag(SIDEBAR_AUTO_OPEN_KEY),
+    setSidebarAutoOpen: flag(SIDEBAR_AUTO_OPEN_KEY, 'sidebarAutoOpen'),
+    focusTimer: readFlag(FOCUS_TIMER_KEY),
+    setFocusTimer: flag(FOCUS_TIMER_KEY, 'focusTimer'),
+    notifications: readFlag(NOTIFICATIONS_KEY),
+    setNotifications: flag(NOTIFICATIONS_KEY, 'notifications'),
+    userId: null,
+    data: emptyData(),
+    history: [],
+    hydrate: (userId, d) => { persist(userId, d); set({ userId, data: d, history: [] }) },
+    applyRemote: d => { persist(get().userId, d); set({ data: d, history: [] }) },
+    update: fn => {
+      const { data, history, userId } = get()
+      const next = structuredClone(data)
+      fn(next)
+      persist(userId, next)
+      set({ data: next, history: [...history.slice(-29), JSON.stringify(data)] })
+      onCommit(data, next)
+    },
+    replace: d => get().update(x => Object.assign(x, d)),
+    undo: () => {
+      const { history, data, userId } = get()
+      if (!history.length) return
+      const prev = JSON.parse(history[history.length - 1]) as AppData
+      persist(userId, prev)
+      set({ data: prev, history: history.slice(0, -1) })
+      onCommit(data, prev)
+    },
+  }
+})

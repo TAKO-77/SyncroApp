@@ -4,7 +4,9 @@ import { DatePicker } from '../../components/DatePicker'
 import { TimePicker } from '../../components/TimePicker'
 import { Select } from '../../components/Select'
 import { Glider } from '../../components/Glider'
-import { LEADS, LEAD_LABELS, leadAvailable, reminderError, toStamp } from '../../lib/reminderItems'
+import { LEADS, LEAD_LABELS, leadAvailable, reminderError } from '../../lib/reminderItems'
+import { toStamp } from '../../lib/dates'
+import { TASK_TITLE_MAX } from '../../lib/tasks'
 import type { ReminderItem, ReminderLead } from '../../types'
 
 export type ReminderFormValues = Pick<ReminderItem, 'title' | 'date' | 'time' | 'repeat' | 'lead' | 'until'>
@@ -27,7 +29,7 @@ export function ReminderForm({ initial, onSave, onDelete, onClose }: { initial: 
   }
   return <Modal title={onDelete ? 'Editar lembrete' : 'Novo lembrete'} onClose={onClose}>
     <form className="fgrid" onSubmit={submit} noValidate>
-      <label className="w">Nome<input value={form.title} maxLength={90} autoFocus={!onDelete} autoComplete="off" onChange={e => set({ title: e.target.value })} /></label>
+      <label className="w">Nome<input value={form.title} maxLength={TASK_TITLE_MAX} autoFocus={!onDelete} autoComplete="off" onChange={e => set({ title: e.target.value })} /></label>
       <div className="w reminder-field" role="group" aria-label="Tipo de aviso"><span>Tipo de aviso</span>
         <div className="seg"><button type="button" aria-pressed={!recurring} onClick={() => set({ repeat: 'none' })}>Normal</button><button type="button" aria-pressed={recurring} onClick={() => { if (!recurring) set({ repeat: 'daily' }) }}>Recorrente</button><Glider /></div>
       </div>

@@ -1,6 +1,6 @@
 import type { Task } from '../types'
 
-// Task deadline rules. Kept free of runtime imports so scripts/test-sync.ts can run it with Node.
+// Task deadline rules.
 
 type Due = Pick<Task, 'due' | 'dueTime'>
 

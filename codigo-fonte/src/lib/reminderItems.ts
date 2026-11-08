@@ -1,8 +1,9 @@
 import type { ReminderItem, ReminderLead } from '../types'
-import type { Reminder } from './reminders'
+import { reminderNoticeId, type Reminder } from './reminders.ts'
+import { addDays, dayIndex, hm, mins } from './dates.ts'
 
 // The user's reminders: their occurrences and whether they are late or concluded. An occurrence is a local
-// 'YYYY-MM-DDTHH:MM' string, so they compare as text. Kept free of runtime imports so scripts/test-sync.ts can run it with Node.
+// 'YYYY-MM-DDTHH:MM' string, so they compare as text.
 
 export const LEAD_MINUTES: Record<Exclude<ReminderLead, ''>, number> = { '1w': 7 * 24 * 60, '1d': 24 * 60, '1h': 60, '10m': 10 }
 export const LEAD_LABELS: Record<ReminderLead, string> = { '': 'Sem aviso prévio', '1w': '1 semana antes', '1d': '1 dia antes', '1h': '1 hora antes', '10m': '10 minutos antes' }
@@ -10,13 +11,8 @@ export const LEADS = Object.keys(LEAD_LABELS) as ReminderLead[]
 
 type Schedule = Pick<ReminderItem, 'date' | 'time' | 'repeat' | 'until'>
 
-const pad = (n: number) => String(n).padStart(2, '0')
-const dayNumber = (day: string) => { const [y, m, d] = day.split('-').map(Number); return Date.UTC(y, m - 1, d) / 864e5 }
-const addDays = (day: string, n: number) => new Date((dayNumber(day) + n) * 864e5).toISOString().slice(0, 10)
 const at = (day: string, time: string) => `${day}T${time}`
 const stepOf = (r: Schedule) => r.repeat === 'daily' ? 1 : 7
-
-export const toStamp = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 
 /** The first occurrence after `after`, or null when none is left. An empty `after` gives the first occurrence. */
 export function occurrenceAfter(r: Schedule, after: string): string | null {
@@ -24,7 +20,7 @@ export function occurrenceAfter(r: Schedule, after: string): string | null {
   if (!after || first > after) return first
   if (r.repeat === 'none') return null
   const step = stepOf(r)
-  let day = addDays(r.date, Math.ceil((dayNumber(after.slice(0, 10)) - dayNumber(r.date)) / step) * step)
+  let day = addDays(r.date, Math.ceil((dayIndex(after.slice(0, 10)) - dayIndex(r.date)) / step) * step)
   if (at(day, r.time) <= after) day = addDays(day, step)
   return r.until && day <= r.until ? at(day, r.time) : null
 }
@@ -35,7 +31,7 @@ export function lastOccurrence(r: Schedule, now: string): string | null {
   if (first > now) return null
   if (r.repeat === 'none') return first
   const step = stepOf(r), limit = r.until && r.until < now.slice(0, 10) ? r.until : now.slice(0, 10)
-  const day = addDays(r.date, Math.floor((dayNumber(limit) - dayNumber(r.date)) / step) * step)
+  const day = addDays(r.date, Math.floor((dayIndex(limit) - dayIndex(r.date)) / step) * step)
   return at(day, r.time) <= now ? at(day, r.time) : at(addDays(day, -step), r.time)
 }
 
@@ -62,6 +58,9 @@ export function concludeReminder(r: ReminderItem, now: string, today: string) {
   r.doneAt = occurrenceAfter(r, current) ? '' : today
 }
 
+/** An empty one-off reminder, to be filled by `applyReminderEdit`. */
+export const newReminder = (id: string): ReminderItem => ({ id, title: '', date: '', time: '', repeat: 'none', lead: '', until: '', doneUntil: '', doneAt: '' })
+
 export function reopenReminder(r: ReminderItem) {
   r.doneUntil = ''
   r.doneAt = ''
@@ -74,13 +73,13 @@ export function leadAvailable(r: Pick<ReminderItem, 'date' | 'time'>, lead: Remi
 }
 
 const leadMoment = (r: Pick<ReminderItem, 'date' | 'time'>, lead: Exclude<ReminderLead, ''>) => {
-  const [hour, minute] = r.time.split(':').map(Number), total = hour * 60 + minute - LEAD_MINUTES[lead]
-  const days = Math.floor(total / 1440), rest = total - days * 1440
-  return at(addDays(r.date, days), `${pad(Math.floor(rest / 60))}:${pad(rest % 60)}`)
+  const total = mins(r.time) - LEAD_MINUTES[lead]
+  const days = Math.floor(total / 1440)
+  return at(addDays(r.date, days), hm(total - days * 1440))
 }
 
 const LATE_LIMIT_MINUTES = 60
-const stampMinutes = (s: string) => dayNumber(s.slice(0, 10)) * 1440 + Number(s.slice(11, 13)) * 60 + Number(s.slice(14, 16))
+const stampMinutes = (s: string) => dayIndex(s.slice(0, 10)) * 1440 + mins(s.slice(11, 16))
 
 /**
  * Notifications whose moment fell after `since` and up to `now`, both as stamps. Each one fires once, and after a gap
@@ -92,7 +91,7 @@ export function reminderAlertsBetween(items: ReminderItem[], since: string, now:
   const fresh = (moment: string) => moment > since && moment <= now && nowMinutes - stampMinutes(moment) <= LATE_LIMIT_MINUTES
   const out: Reminder[] = []
   for (const r of items) {
-    const alert = (kind: Reminder['kind'], occurrence: string) => out.push({ taskId: `reminder:${r.id}`, kind, title: r.title, time: occurrence.slice(11) })
+    const alert = (kind: Reminder['kind'], occurrence: string) => out.push({ taskId: reminderNoticeId(r.id), kind, title: r.title, time: occurrence.slice(11) })
     const last = lastOccurrence(r, now)
     if (last && last > r.doneUntil && fresh(last)) alert('at', last)
     if (r.repeat === 'none' && r.lead) {

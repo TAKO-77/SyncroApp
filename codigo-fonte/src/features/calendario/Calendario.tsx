@@ -1,12 +1,12 @@
 import { PALETTE } from '../../lib/palette'
 import { useState, type FormEvent } from 'react'
 import { useStore } from '../../store/useStore'
-import { DN, dow, iso, parse } from '../../lib/dates'
-import { Modal, todayIso, uid, useArrowKeys } from '../../components/common'
+import { DN, addMonths, iso, monthGrid, parse, todayIso } from '../../lib/dates'
+import { Modal, uid, useArrowKeys } from '../../components/common'
 import { CategoryManager } from '../../components/CategoryManager'
 import { DayIcon } from '../../components/DayIcon'
 import type { SpecialDay } from '../../types'
-import { daysLeft, upcomingSpecialDays } from '../../lib/specialDays'
+import { daysLeft, specialDaysOn, upcomingSpecialDays } from '../../lib/specialDays'
 import { DatePicker } from '../../components/DatePicker'
 import { TimePicker } from '../../components/TimePicker'
 
@@ -20,10 +20,9 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
   const [f, setF] = useState<F | null>(null)
   const [cm, setCm] = useState(false)
   const sdT = (x: SpecialDay) => data.dayCats.find(t => t.id === x.ty) ?? NO_CAT
-  const first = parse(m), dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate(), rows = Math.ceil((dow(first) + dim) / 7)
-  const sdOn = (ds: string) => data.days.filter(x => x.y ? ds >= x.s && ds.slice(5) === x.s.slice(5) : ds >= x.s && ds <= (x.e || x.s)).sort((a, b) => (a.h || '99').localeCompare(b.h || '99'))
+  const first = parse(m), cells = monthGrid(m.slice(0, 7)).map(parse), rows = cells.length / 7
   const upcoming = upcomingSpecialDays(data.days, today)
-  const shift = (k: number) => { const d = new Date(first); d.setMonth(d.getMonth() + k); setM(iso(d)) }
+  const shift = (k: number) => setM(addMonths(m, k))
   useArrowKeys(shift)
   const blank = (): F => ({ n: '', ty: data.dayCats.some(t => t.id === 'evento') ? 'evento' : data.dayCats[0]?.id ?? '', s: m.slice(0, 7) === today.slice(0, 7) ? today : m, e: '', h: '', o: '', y: false })
   const save = (ev: FormEvent) => {
@@ -33,7 +32,6 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
     update(d => { if (f.id) { const b = d.days.find(x => x.id === f.id); if (b) Object.assign(b, o) } else d.days.push({ ...o, id: uid('d') }) })
     setM(o.s.slice(0, 8) + '01'); setF(null)
   }
-  const cells = Array.from({ length: rows * 7 }, (_, i) => { const d = new Date(first); d.setDate(1 - dow(first) + i); return d })
   return <section className="page calendar-page">
     <div className="bar">
       <button className="btn sq" onClick={() => shift(-1)} aria-label="Mês anterior">‹</button>
@@ -55,7 +53,7 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
     </section>
     <div className="mg" style={{ gridTemplateRows: `auto repeat(${rows}, minmax(0, 1fr))` }}>
       {DN.map(d => <div key={d} className="mh">{d}</div>)}
-      {cells.map(d => { const ds = iso(d), sds = sdOn(ds)
+      {cells.map(d => { const ds = iso(d), sds = specialDaysOn(data.days, ds)
         return <div key={ds} className={'mc' + (d.getMonth() !== first.getMonth() ? ' out' : '') + (ds === today ? ' td' : '')} onClick={() => onOpenDay(ds)}>
           <span className="mn">{d.getDate()}</span>
           {sds.map(x => { const t = sdT(x); return <i key={x.id} className="sdp" style={{ ['--c' as string]: t.color }} onClick={e => { e.stopPropagation(); setF({ ...x }) }}><DayIcon icon={t.icon} size={12} />{x.n}</i> })}

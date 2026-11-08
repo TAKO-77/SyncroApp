@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useStore } from '../../store/useStore'
-import { dow, fmt, mins, parse } from '../../lib/dates'
+import { dow, fmt, parse, spanMinutes } from '../../lib/dates'
 import { sleepSchedule, sleepTargetDays, sleepWeek } from '../../lib/sleep'
 import { Modal } from '../../components/common'
 import { TimePicker } from '../../components/TimePicker'
@@ -29,7 +29,7 @@ export function SleepWindow({ ds, onClose }: { ds: string; onClose: () => void }
     <form className="fgrid" onSubmit={save}>
       <label>Início<TimePicker required value={bed} onChange={value => change('bed', value)} /></label>
       <label>Fim<TimePicker required value={wake} onChange={value => change('wake', value)} /></label>
-      {bed !== wake && <p className="w mu">Neste dia, dormes das {bed} às {wake}, ({fmt((mins(wake) - mins(bed) + 1440) % 1440)}).</p>}
+      {bed !== wake && <p className="w mu">Neste dia, dormes das {bed} às {wake}, ({fmt(spanMinutes(bed, wake))}).</p>}
       <label className="w ck"><input type="checkbox" checked={all} onChange={e => setAll(e.target.checked)} /> Todos os dias</label>
       {day < 5
         ? <label className="w ck"><input type="checkbox" checked={all || week} disabled={all} onChange={e => setWeek(e.target.checked)} /> Restantes dias da semana</label>

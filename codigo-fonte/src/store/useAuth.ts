@@ -3,8 +3,9 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from '../lib/supabase'
 import { cacheKey } from './useStore'
 import { disablePush } from '../lib/push'
+import { readItem, readJson, removeItem, writeJson } from '../lib/storage'
 
-export interface AuthUser { id: string; email: string }
+interface AuthUser { id: string; email: string }
 interface AuthState {
   ready: boolean
   user: AuthUser | null
@@ -17,13 +18,11 @@ export const useAuth = create<AuthState>(() => ({ ready: !supabaseConfigured, us
 
 const toUser = (s: Session | null): AuthUser | null => s?.user ? { id: s.user.id, email: s.user.email ?? '' } : null
 function remember(user: AuthUser | null) {
-  try { if (user) localStorage.setItem(LAST_USER_KEY, JSON.stringify(user)); else localStorage.removeItem(LAST_USER_KEY) } catch { /* armazenamento indisponível */ }
+  if (user) writeJson(LAST_USER_KEY, user); else removeItem(LAST_USER_KEY)
 }
 function lastUserWithCache(): AuthUser | null {
-  try {
-    const user = JSON.parse(localStorage.getItem(LAST_USER_KEY) ?? 'null') as AuthUser | null
-    return user && localStorage.getItem(cacheKey(user.id)) ? user : null
-  } catch { return null }
+  const user = readJson<AuthUser | null>(LAST_USER_KEY, null)
+  return user && readItem(cacheKey(user.id)) ? user : null
 }
 
 let started = false

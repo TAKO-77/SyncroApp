@@ -3,7 +3,6 @@ import { hideSplash, showSplash, splashLanded } from '../../lib/splash'
 import { supabaseConfigured } from '../../lib/supabase'
 import { startSync, stopSync, type LegacyChoice } from '../../lib/sync/engine'
 import { initAuth, signOut, useAuth } from '../../store/useAuth'
-import { applyTheme, useStore } from '../../store/useStore'
 import { AuthScreen } from './AuthScreen'
 import { confirmDialog } from '../../store/confirm'
 
@@ -16,11 +15,9 @@ function Notice({ title, children }: { title: string; children?: ReactNode }) {
 /** Shows the sign-in screen until there is a user, then loads that user's data before rendering the app. */
 export function AccountGate({ children }: { children: ReactNode }) {
   const { ready, user } = useAuth()
-  const theme = useStore(s => s.theme)
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
   const [attempt, setAttempt] = useState(0)
   useEffect(() => { initAuth() }, [])
-  useEffect(() => applyTheme(theme), [theme])
   useEffect(() => {
     if (!user) return
     let active = true

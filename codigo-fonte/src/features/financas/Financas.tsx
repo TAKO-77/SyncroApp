@@ -1,9 +1,10 @@
-import { FIN_CATS, PALETTE, finCat } from '../../lib/palette'
-import { eur, monthTotals, activeIn, overallBalance, ymAdd } from '../../lib/finance'
+import { FIN_CATS, finCat } from '../../lib/palette'
+import { eur, monthTotals, activeIn, overallBalance, recentMonths, spendByCategory } from '../../lib/finance'
 import { useState, type FormEvent } from 'react'
 import { useStore } from '../../store/useStore'
-import { MN, parse } from '../../lib/dates'
-import { Modal, todayIso, uid, useArrowKeys } from '../../components/common'
+import { shortDate, todayIso, ymAdd } from '../../lib/dates'
+import { Modal, uid, useArrowKeys } from '../../components/common'
+import { IN_COLOR, MonthTip, OUT_COLOR, monthShort } from '../../components/MonthTip'
 import { Donut } from '../../components/Donut'
 import type { Finance } from '../../types'
 import { DatePicker, MonthPicker } from '../../components/DatePicker'
@@ -23,13 +24,12 @@ export function Financas() {
   useArrowKeys(step => setYm(ymAdd(ym, step)))
   const T = monthTotals(data.fin, ym), bal = T.i - T.o
   const overall = overallBalance(data.fin, todayIso().slice(0, 7))
-  const months = Array.from({ length: 6 }, (_, k) => ymAdd(ym, k - 5)).map(q => ({ q, ...monthTotals(data.fin, q) }))
-  const mx = Math.max(1, ...months.flatMap(x => [x.i, x.o]))
-  const cats = FIN_CATS.map(c => ({ ...c, v: T.cat[c.id] ?? 0 })).filter(c => c.v > 0).sort((a, b) => b.v - a.v)
+  const { months, max: mx } = recentMonths(data.fin, ym)
+  const cats = spendByCategory(T)
   const rows = data.fin.filter(e => activeIn(e, ym))
   const row = (e: Finance) => <div key={e.id} className="fr" onClick={() => setF({ id: e.id, t: e.t, k: e.k, n: e.n, a: String(e.a), date: e.date, end: e.end, c: e.c || 'alim' })}>
-    <i className="pd" style={{ ['--c' as string]: e.t === 'in' ? PALETTE.sage : finCat(e.c).color }} /><span className="fn">{e.n}</span>
-    <small className="mu">{e.t === 'in' ? 'Ganho' : finCat(e.c).name}{e.k === 'one' ? ` · ${parse(e.date).getDate()} ${MN[parse(e.date).getMonth()]}` : ''}</small>
+    <i className="pd" style={{ ['--c' as string]: e.t === 'in' ? IN_COLOR : finCat(e.c).color }} /><span className="fn">{e.n}</span>
+    <small className="mu">{e.t === 'in' ? 'Ganho' : finCat(e.c).name}{e.k === 'one' ? ` · ${shortDate(e.date)}` : ''}</small>
     <b className={e.t}>{e.t === 'in' ? '+' : '−'}{eur(e.a)}</b></div>
   const sorted = (k: 'rec' | 'one') => rows.filter(e => e.k === k).sort((a, b) => (a.t === b.t ? 0 : a.t === 'in' ? -1 : 1) || b.a - a.a)
   const open = (e?: F) => setF(e ?? { t: 'out', k: 'one', n: '', a: '', date: ym === todayIso().slice(0, 7) ? todayIso() : ym + '-01', end: '', c: 'alim' })
@@ -59,9 +59,9 @@ export function Financas() {
           <div className="fc"><span className="fl">Ganhos</span><b className="fv"><CountUp value={T.i} format={eur} /></b></div>
           <div className="fc"><span className="fl">Despesas</span><b className="fv"><CountUp value={T.o} format={eur} /></b></div></div>
         <div className="fc"><span className="fl">Evolução · últimos 6 meses</span>
-          <div className="evo">{months.map((x, k) => <button key={x.q} className="evc" aria-pressed={x.q === ym} onClick={() => setYm(x.q)} aria-label={`${MN[+x.q.slice(5) - 1]}: ganhos ${eur(x.i)}, despesas ${eur(x.o)}`} style={{ ['--i' as string]: k }}>
-            <span className="ctip"><b>{MN[+x.q.slice(5) - 1]}</b><span><i style={{ background: PALETTE.sage }} />Ganhos {eur(x.i)}</span><span><i style={{ background: PALETTE.clay }} />Despesas {eur(x.o)}</span><span className={x.i - x.o < 0 ? 'neg' : ''}>Saldo {eur(x.i - x.o)}</span></span>
-            <span className="bars"><i style={{ height: `${x.i / mx * 100}%`, background: PALETTE.sage }} /><i style={{ height: `${x.o / mx * 100}%`, background: PALETTE.clay }} /></span><small>{MN[+x.q.slice(5) - 1]}</small></button>)}</div></div>
+          <div className="evo">{months.map((x, k) => <button key={x.q} className="evc" aria-pressed={x.q === ym} onClick={() => setYm(x.q)} aria-label={`${monthShort(x.q)}: ganhos ${eur(x.i)}, despesas ${eur(x.o)}`} style={{ ['--i' as string]: k }}>
+            <MonthTip month={x} balance />
+            <span className="bars"><i style={{ height: `${x.i / mx * 100}%`, background: IN_COLOR }} /><i style={{ height: `${x.o / mx * 100}%`, background: OUT_COLOR }} /></span><small>{monthShort(x.q)}</small></button>)}</div></div>
         <div className="fg2">
           <div className="fc"><span className="fl">Despesas por categoria</span>{cats.length ? <Donut rows={cats.map(c => ({ id: c.id, name: c.name, color: c.color, v: c.v }))} P={T.o} fv={eur} center={eur(T.o)} label="total" /> : <p className="mu">Sem despesas neste mês.</p>}</div>
           <div className="fc"><span className="fl">Para onde vai o dinheiro</span>

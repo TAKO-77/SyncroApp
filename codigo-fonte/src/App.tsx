@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Bell, CalendarDays, CalendarClock, House, ListTodo, Wallet, UserRound, PanelLeft, Plus, Settings } from 'lucide-react'
 import { Inicio, TodaySummary } from './features/inicio/Inicio'
-import { DN, MN, dow } from './lib/dates'
+import { DN, MN, dow, todayIso } from './lib/dates'
 import { Agenda, type AgendaView } from './features/agenda/Agenda'
 import { Calendario } from './features/calendario/Calendario'
 import { Tarefas } from './features/tarefas/Tarefas'
@@ -13,8 +13,8 @@ import { Foco } from './features/foco/Foco'
 import { ProfileButton } from './features/perfil/ProfileButton'
 import { QuickAdd } from './components/QuickAdd'
 import { Toast } from './components/Toast'
-import { applyTheme, useStore } from './store/useStore'
-import { LogoFilter, todayIso, useIsPhone, useNow, useArrowScroll } from './components/common'
+import { useStore } from './store/useStore'
+import { LogoFilter, useIsPhone, useNow, useArrowScroll } from './components/common'
 import { SwipePager } from './components/SwipePager'
 import { cleanUpNoteImages } from './lib/noteImages'
 import { purgeExpired } from './lib/cleanup'
@@ -36,7 +36,7 @@ export default function App() {
   const [workspaceId, setWorkspaceId] = useState('geral')
   const [qa, setQa] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { data, sidebarAutoOpen, focusTimer, theme } = useStore()
+  const { data, sidebarAutoOpen, focusTimer } = useStore()
   const phone = useIsPhone()
   const schedule = sec === 'agenda' || sec === 'calendario'
   const taskGroup = sec === 'tarefas' || sec === 'lembretes'
@@ -44,9 +44,7 @@ export default function App() {
   const navSections = SECTIONS.filter(s => s.id !== 'definicoes' && s.id !== 'perfil' && !(phone && (s.id === 'calendario' || s.id === 'lembretes')))
   const isCurrent = (id: Id) => sec === id || (phone && ((id === 'agenda' && schedule) || (id === 'tarefas' && taskGroup)))
   useEffect(() => { setSidebarOpen(false) }, [sidebarAutoOpen])
-  useEffect(() => applyTheme(theme), [theme])
   useEffect(() => {
-    // Removes old completed tasks and past one-off events at start-up and then every hour.
     const purge = () => {
       const { data: current, update: commit } = useStore.getState(), today = todayIso()
       if (purgeExpired(structuredClone(current), today)) commit(d => { purgeExpired(d, today) })

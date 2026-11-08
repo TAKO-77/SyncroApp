@@ -1,13 +1,17 @@
 import type { SpecialDay } from '../types'
+import { addDays, dayIndex } from './dates.ts'
 
-// Upcoming special days shared by Calendário and Início. Kept free of runtime imports so scripts/test-sync.ts can run it with Node.
-
-const DAY = 86400000
-const utc = (ds: string) => Date.UTC(+ds.slice(0, 4), +ds.slice(5, 7) - 1, +ds.slice(8, 10))
-const addDays = (ds: string, n: number) => new Date(utc(ds) + n * DAY).toISOString().slice(0, 10)
+// Special days shared by Agenda, Calendário and Início.
 
 /** Whole days from `today` until `date` (both `YYYY-MM-DD`). */
-export const daysLeft = (date: string, today: string) => Math.round((utc(date) - utc(today)) / DAY)
+export const daysLeft = (date: string, today: string) => dayIndex(date) - dayIndex(today)
+
+const byTime = (a: SpecialDay, b: SpecialDay) => (a.h || '99').localeCompare(b.h || '99')
+
+/** The special days that fall on `day`, earliest time first. */
+export const specialDaysOn = (days: SpecialDay[], day: string) => days
+  .filter(x => x.y ? day >= x.s && day.slice(5) === x.s.slice(5) : day >= x.s && day <= (x.e || x.s))
+  .sort(byTime)
 
 /** Special days in the next `horizon` days with the date each one next falls on, soonest first. */
 export function upcomingSpecialDays(days: SpecialDay[], today: string, horizon = 31): { item: SpecialDay; date: string }[] {
@@ -23,5 +27,5 @@ export function upcomingSpecialDays(days: SpecialDay[], today: string, horizon =
     const last = item.e || item.s
     if (last < today || item.s > end) return []
     return [{ item, date: item.s < today ? today : item.s }]
-  }).sort((a, b) => a.date.localeCompare(b.date) || (a.item.h || '99').localeCompare(b.item.h || '99'))
+  }).sort((a, b) => a.date.localeCompare(b.date) || byTime(a.item, b.item))
 }

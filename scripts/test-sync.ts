@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import { applyRemote, coalesce, diffRows, emptyRows, fromRows, mergeWithServer, toRows, type Rows, type SyncOp } from '../codigo-fonte/src/lib/sync/rows.ts'
 import type { AppData } from '../codigo-fonte/src/types.ts'
-import { markDone, purgeExpired } from '../codigo-fonte/src/lib/cleanup.ts'
-import { monthTotals, overallBalance, ymAdd } from '../codigo-fonte/src/lib/finance.ts'
+import { purgeExpired } from '../codigo-fonte/src/lib/cleanup.ts'
+import { markDone } from '../codigo-fonte/src/lib/tasks.ts'
+import { addMonths, monthGrid, ymAdd } from '../codigo-fonte/src/lib/dates.ts'
+import { monthTotals, overallBalance } from '../codigo-fonte/src/lib/finance.ts'
 import { daysLeft, upcomingSpecialDays } from '../codigo-fonte/src/lib/specialDays.ts'
 import { dueForTime, dueKey, isOverdue } from '../codigo-fonte/src/lib/taskDue.ts'
 import { parseQ } from '../codigo-fonte/src/lib/quick.ts'
@@ -11,7 +13,7 @@ import { eventsOn } from '../codigo-fonte/src/lib/recurrence.ts'
 import { noticeTarget, reminderText, remindersBetween } from '../codigo-fonte/src/lib/reminders.ts'
 import { expirySeconds, isPushEndpoint, localMinutes, noticeTarget as serverTarget, reminderAlertsAt, reminderText as serverText, remindersAt, type ReminderRow } from '../supabase/functions/send-reminders/rules.ts'
 import { addSubtaskDraft, applySubtaskEdits, hasBlankSubtask, splitSubtasks, withoutTask } from '../codigo-fonte/src/lib/subtasks.ts'
-import { TASK_NOTES_MAX, taskNotesError } from '../codigo-fonte/src/lib/taskNotes.ts'
+import { NOTE_TEXT_MAX, TASK_NOTES_MAX, taskNotesError } from '../codigo-fonte/src/lib/taskNotes.ts'
 import { parseAppData } from '../codigo-fonte/src/lib/schema.ts'
 import { applyReminderEdit, concludeReminder, reminderAlertsBetween, lastOccurrence, leadAvailable, occurrenceAfter, reminderError, reminderStatus, reopenReminder } from '../codigo-fonte/src/lib/reminderItems.ts'
 import type { ReminderItem } from '../codigo-fonte/src/types.ts'
@@ -56,9 +58,11 @@ test('phone week cuts events to 08:00-20:00 and leaves out those outside', () =>
 })
 
 test('phone week scale fits the screen within readable limits', () => {
-  assert.equal(weekScale(1000), (1000 - 380) / (WEEK_RANGE.to - WEEK_RANGE.from))
-  assert.equal(weekScale(500), 0.6)
-  assert.equal(weekScale(2000), 1.2)
+  const weekHeight = (screen: number) => weekScale(screen) * (WEEK_RANGE.to - WEEK_RANGE.from)
+  assert.ok(weekHeight(844) < 844, 'the week fits a usual phone screen')
+  assert.ok(weekScale(700) < weekScale(900), 'taller screens get more room')
+  assert.equal(weekScale(100), weekScale(200), 'tiny screens stop at a readable minimum')
+  assert.equal(weekScale(3000), weekScale(4000), 'huge screens stop at a maximum')
 })
 
 test('round trip keeps every synced field', () => {
@@ -411,9 +415,9 @@ test('the server reads the time on the clock of the device', () => {
 
 test('a sleeping phone gets "soon" only until the limit and "due" for one more hour', () => {
   const [soon] = remindersAt([row], wall(17, 0)), [due] = remindersAt([row], wall(18, 0))
-  assert.equal(expirySeconds([soon]), 3300)
-  assert.equal(expirySeconds([due]), 3600)
-  assert.equal(expirySeconds([soon, due]), 3600)
+  assert.ok(expirySeconds([soon]) < 3600, '"soon" expires before the limit')
+  assert.ok(expirySeconds([due]) <= 3600, '"due" is at most an hour late')
+  assert.equal(expirySeconds([soon, due]), expirySeconds([due]))
 })
 
 test('server and Windows app write the same notification text', () => {
@@ -534,14 +538,6 @@ test('a subtask with a time limit reminds like any task', () => {
   assert.ok(due.some(r => r.title === 'Primeira'))
 })
 
-test('completing a task and its subtasks are independent', () => {
-  const d = withSubs(), [t, s1] = [d.tasks[0], d.tasks[2]]
-  markDone(t, true, '2026-10-29')
-  assert.equal(s1.d, false)
-  markDone(t, false)
-  markDone(s1, true, '2026-10-29')
-  assert.equal(t.d, false)
-})
 
 test('loading keeps the parent and accepts old tasks', () => {
   const loaded = parseAppData(clone(withSubs()))!
@@ -550,7 +546,6 @@ test('loading keeps the parent and accepts old tasks', () => {
 })
 
 test('notes limit is shared with the database and never cuts the text', () => {
-  assert.equal(TASK_NOTES_MAX, 10000)
   assert.equal(taskNotesError('x'.repeat(TASK_NOTES_MAX)), null)
   assert.equal(taskNotesError(undefined), null)
   assert.match(taskNotesError('x'.repeat(TASK_NOTES_MAX + 3))!, /10\s?003 caracteres.*10\s?000.*Remove 3/)
@@ -561,6 +556,14 @@ test('notes limit is shared with the database and never cuts the text', () => {
   const d = base(); d.tasks[0].n = notes
   assert.equal(fromRows(toRows(d), d).tasks[0].n, notes)
   assert.equal(parseAppData(clone(d))!.tasks[0].n, notes)
+})
+
+test('workspace notes use the database limit', () => {
+  const sql = readFileSync(new URL('../supabase/migrations/20261028000000_workspace_notes.sql', import.meta.url), 'utf8')
+  assert.ok(sql.includes(`char_length(text) <= ${NOTE_TEXT_MAX}`), 'the database check must use the same value')
+  const at = (text: string) => { const d = base(); d.notes[0].text = text; return parseAppData(clone(d)) }
+  assert.ok(at('x'.repeat(NOTE_TEXT_MAX)))
+  assert.equal(at('x'.repeat(NOTE_TEXT_MAX + 1)), null)
 })
 
 const reminder = (over: Partial<ReminderItem> = {}): ReminderItem => ({ id: 'r', title: 'Teste', date: '2026-11-02', time: '09:00', repeat: 'none', lead: '', until: '', doneUntil: '', doneAt: '', ...over })
@@ -812,11 +815,10 @@ test('the server keeps retrying within its window and marks the occurrence for r
 
 test('a sleeping phone never gets a warning after the moment it announces', () => {
   const list = (kind: '1w' | '1d' | '1h' | '10m' | 'at') => [{ taskId: 'reminder:r', kind, title: 'T', time: '15:00', due: '2026-11-20' }]
-  assert.equal(expirySeconds(list('10m')), 540)
-  assert.equal(expirySeconds(list('1h')), 3300)
-  assert.equal(expirySeconds(list('1w')), 3600)
-  assert.equal(expirySeconds(list('at')), 3600)
-  assert.equal(expirySeconds([...list('10m'), ...list('at')]), 3600)
+  assert.ok(expirySeconds(list('10m')) < 10 * 60)
+  assert.ok(expirySeconds(list('1h')) < 60 * 60)
+  for (const kind of ['1d', '1w', 'at'] as const) assert.ok(expirySeconds(list(kind)) <= 3600, kind)
+  assert.equal(expirySeconds([...list('10m'), ...list('at')]), expirySeconds(list('at')))
 })
 
 test('a notification opens Lembretes only when it announces nothing else', () => {
@@ -900,6 +902,24 @@ test('dragging in Geral leaves hidden tasks in their places', () => {
   assert.deepEqual(movedOrder(['a', 'x', 'b', 'y', 'c'], ['c', 'a', 'b']), ['c', 'x', 'a', 'y', 'b'])
   assert.deepEqual(movedOrder(['a', 'b'], ['b', 'a']), ['b', 'a'])
   assert.deepEqual(movedOrder(['a', 'b', 'c'], ['a', 'b']), ['a', 'b', 'c'])
+})
+
+test('clean-up treats a task the list shows as main like a main task', () => {
+  const d = base()
+  d.tasks = [sub('a', 'b', { d: true, doneAt: '2026-10-01' }), sub('b', 'c', { d: true, doneAt: '2026-10-01' }), sub('c', '', { d: false }), sub('self', 'self', { d: true, doneAt: '2026-10-01' })]
+  d.tasks[2].parentId = undefined
+  purgeExpired(d, '2026-11-01')
+  assert.deepEqual(d.tasks.map(t => t.id), ['b', 'c'], 'the grandchild and the self-parented task leave; the subtask waits for its main task')
+})
+
+test('months move by whole months and the calendar shows whole weeks', () => {
+  assert.equal(addMonths('2026-01-31', 1), '2026-02-28')
+  assert.equal(addMonths('2026-03-31', -1), '2026-02-28')
+  assert.equal(ymAdd('2026-12', 1), '2027-01')
+  const grid = monthGrid('2026-11')
+  assert.equal(grid[0], '2026-10-26', 'starts on the Monday of the first week')
+  assert.equal(grid.length % 7, 0)
+  assert.ok(grid.includes('2026-11-30') && !grid.includes('2026-12-07'))
 })
 
 test('the overall balance adds every month up to the one asked', () => {

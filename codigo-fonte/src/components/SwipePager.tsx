@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, type MouseEvent, type ReactNode, type TouchEvent } from 'react'
+import { reducedMotion } from '../lib/media'
 
 const SLIDE_MS = 280
 const LOCK_PX = 8
@@ -46,7 +47,7 @@ export function SwipePager({ page, onChange, pages }: { page: number; onChange: 
     stopSliding()
     const from = el.scrollLeft, to = target * step()
     if (from === to) return
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.scrollLeft = to; return }
+    if (reducedMotion()) { el.scrollLeft = to; return }
     slidingTo.current = target
     const start = performance.now()
     const tick = (now: number) => {

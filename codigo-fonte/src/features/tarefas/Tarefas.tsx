@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as RPE } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { useStore } from '../../store/useStore'
-import { Modal, todayIso, uid, useIsPhone, useNow } from '../../components/common'
+import { Modal, uid, useIsPhone, useNow } from '../../components/common'
+import { useCompletion } from '../../components/useCompletion'
 import type { Effort, Priority, Task } from '../../types'
 import { NoteCard } from './NoteCard'
 import { NoteGrid } from './NoteGrid'
@@ -13,29 +14,24 @@ import { DatePicker } from '../../components/DatePicker'
 import { TimePicker } from '../../components/TimePicker'
 import { confirmDialog } from '../../store/confirm'
 import { Select } from '../../components/Select'
-import { markDone } from '../../lib/cleanup'
-import { LK, LV, PC, PN, dueLabel } from '../../lib/tasks'
-import { dueForTime, dueKey } from '../../lib/taskDue'
-import { hm } from '../../lib/dates'
+import { LK, LV, PC, PN, PRIORITIES, TASK_TITLE_MAX, dueLabel, markDone, newTask, nextPriority } from '../../lib/tasks'
+import { dueForTime } from '../../lib/taskDue'
+import { hm, minuteOfDay, todayIso } from '../../lib/dates'
+import { readItem, writeJson } from '../../lib/storage'
 import { Glider } from '../../components/Glider'
-import { movedOrder, orderByIds, parseOrder, parseSort, parseSortMap, withSort, withoutSort, type SortBy, type SortMap } from '../../lib/taskSort'
+import { movedOrder, orderByIds, parseOrder, parseSort, parseSortMap, reorderTasks, sortTasks, withSort, withoutSort, type SortBy, type SortMap } from '../../lib/taskSort'
 
-const NX: Record<Priority, Priority> = { urgente: 'alta', alta: 'media', media: 'baixa', baixa: 'urgente' }
 const SORT_KEY = 'syncro-task-sort'
 const WORKSPACE_SORT_KEY = 'syncro-task-sort-by-workspace'
 const GERAL_ORDER_KEY = 'syncro-task-order-geral'
-const COMPLETE_MS = 1300
-const PRIORITIES: Priority[] = ['urgente', 'alta', 'media', 'baixa']
 const PRIORITY_OPTIONS = PRIORITIES.map(k => ({ value: k, label: PN[k], color: PC[k] }))
 const EFFORT_OPTIONS: { value: Effort | ''; label: string; hint?: string; color?: string }[] = [{ value: '', label: 'Sem definir' }, ...LK.map(k => ({ value: k, label: LV[k].n, hint: LV[k].t, color: LV[k].c }))]
 const BURST = Array.from({ length: 10 }, (_, i) => i * 36)
-const readStored = (key: string) => { try { return localStorage.getItem(key) } catch { return null } }
-const writeStored = (key: string, value: string) => { try { localStorage.setItem(key, value) } catch { /* armazenamento indisponível */ } }
 
 export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; setWorkspaceId: (id: string) => void }) {
   const { data, update } = useStore()
   const phone = useIsPhone()
-  const now = useNow(), today = todayIso(), nowTime = hm(now.getHours() * 60 + now.getMinutes())
+  const now = useNow(), today = todayIso(), nowTime = hm(minuteOfDay(now))
   const [open, setOpen] = useState(true)
   const newTaskInput = useRef<HTMLInputElement>(null)
   const [txt, setTxt] = useState(''); const [p, setP] = useState<Priority>('media'); const [du, setDu] = useState(''); const [duTime, setDuTime] = useState(''); const [effort, setEffort] = useState<Effort | ''>('')
@@ -71,30 +67,18 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
   const toggleExpanded = (id: string) => setExpanded(list => list.includes(id) ? list.filter(x => x !== id) : [...list, id])
   const [workspaceMenu, setWorkspaceMenu] = useState(false)
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
-  const [sorts, setSorts] = useState<SortMap>(() => parseSortMap(readStored(WORKSPACE_SORT_KEY)))
-  const [oldSort] = useState<SortBy>(() => parseSort(readStored(SORT_KEY)))
-  useEffect(() => writeStored(WORKSPACE_SORT_KEY, JSON.stringify(sorts)), [sorts])
+  const [sorts, setSorts] = useState<SortMap>(() => parseSortMap(readItem(WORKSPACE_SORT_KEY)))
+  const [oldSort] = useState<SortBy>(() => parseSort(readItem(SORT_KEY)))
+  useEffect(() => writeJson(WORKSPACE_SORT_KEY, sorts), [sorts])
   // Geral shows every workspace, so its custom order is kept apart from the order of data.tasks.
-  const [geralOrder, setGeralOrder] = useState<string[] | null>(() => parseOrder(readStored(GERAL_ORDER_KEY)))
-  useEffect(() => { if (geralOrder) writeStored(GERAL_ORDER_KEY, JSON.stringify(geralOrder)) }, [geralOrder])
+  const [geralOrder, setGeralOrder] = useState<string[] | null>(() => parseOrder(readItem(GERAL_ORDER_KEY)))
+  useEffect(() => { if (geralOrder) writeJson(GERAL_ORDER_KEY, geralOrder) }, [geralOrder])
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   // Tasks being ticked off play the completion animation before they leave the pending list.
-  const [completing, setCompleting] = useState<string[]>([])
-  const completionTimers = useRef(new Map<string, number>())
-  useEffect(() => () => completionTimers.current.forEach(clearTimeout), [])
+  const { completing, start: startCompletion, cancel: cancelCompletion } = useCompletion(id => patch(id, x => markDone(x, true)))
   const toggleDone = (id: string, done: boolean) => {
-    const timers = completionTimers.current
-    if (!done || !open) {
-      if (timers.has(id)) { clearTimeout(timers.get(id)); timers.delete(id); setCompleting(c => c.filter(x => x !== id)); return }
-      patch(id, x => markDone(x, done)); return
-    }
-    // Rows differ in height on phones, so the collapse animation starts from this row's own height.
-    const completingRow = listRef.current?.querySelector<HTMLElement>(`[data-id="${id}"]`)
-    completingRow?.style.setProperty('--tk-h', `${completingRow.offsetHeight}px`)
-    setCompleting(c => [...c, id])
-    timers.set(id, window.setTimeout(() => {
-      timers.delete(id); setCompleting(c => c.filter(x => x !== id)); patch(id, x => markDone(x, true))
-    }, COMPLETE_MS))
+    if (!done || !open) { if (!cancelCompletion(id)) patch(id, x => markDone(x, done)); return }
+    startCompletion(id, listRef.current?.querySelector<HTMLElement>(`[data-id="${id}"]`))
   }
   const listRef = useRef<HTMLDivElement>(null)
   const dragStart = (e: RPE, id: string) => {
@@ -127,7 +111,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
       else {
         // Geral keeps the order it shows now when another workspace changes data.tasks.
         if (inMainList && !geralOrder) setGeralOrder(main.map(t => t.id))
-        update(d => { const slots: number[] = []; d.tasks.forEach((t, k) => { if (ids.includes(t.id)) slots.push(k) }); const by = Object.fromEntries(d.tasks.map(t => [t.id, t])); slots.forEach((k, j) => { d.tasks[k] = by[ids[j]] }) })
+        update(d => { d.tasks = reorderTasks(d.tasks, ids) })
       }
       // The stored order now matches what the user arranged, so keep showing it.
       if (inMainList) setSort('custom')
@@ -142,12 +126,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
   const notes = data.notes.filter(n => n.workspaceId === activeWorkspaceId)
   const scoped = workspace?.id === 'geral' ? main : main.filter(t => (t.workspaceId ?? 'geral') === workspace?.id)
   const nOpen = scoped.filter(t => !t.d).length
-  const list = (sortBy === 'custom' && activeWorkspaceId === 'geral' && geralOrder ? orderByIds(scoped, geralOrder) : scoped).filter(t => open ? !t.d : t.d).map((task, index) => ({ task, index })).sort((a, b) => {
-    if (sortBy === 'custom') return a.index - b.index
-    if (sortBy === 'priority') return ({ urgente: 0, alta: 1, media: 2, baixa: 3 }[a.task.p] - { urgente: 0, alta: 1, media: 2, baixa: 3 }[b.task.p]) || a.index - b.index
-    if (sortBy === 'effort') return ((a.task.effort ? LK.indexOf(a.task.effort as Effort) : 99) - (b.task.effort ? LK.indexOf(b.task.effort as Effort) : 99)) || a.index - b.index
-    return dueKey(a.task).localeCompare(dueKey(b.task)) || a.index - b.index
-  }).map(x => x.task)
+  const list = sortTasks((sortBy === 'custom' && activeWorkspaceId === 'geral' && geralOrder ? orderByIds(scoped, geralOrder) : scoped).filter(t => open ? !t.d : t.d), sortBy)
   const addWorkspace = (e: FormEvent) => {
     e.preventDefault()
     const name = newWorkspaceName.trim()
@@ -163,7 +142,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
     update(d => { d.tasks.forEach(t => { if (t.workspaceId === id) t.workspaceId = 'geral' }); d.workspaces = d.workspaces.filter(w => w.id !== id); d.notes = d.notes.filter(n => n.workspaceId !== id) }); setSorts(map => withoutSort(map, id))
     setWorkspaceId('geral')
   }
-  const add = (e: FormEvent) => { e.preventDefault(); const v = txt.trim(); if (!v) return; update(d => { d.tasks.push({ id: uid('t'), t: v, due: du, dueTime: duTime, p, d: false, effort, workspaceId: workspace?.id ?? 'geral' }) }); setTxt(''); setDu(''); setDuTime(''); setEffort(''); setP('media'); setOpen(true) }
+  const add = (e: FormEvent) => { e.preventDefault(); const v = txt.trim(); if (!v) return; update(d => { d.tasks.push(newTask(uid('t'), { t: v, due: du, dueTime: duTime, p, effort, workspaceId: activeWorkspaceId })) }); setTxt(''); setDu(''); setDuTime(''); setEffort(''); setP('media'); setOpen(true) }
   const patch = (id: string, fn: (t: Task) => void) => update(d => { const t = d.tasks.find(x => x.id === id); if (t) fn(t) })
   const addNote = () => { const id = uid('n'); update(d => { d.notes.push({ id, workspaceId: activeWorkspaceId, text: '' }) }); setEditingNoteId(id) }
   const saveNote = (id: string, text: string) => update(d => { const n = d.notes.find(x => x.id === id); if (n) n.text = text })
@@ -186,7 +165,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
     </div></div>
     <form className="tadd" onSubmit={add}>
       <div className="tadd-text">
-        <input ref={newTaskInput} value={txt} maxLength={90} placeholder="Nova tarefa…" aria-label="Nova tarefa" required autoComplete="off" onChange={e => setTxt(e.target.value)} />
+        <input ref={newTaskInput} value={txt} maxLength={TASK_TITLE_MAX} placeholder="Nova tarefa…" aria-label="Nova tarefa" required autoComplete="off" onChange={e => setTxt(e.target.value)} />
         {txt && <button type="button" className="x tadd-clear" title="Limpar texto" aria-label="Limpar texto" onClick={() => { setTxt(''); newTaskInput.current?.focus() }}>✕</button>}
       </div>
       {phone ? <div className="tadd-fields">
@@ -225,7 +204,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
     </div>}
     {ed && <Modal title={editingSubtask ? 'Editar subtarefa' : 'Editar tarefa'} onClose={() => setEd(null)}>
       <form className="fgrid" onSubmit={saveEditor}>
-        <label className="w">Nome<input value={ed.t} required maxLength={90} onChange={e => setEd({ ...ed, t: e.target.value })} /></label>
+        <label className="w">Nome<input value={ed.t} required maxLength={TASK_TITLE_MAX} onChange={e => setEd({ ...ed, t: e.target.value })} /></label>
         {!editingSubtask && <SubtaskList subtasks={edSubtasks} onChange={setEdSubtasks} newTitle={edNewSubtask} onNewTitle={setEdNewSubtask} />}
         <label>Data limite<DatePicker value={ed.due} onChange={due => setEd({ ...ed, due, dueTime: due ? ed.dueTime : '' })} /></label>
         <label>Hora limite<TimePicker value={ed.dueTime ?? ''} onChange={dueTime => setEd({ ...ed, dueTime, due: dueForTime(ed.due, dueTime, today) })} /></label>
@@ -256,7 +235,7 @@ export function Tarefas({ workspaceId, setWorkspaceId }: { workspaceId: string; 
           {t.n && <small className="tm" title="Tem notas">≡</small>}
           {lbl && <small className={'tm' + (late ? ' late' : '')}>{lbl}</small>}
           {t.effort && <button className="lt" style={{ ['--c' as string]: LV[t.effort].c }} title={LV[t.effort].t}>{LV[t.effort].n}</button>}
-          <button className="pp2" onClick={() => patch(t.id, x => { x.p = NX[x.p] })}>{PN[t.p]}</button>
+          <button className="pp2" onClick={() => patch(t.id, x => { x.p = nextPriority(x.p) })}>{PN[t.p]}</button>
         </span>
         <button className="x" aria-label="Remover" onClick={() => update(d => { d.tasks = withoutTask(d.tasks, t.id) })}>✕</button>
       </div>

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../supabase'
+import { readItem, readJson as read, removeItem, writeItem, writeJson as write } from '../storage'
 import { emptyData, parseAppData } from '../schema'
 import { LEGACY_KEY, cacheKey, readData, setCommitListener, useStore } from '../../store/useStore'
 import type { AppData } from '../../types'
@@ -35,12 +36,6 @@ let pullTimer: number | undefined
 const keys = (id: string) => ({ outbox: `syncro-outbox:${id}`, pulled: `syncro-pulled:${id}`, rejected: `syncro-rejected:${id}` })
 const opKey = (op: { table: Table; id: string }) => `${op.table}:${op.id}`
 
-function read<T>(key: string, fallback: T): T {
-  try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback } catch { return fallback }
-}
-function write(key: string, value: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* quota */ }
-}
 function saveOutbox() {
   if (!userId) return
   write(keys(userId).outbox, outbox)
@@ -55,7 +50,6 @@ function enqueue(ops: SyncOp[]) {
   flushTimer = window.setTimeout(() => void flush(), 600)
 }
 
-setCommitListener((prev, next) => { if (userId) enqueue(diffRows(toRows(prev), toRows(next))) })
 
 const toServer = (op: QueuedOp, uid: string): Row =>
   op.table === 'profiles' ? { ...op.row, user_id: uid } : { ...op.row, user_id: uid, deleted: op.deleted }
@@ -184,7 +178,9 @@ async function runPull() {
   }
 }
 
-const sync = () => { void flush().then(pull) }
+/** Uploads what is waiting, then fetches what changed elsewhere. */
+export const syncNow = () => flush().then(pull)
+const sync = () => { void syncNow() }
 const onFocus = () => sync()
 const onOnline = () => { retryDelay = 5000; sync() }
 // Phones rarely fire focus when an installed app returns from the background, and timers pause meanwhile.
@@ -205,6 +201,7 @@ export function stopSync() {
   clearInterval(pullTimer); clearTimeout(flushTimer); clearTimeout(retryTimer)
   generation++
   userId = null; outbox = {}
+  setCommitListener(() => {})
   useStore.getState().hydrate(null, emptyData())
   useSync.setState({ status: 'idle', pending: 0, rejected: 0, lastSync: null })
 }
@@ -214,12 +211,10 @@ function hasContent(d: AppData) {
 }
 /** Keeps the pre-account data under another key so it is not offered again. */
 function archiveLegacy() {
-  try {
-    const raw = localStorage.getItem(LEGACY_KEY)
-    if (raw === null) return
-    localStorage.setItem(`${LEGACY_KEY}-migrated`, raw)
-    localStorage.removeItem(LEGACY_KEY)
-  } catch { /* armazenamento indisponível */ }
+  const raw = readItem(LEGACY_KEY)
+  if (raw === null) return
+  writeItem(`${LEGACY_KEY}-migrated`, raw)
+  removeItem(LEGACY_KEY)
 }
 
 export type LegacyChoice = 'cloud' | 'local' | 'merge'
@@ -228,6 +223,7 @@ export type StartResult = { kind: 'ready' } | { kind: 'choose'; resolve: (choice
 function begin(id: string) {
   generation++
   userId = id
+  setCommitListener((prev, next) => enqueue(diffRows(toRows(prev), toRows(next))))
   outbox = read<Record<string, QueuedOp>>(keys(id).outbox, {})
   seq = Math.max(0, ...Object.values(outbox).map(op => op.seq))
   useSync.setState({ status: 'idle', pending: Object.keys(outbox).length, rejected: read<QueuedOp[]>(keys(id).rejected, []).length })

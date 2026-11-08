@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
+import { reducedMotion } from '../lib/media'
 
 type Box = { x: number; y: number; w: number; h: number }
 const css = (b: Box) => ({ left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` })
@@ -18,7 +19,7 @@ export function Glider() {
       const on = box.querySelector<HTMLElement>(':scope > [aria-current], :scope > [aria-pressed="true"]')
       if (!on) { g.style.opacity = '0'; last = null; return }
       const b = { x: on.offsetLeft, y: on.offsetTop, w: on.offsetWidth, h: on.offsetHeight }
-      if (move && last && (last.x !== b.x || last.y !== b.y) && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (move && last && (last.x !== b.x || last.y !== b.y) && !reducedMotion()) {
         const x = Math.min(last.x, b.x), y = Math.min(last.y, b.y)
         const both = { x, y, w: Math.max(last.x + last.w, b.x + b.w) - x, h: Math.max(last.y + last.h, b.y + b.h) - y }
         g.animate([css(last), { ...css(both), offset: .45 }, css(b)], { duration: 420, easing: 'cubic-bezier(.3,.8,.3,1)' })

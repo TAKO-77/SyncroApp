@@ -1,3 +1,7 @@
+import type { Task } from '../types'
+import { dueKey } from './taskDue.ts'
+import { effortRank, priorityRank } from './tasks.ts'
+
 export type SortBy = 'priority' | 'effort' | 'due' | 'custom'
 export type SortMap = Record<string, SortBy>
 
@@ -43,4 +47,21 @@ export function movedOrder(all: string[], shown: string[]): string[] {
   const moved = new Set(shown)
   let next = 0
   return all.map(id => moved.has(id) ? shown[next++] : id)
+}
+
+/** Tasks in the order the user chose; ties keep the order of the list. */
+export function sortTasks(tasks: Task[], sortBy: SortBy): Task[] {
+  const compare: Record<SortBy, (a: Task, b: Task) => number> = {
+    custom: () => 0,
+    priority: (a, b) => priorityRank(a.p) - priorityRank(b.p),
+    effort: (a, b) => effortRank(a.effort) - effortRank(b.effort),
+    due: (a, b) => dueKey(a).localeCompare(dueKey(b)),
+  }
+  return [...tasks].sort(compare[sortBy])
+}
+
+/** Puts the tasks in `ids` in that order, in the places they already hold among all the tasks. */
+export function reorderTasks(tasks: Task[], ids: string[]): Task[] {
+  const byId = new Map(tasks.map(t => [t.id, t]))
+  return movedOrder(tasks.map(t => t.id), ids).map(id => byId.get(id)!)
 }

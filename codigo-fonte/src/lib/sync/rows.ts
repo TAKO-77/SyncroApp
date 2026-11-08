@@ -1,7 +1,6 @@
 import type { AppData, Effort, Priority, ReminderLead, ReminderRepeat, Rep, Sleep } from '../../types'
 
 // Maps the local AppData document to the Supabase tables and back.
-// Kept free of runtime imports so scripts/test-sync.ts can run it with Node directly.
 
 export const TABLES = ['profiles', 'workspaces', 'tasks', 'event_categories', 'day_categories', 'events', 'finances', 'special_days', 'workspace_notes', 'reminders'] as const
 export type Table = typeof TABLES[number]
@@ -30,7 +29,7 @@ const FIELDS: Record<Table, readonly string[]> = {
 }
 
 /** Keeps only the synced columns, in a fixed order, so rows can be compared as JSON. */
-export function canonical(table: Table, row: Row): Row {
+function canonical(table: Table, row: Row): Row {
   const out: Row = {}
   for (const f of FIELDS[table]) out[f] = f === 'amount' || f === 'position' ? Number(row[f] ?? 0) : row[f] ?? null
   return out

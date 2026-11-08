@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-
-const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches
+import { reducedMotion as still } from '../lib/media'
 
 /** Number that counts up from 0 on mount, and from the old value on change. Intermediate values are rounded. */
 export function CountUp({ value, format = String, ms = 700 }: { value: number; format?: (n: number) => string; ms?: number }) {

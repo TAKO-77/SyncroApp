@@ -1,6 +1,7 @@
 import { useId, useRef, useState, type KeyboardEvent } from 'react'
 import { uid } from '../../components/common'
-import { SUBTASK_TITLE_MAX, addSubtaskDraft, type SubtaskDraft } from '../../lib/subtasks'
+import { addSubtaskDraft, type SubtaskDraft } from '../../lib/subtasks'
+import { TASK_TITLE_MAX } from '../../lib/tasks'
 
 /** Quick list of subtasks in the main task's editor. Changes stay in the draft until the task is saved. */
 export function SubtaskList({ subtasks, onChange, newTitle, onNewTitle }: {
@@ -30,13 +31,13 @@ export function SubtaskList({ subtasks, onChange, newTitle, onNewTitle }: {
       const blank = !s.t.trim(), errorId = `${baseId}-${s.id}-error`
       return <li key={s.id} className={'subtask' + (s.d ? ' dn' : '')}>
         <input className="rc" type="checkbox" checked={s.d} aria-label={`Subtarefa ${i + 1} concluída`} onChange={e => edit(s.id, { d: e.target.checked })} />
-        <input className="subtask-title" type="text" value={s.t} maxLength={SUBTASK_TITLE_MAX} autoComplete="off" aria-label={`Título da subtarefa ${i + 1}`} aria-invalid={blank} aria-describedby={blank ? errorId : undefined} onChange={e => edit(s.id, { t: e.target.value })} />
+        <input className="subtask-title" type="text" value={s.t} maxLength={TASK_TITLE_MAX} autoComplete="off" aria-label={`Título da subtarefa ${i + 1}`} aria-invalid={blank} aria-describedby={blank ? errorId : undefined} onChange={e => edit(s.id, { t: e.target.value })} />
         <button type="button" className="x" title="Eliminar subtarefa" aria-label={`Eliminar subtarefa ${i + 1}`} onClick={() => remove(s.id)}>✕</button>
         {blank && <small id={errorId} className="field-error" role="alert">A subtarefa precisa de um título.</small>}
       </li>
     })}</ul>}
     <div className="subtask-add">
-      <input ref={addInput} type="text" value={newTitle} maxLength={SUBTASK_TITLE_MAX} autoComplete="off" placeholder="Nova subtarefa…" aria-label="Nova subtarefa" aria-invalid={addError} aria-describedby={addError ? `${baseId}-add-error` : undefined} onChange={e => { onNewTitle(e.target.value); setAddError(false) }} />
+      <input ref={addInput} type="text" value={newTitle} maxLength={TASK_TITLE_MAX} autoComplete="off" placeholder="Nova subtarefa…" aria-label="Nova subtarefa" aria-invalid={addError} aria-describedby={addError ? `${baseId}-add-error` : undefined} onChange={e => { onNewTitle(e.target.value); setAddError(false) }} />
       <button type="button" className="btn" onClick={add}>Adicionar</button>
     </div>
     {addError && <small id={`${baseId}-add-error`} className="field-error" role="alert">Escreve um título para a subtarefa.</small>}

@@ -1,5 +1,5 @@
 import type { Rep } from '../types'
-import { dow, hm, iso } from './dates.ts'
+import { addDays, dow, hm, iso, minuteOfDay } from './dates.ts'
 const RANGE_LINK = /^\s*(?:às|as|até|ate|a|-|–|—)\s*$/i
 export type Parsed = { task: string } | { title: string; date: string; start: string; end: string; rep: Rep }
 export const RLB: Record<string, string> = { daily: 'todos os dias', weekdays: 'dias úteis', weekly: 'semanal' }
@@ -11,13 +11,13 @@ export function parseQ(q0: string, now = new Date()): Parsed | null {
   let rep: Rep = 'none', date = today, dur = 60, start: number | null = null, end: number | null = null
   const reps: [RegExp, Rep][] = [[/\b(todos os dias|diariamente|diário|diario)\b/i, 'daily'], [/\bdias [uú]teis\b/i, 'weekdays'], [/\b(semanalmente|semanal|todas as semanas)\b/i, 'weekly']]
   for (const [r, v] of reps) if (r.test(q)) { rep = v; q = q.replace(r, ' ') }
-  if (/amanh[ãa]/i.test(q)) { const d = new Date(now); d.setDate(d.getDate() + 1); date = iso(d); q = q.replace(/amanh[ãa]/i, ' ') }
+  if (/amanh[ãa]/i.test(q)) { date = addDays(today, 1); q = q.replace(/amanh[ãa]/i, ' ') }
   else if (/\bhoje\b/i.test(q)) q = q.replace(/\bhoje\b/i, ' ')
   else {
     const m = q.match(/\b(seg(?:unda)?|ter(?:[çc]a)?|qua(?:rta)?|qui(?:nta)?|sex(?:ta)?|s[áa]b(?:ado)?|dom(?:ingo)?)(?:-feira)?(?![a-zà-ú])/i)
     if (m) {
       const w = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'].indexOf(m[1].slice(0, 3).toLowerCase().replace('á', 'a'))
-      const d = new Date(now); d.setDate(d.getDate() + (w - dow(d) + 7) % 7); date = iso(d); q = q.replace(m[0], ' ')
+      date = addDays(today, (w - dow(now) + 7) % 7); q = q.replace(m[0], ' ')
     }
   }
   const mn = q.match(/(\d+)\s?min\b/i); if (mn) { dur = +mn[1]; q = q.replace(mn[0], ' ') }
@@ -37,7 +37,7 @@ export function parseQ(q0: string, now = new Date()): Parsed | null {
   q = q.replace(re, ' ').replace(/(^|\s)às(?=\s|$)/gi, ' ')
   let title = q.replace(/\s+/g, ' ').trim(); if (!title) return null
   title = title[0].toUpperCase() + title.slice(1)
-  if (start == null) start = date === today ? Math.min(now.getHours() * 60 + now.getMinutes() + 1, 1439) : 540
+  if (start == null) start = date === today ? Math.min(minuteOfDay(now) + 1, 1439) : 540
   const stop = end !== null && end !== start ? end : (start + Math.min(dur, 1439)) % 1440
   return { title, date, start: hm(start), end: hm(stop), rep }
 }

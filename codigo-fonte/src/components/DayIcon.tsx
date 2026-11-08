@@ -30,6 +30,6 @@ export const dayIconKey = (icon?: string) => icon && DAY_ICONS.some(i => i.key =
 
 export function DayIcon({ icon, size = 16 }: { icon?: string; size?: number }) {
   const key = dayIconKey(icon)
-  const { Icon } = DAY_ICONS.find(i => i.key === key) ?? DAY_ICONS[5]
+  const { Icon } = DAY_ICONS.find(i => i.key === key)!
   return <Icon className="day-icon" size={size} strokeWidth={1.5} aria-hidden="true" />
 }

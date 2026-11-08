@@ -1,12 +1,12 @@
 import { supabase } from './supabase'
 import { useAuth } from '../store/useAuth'
+import { drawImage, isAcceptedImage } from './images'
 
 // Note images live in the private 'note-images' bucket under '<user id>/<file>'.
 // A note references one with a line '![imagem](imagem:<file>)'.
 
 const BUCKET = 'note-images'
 const MAX_SIDE = 1600
-const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp']
 export const IMAGE_LINE = /^!\[([^\]\n]*)\]\(imagem:([a-z0-9-]+\.jpg)\)$/
 
 export const imageMarkdown = (file: string) => `![imagem](imagem:${file})`
@@ -19,30 +19,18 @@ const folder = () => {
 
 /** Scales the image down to at most MAX_SIDE pixels and re-encodes it as JPEG. */
 async function compress(file: File): Promise<Blob> {
-  const url = URL.createObjectURL(file)
-  try {
-    const image = new Image()
-    image.src = url
-    await image.decode()
-    const scale = Math.min(1, MAX_SIDE / Math.max(image.width, image.height))
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.round(image.width * scale)
-    canvas.height = Math.round(image.height * scale)
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error()
-    // JPEG has no transparency; paint a white background so transparent PNGs stay legible.
-    context.fillStyle = '#ffffff'
-    context.fillRect(0, 0, canvas.width, canvas.height)
-    context.drawImage(image, 0, 0, canvas.width, canvas.height)
-    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85))
-    if (!blob) throw new Error()
-    return blob
-  } finally { URL.revokeObjectURL(url) }
+  const canvas = await drawImage(file, (width, height) => {
+    const scale = Math.min(1, MAX_SIDE / Math.max(width, height))
+    return { width: Math.round(width * scale), height: Math.round(height * scale) }
+  })
+  const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85))
+  if (!blob) throw new Error()
+  return blob
 }
 
 /** Uploads an image and returns the file name to reference in the note. */
 export async function uploadNoteImage(file: File): Promise<string> {
-  if (!ACCEPTED.includes(file.type) || file.size > 15 * 1024 * 1024) throw new Error('Escolhe uma imagem JPG, PNG ou WebP até 15 MB.')
+  if (!isAcceptedImage(file, 15)) throw new Error('Escolhe uma imagem JPG, PNG ou WebP até 15 MB.')
   const userId = folder()
   let blob: Blob
   try { blob = await compress(file) } catch { throw new Error('Não foi possível ler a imagem. Tenta outra.') }

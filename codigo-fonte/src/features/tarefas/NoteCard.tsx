@@ -3,8 +3,8 @@ import { ImagePlus } from 'lucide-react'
 import { NoteContent, toggleTaskLine } from './NoteContent'
 import { NoteImage } from './NoteImage'
 import { IMAGE_LINE, imageMarkdown, uploadNoteImage } from '../../lib/noteImages'
-
-const MAX_LENGTH = 5000
+import { IMAGE_ACCEPT } from '../../lib/images'
+import { NOTE_TEXT_MAX } from '../../lib/taskNotes'
 
 /** One note box: shows the formatted text and switches to an editor with a formatting toolbar. */
 export function NoteCard({ text, editing, onEdit, onSave, onCancel, onDelete }: {
@@ -30,7 +30,7 @@ export function NoteCard({ text, editing, onEdit, onSave, onCancel, onDelete }: 
       // The upload can take a while, so insert into the text as it is now, not as it was when it started.
       const current = latestDraft.current, pos = Math.min(at, current.length), before = current.slice(0, pos), after = current.slice(pos)
       const next = before + (before && !before.endsWith('\n') ? '\n' : '') + line + (after.startsWith('\n') ? '' : '\n') + after
-      if (next.length > MAX_LENGTH) setImageError('A nota já não tem espaço para mais imagens.')
+      if (next.length > NOTE_TEXT_MAX) setImageError('A nota já não tem espaço para mais imagens.')
       else setDraft(next)
     } catch (e) { setImageError(e instanceof Error ? e.message : 'Não foi possível carregar a imagem.') }
     finally { setUploading(false) }
@@ -63,9 +63,9 @@ export function NoteCard({ text, editing, onEdit, onSave, onCancel, onDelete }: 
       <button type="button" title="Lista com pontos" aria-label="Lista com pontos" onClick={() => format('- ', '', true)}>•</button><button type="button" title="Lista numerada" aria-label="Lista numerada" onClick={() => format('1. ', '', true)}>1.</button><button type="button" title="Lista de tarefas" aria-label="Lista de tarefas" onClick={() => format('- [ ] ', '', true)}>☐</button><span />
       <button type="button" title="Adicionar imagem" aria-label="Adicionar imagem" disabled={uploading} onClick={() => picker.current?.click()}><ImagePlus size={16} strokeWidth={1.5} aria-hidden="true" /></button>
       {uploading && <small className="mu" role="status">A carregar imagem…</small>}
-      <input ref={picker} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e => { void addImage(e.target.files?.[0]); e.target.value = '' }} />
+      <input ref={picker} type="file" accept={IMAGE_ACCEPT} hidden onChange={e => { void addImage(e.target.files?.[0]); e.target.value = '' }} />
     </div>
-    <textarea ref={editor} rows={6} maxLength={MAX_LENGTH} value={draft} aria-label="Texto da nota" placeholder="Escreve tópicos ou texto… Usa a barra para formatar ou cola uma imagem." onChange={e => setDraft(e.target.value)}
+    <textarea ref={editor} rows={6} maxLength={NOTE_TEXT_MAX} value={draft} aria-label="Texto da nota" placeholder="Escreve tópicos ou texto… Usa a barra para formatar ou cola uma imagem." onChange={e => setDraft(e.target.value)}
       onPaste={e => { const image = [...e.clipboardData.files].find(f => f.type.startsWith('image/')); if (image) { e.preventDefault(); void addImage(image) } }} autoFocus />
     {imageError && <small className="note-img-error" role="alert">{imageError}</small>}
     {draftImages.length > 0 && <div className="note-thumbs" aria-label="Imagens da nota">{draftImages.map(({ index, file }) => <div key={file + index} className="note-thumb">

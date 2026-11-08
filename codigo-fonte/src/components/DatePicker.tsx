@@ -1,17 +1,9 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { CalendarDays } from 'lucide-react'
-import { DN, MN, dow, iso, parse } from '../lib/dates'
-import { todayIso } from './common'
+import { DN, MN, addDays, addMonths, monthGrid, parse, todayIso } from '../lib/dates'
 import { Picker, moveFocus } from './Picker'
 
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-const addDays = (s: string, n: number) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d) }
-const addMonths = (s: string, n: number) => {
-  const d = parse(s), day = d.getDate()
-  d.setDate(1); d.setMonth(d.getMonth() + n)
-  d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()))
-  return iso(d)
-}
 const DAY_KEYS: Record<string, (s: string) => string> = {
   ArrowLeft: s => addDays(s, -1), ArrowRight: s => addDays(s, 1), ArrowUp: s => addDays(s, -7), ArrowDown: s => addDays(s, 7),
   PageUp: s => addMonths(s, -1), PageDown: s => addMonths(s, 1),
@@ -33,10 +25,7 @@ function Calendar({ value, min, required, onPick }: { value: string; min?: strin
   const ym = cursor.slice(0, 7), slide = useRef({ ym, dir: '' })
   if (slide.current.ym !== ym) slide.current = { ym, dir: ym > slide.current.ym ? 'next' : 'prev' }
 
-  const shown = parse(cursor), first = new Date(shown.getFullYear(), shown.getMonth(), 1)
-  const start = addDays(iso(first), -dow(first))
-  const weeks = Math.ceil((dow(first) + new Date(shown.getFullYear(), shown.getMonth() + 1, 0).getDate()) / 7)
-  const days = Array.from({ length: weeks * 7 }, (_, i) => addDays(start, i))
+  const shown = parse(cursor), days = monthGrid(ym)
 
   return <>
     <div className="cal-head">

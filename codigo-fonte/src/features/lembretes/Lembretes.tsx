@@ -1,25 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
-import { todayIso, uid, useNow } from '../../components/common'
+import { useState } from 'react'
+import { uid, useNow } from '../../components/common'
+import { useCompletion } from '../../components/useCompletion'
 import { Glider } from '../../components/Glider'
-import { MN, hm, parse } from '../../lib/dates'
-import { LEAD_LABELS, applyReminderEdit, concludeReminder, occurrenceAfter, reminderStatus, reopenReminder, toStamp } from '../../lib/reminderItems'
+import { hm, minuteOfDay, shortDate as shortDay, toStamp, todayIso } from '../../lib/dates'
+import { LEAD_LABELS, newReminder, applyReminderEdit, concludeReminder, occurrenceAfter, reminderStatus, reopenReminder } from '../../lib/reminderItems'
 import { dueLabel } from '../../lib/tasks'
 import { useStore } from '../../store/useStore'
 import type { ReminderItem } from '../../types'
 import { ReminderForm, type ReminderFormValues } from './ReminderForm'
 
-const COMPLETE_MS = 1300
-const shortDay = (day: string) => { const d = parse(day); return `${d.getDate()} ${MN[d.getMonth()]}` }
 
 export function Lembretes() {
   const { data, update } = useStore()
-  const now = useNow(), nowStamp = toStamp(now), today = todayIso(), nowTime = hm(now.getHours() * 60 + now.getMinutes())
+  const now = useNow(), nowStamp = toStamp(now), today = todayIso(), nowTime = hm(minuteOfDay(now))
   const [pendingView, setPendingView] = useState(true)
   const [form, setForm] = useState<{ id: string | null; values: ReminderFormValues } | null>(null)
-  // A reminder's last tick plays the completion animation before it leaves the list.
-  const [completing, setCompleting] = useState<string[]>([])
-  const timers = useRef(new Map<string, number>())
-  useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
   const rows = data.reminders.map(r => ({ r, status: reminderStatus(r, nowStamp) }))
   const pending = rows.filter(x => !x.status.done).sort((a, b) => (a.status.at ?? '').localeCompare(b.status.at ?? ''))
@@ -28,24 +23,19 @@ export function Lembretes() {
 
   const patch = (id: string, fn: (r: ReminderItem) => void) => update(d => { const r = d.reminders.find(x => x.id === id); if (r) fn(r) })
   const conclude = (id: string) => patch(id, r => concludeReminder(r, toStamp(new Date()), todayIso()))
+  // A reminder's last tick plays the completion animation before it leaves the list.
+  const { completing, start, cancel } = useCompletion(conclude)
   const toggle = (r: ReminderItem, at: string | null, checked: boolean, row: HTMLElement | null) => {
-    if (!checked) {
-      const timer = timers.current.get(r.id)
-      if (timer !== undefined) { clearTimeout(timer); timers.current.delete(r.id); setCompleting(c => c.filter(x => x !== r.id)) }
-      else patch(r.id, reopenReminder)
-      return
-    }
+    if (!checked) { if (!cancel(r.id)) patch(r.id, reopenReminder); return }
     // A repeating reminder with occurrences left stays in the list and moves on to the next one.
-    if (!at || occurrenceAfter(r, at)) { conclude(r.id); return }
-    row?.style.setProperty('--tk-h', `${row.offsetHeight}px`)
-    setCompleting(c => [...c, r.id])
-    timers.current.set(r.id, window.setTimeout(() => { timers.current.delete(r.id); setCompleting(c => c.filter(x => x !== r.id)); conclude(r.id) }, COMPLETE_MS))
+    if (!at || occurrenceAfter(r, at)) conclude(r.id)
+    else start(r.id, row)
   }
   const save = (values: ReminderFormValues) => {
     if (!form) return
     const id = form.id
     update(d => {
-      const target = id ? d.reminders.find(x => x.id === id) : { id: uid('r'), title: '', date: '', time: '', repeat: 'none' as const, lead: '' as const, until: '', doneUntil: '', doneAt: '' }
+      const target = id ? d.reminders.find(x => x.id === id) : newReminder(uid('r'))
       if (!target) return
       applyReminderEdit(target, values, today)
       if (!id) d.reminders.push(target)

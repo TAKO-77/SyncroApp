@@ -1,4 +1,4 @@
-// Which reminders a device should receive. Free of runtime imports so scripts/test-sync.ts can run it with Node.
+// Which reminders a device should receive. Self-contained: the function is deployed on its own.
 // The wording matches codigo-fonte/src/lib/reminders.ts, which the Windows app uses; a test keeps them equal.
 
 export type ReminderKind = 'soon' | 'due' | '1w' | '1d' | '1h' | '10m' | 'at'

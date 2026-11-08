@@ -2,6 +2,8 @@
 // scripts/test-sync.ts fails if the two differ.
 
 export const TASK_NOTES_MAX = 10000
+/** Limit of a workspace note, the same value as the `workspace_notes.text` check; a test compares them. */
+export const NOTE_TEXT_MAX = 5000
 /** From this length the editor shows how many characters are used. */
 export const TASK_NOTES_WARN = 9000
 

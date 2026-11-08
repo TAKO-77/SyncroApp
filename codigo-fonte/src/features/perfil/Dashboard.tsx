@@ -1,10 +1,9 @@
 import { PALETTE } from '../../lib/palette'
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
-import { dow, fmt, iso, mins, parse } from '../../lib/dates'
-import { eventsOn } from '../../lib/recurrence'
+import { dow, fmt, iso, mins, parse, todayIso } from '../../lib/dates'
+import { eventMinutes, eventsOn } from '../../lib/recurrence'
 import { sleepIv } from '../../lib/sleep'
-import { todayIso } from '../../components/common'
 import { Donut, type Slice } from '../../components/Donut'
 import { Glider } from '../../components/Glider'
 
@@ -17,7 +16,7 @@ export function Dashboard() {
   const m: Record<string, number> = {}; let days = 0, sl = 0
   for (const d = new Date(a); d <= b; d.setDate(d.getDate() + 1)) {
     days++; const ds = iso(d), busy = new Uint8Array(1440)
-    eventsOn(data, ds).forEach(e => { const k = e.cat || 'none'; m[k] = (m[k] ?? 0) + Math.max(0, mins(e.end) - mins(e.start)); for (let x = mins(e.start); x < mins(e.end); x++) busy[x] = 1 })
+    eventsOn(data, ds).forEach(e => { const k = e.cat || 'none'; m[k] = (m[k] ?? 0) + eventMinutes(e); for (let x = mins(e.start); x < mins(e.end); x++) busy[x] = 1 })
     sleepIv(data.sleep, ds).forEach(([p, q]) => { for (let x = p; x < q; x++) if (!busy[x]) sl++ })
   }
   const cr: Slice[] = [...data.cats, { id: 'none', name: 'Sem categoria', color: PALETTE.neutral }].map(c => ({ ...c, v: m[c.id] ?? 0 })).filter(r => r.v > 0).sort((x, y) => y.v - x.v)

@@ -1,12 +1,14 @@
 import type { Task } from '../types'
 
-// When a task's time limit should notify. Kept free of runtime imports so scripts/test-sync.ts can run it with Node.
+// When a task's time limit should notify.
 
 export type ReminderKind = 'soon' | 'due' | '1w' | '1d' | '1h' | '10m' | 'at'
-/** A notification to send. Those of the user's reminders have a `taskId` of 'reminder:<id>'; see `reminderItems.ts`. */
+/** A notification to send. Those of the user's reminders have a `taskId` made by `reminderNoticeId`; it is also the key in `reminders_sent`. */
 export interface Reminder { taskId: string; kind: ReminderKind; title: string; time: string }
 
 const HOUR_MS = 60 * 60 * 1000
+const REMINDER_PREFIX = 'reminder:'
+export const reminderNoticeId = (id: string) => REMINDER_PREFIX + id
 
 /**
  * Reminders whose moment fell after `since` and up to `now`. Comparing against the last check means each one
@@ -30,7 +32,7 @@ const WORDING: Record<ReminderKind, string> = { soon: 'Falta 1 hora para', due: 
 const line = (r: Reminder) => `${WORDING[r.kind]} ${r.title}`
 
 /** The tab a notification opens: Lembretes only when all it announces are reminders. */
-export const noticeTarget = (list: Pick<Reminder, 'taskId'>[]) => list.every(r => r.taskId.startsWith('reminder:')) ? 'lembretes' : 'tarefas'
+export const noticeTarget = (list: Pick<Reminder, 'taskId'>[]) => list.every(r => r.taskId.startsWith(REMINDER_PREFIX)) ? 'lembretes' : 'tarefas'
 
 /** Text of one notification; reminders from the same check are grouped because the system may show only the last one sent. */
 export function reminderText(list: Reminder[]): { title: string; body: string } {

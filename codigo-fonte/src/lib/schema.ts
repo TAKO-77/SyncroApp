@@ -1,8 +1,9 @@
 import { PALETTE, harmonizeDefaultColor } from './palette.ts'
+import { NOTE_TEXT_MAX } from './taskNotes.ts'
 import { z } from 'zod'
 import type { AppData } from '../types'
 
-export const DEFAULT_CATS = [
+const DEFAULT_CATS = [
   { id: 'presencial', name: 'Estudo presencial', color: PALETTE.clay },
   { id: 'autonomo', name: 'Estudo autónomo', color: PALETTE.gold },
   { id: 'projetos', name: 'Projetos', color: PALETTE.slate },
@@ -11,7 +12,7 @@ export const DEFAULT_CATS = [
   { id: 'exercicio', name: 'Exercício', color: PALETTE.sage },
   { id: 'lazer', name: 'Lazer e social', color: PALETTE.clay },
 ]
-export const DEFAULT_DAY_CATS = [
+const DEFAULT_DAY_CATS = [
   { id: 'aniv', name: 'Aniversário', color: PALETTE.clay, icon: '🎂' },
   { id: 'exame', name: 'Exame', color: PALETTE.clay, icon: '📝' },
   { id: 'consulta', name: 'Consulta', color: PALETTE.sage, icon: '🩺' },
@@ -19,7 +20,7 @@ export const DEFAULT_DAY_CATS = [
   { id: 'evento', name: 'Evento', color: PALETTE.gold, icon: '⭐' },
   { id: 'outro', name: 'Outro', color: PALETTE.neutral, icon: '📌' },
 ]
-export const DEFAULT_SLEEP = { bed: '23:30', wake: '07:30', wk: false, bed2: '00:30', wake2: '09:30' }
+const DEFAULT_SLEEP = { bed: '23:30', wake: '07:30', wk: false, bed2: '00:30', wake2: '09:30' }
 
 const item = z.object({ id: z.string() }).passthrough()
 const category = z.object({ id: z.string(), name: z.string(), color: z.string().regex(/^#[0-9a-f]{6}$/i), icon: z.string().optional() })
@@ -40,7 +41,7 @@ const schema = z.object({
   name: z.string().optional(),
   photo: z.string().max(200000).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).optional(),
   reset: z.string().default(''),
-  notes: z.array(z.object({ id: z.string(), workspaceId: z.string(), text: z.string().max(5000) })).default([]),
+  notes: z.array(z.object({ id: z.string(), workspaceId: z.string(), text: z.string().max(NOTE_TEXT_MAX) })).default([]),
   taskNotes: z.record(z.string()).optional(),
   reminders: z.array(item).default([]),
   notifyTasks: z.boolean().default(true),
@@ -52,7 +53,7 @@ export const emptyData = (): AppData => ({
   sleep: { ...DEFAULT_SLEEP }, reset: '', notes: [], reminders: [], notifyTasks: true,
 })
 
-/** Aceita tanto o formato exportado pela versão HTML ({app,v,data}) como o objeto direto. */
+/** Accepts an export file ({app, v, data}, also from the old HTML version) or the data object itself. */
 export function parseAppData(raw: unknown): AppData | null {
   const o = raw && typeof raw === 'object' && 'data' in raw ? (raw as { data: unknown }).data : raw
   const r = schema.safeParse(o)

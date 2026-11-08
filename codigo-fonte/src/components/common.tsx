@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { iso } from '../lib/dates'
+import { PHONE_QUERY, isPhone, reducedMotion } from '../lib/media'
 export const uid = (p: string) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)
-export const todayIso = () => iso(new Date())
 export function useNow(ms = 30000) {
   const [n, setN] = useState(new Date())
   useEffect(() => { const id = setInterval(() => setN(new Date()), ms); return () => clearInterval(id) }, [ms])
   return n
 }
-const PHONE_QUERY = '(max-width:760px)'
-/** True in the phone layout, using the same breakpoint as `styles.css`. */
+/** True in the phone layout. */
 export function useIsPhone() {
-  const [phone, setPhone] = useState(() => matchMedia(PHONE_QUERY).matches)
+  const [phone, setPhone] = useState(isPhone)
   useEffect(() => {
     const query = matchMedia(PHONE_QUERY), onChange = () => setPhone(query.matches)
     query.addEventListener('change', onChange)
@@ -52,7 +50,7 @@ export function useArrowScroll() {
       const step = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0
       if (!step || !arrowKeyIsFree(e)) return
       e.preventDefault()
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches) { scrollBox()?.scrollBy(0, step * SCROLL_STEP); return }
+      if (reducedMotion()) { scrollBox()?.scrollBy(0, step * SCROLL_STEP); return }
       key = e.key
       target = step * SCROLL_SPEED
       if (!frame) { last = performance.now(); frame = requestAnimationFrame(tick) }
@@ -79,7 +77,7 @@ export function useArrowKeys(move: (step: number) => void) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const step = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0
-      if (!step || !arrowKeyIsFree(e) || matchMedia(PHONE_QUERY).matches) return
+      if (!step || !arrowKeyIsFree(e) || isPhone()) return
       e.preventDefault()
       latest.current(step)
     }
