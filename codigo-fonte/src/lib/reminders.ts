@@ -1,4 +1,5 @@
 import type { Task } from '../types'
+import { DEFAULT_LANGUAGE, type Language } from './i18n/languages.ts'
 
 // When a task's time limit should notify.
 
@@ -28,14 +29,21 @@ export function remindersBetween(tasks: Task[], since: Date, now: Date): Reminde
   return out.sort((a, b) => a.at - b.at).map(({ at: _at, ...r }) => r)
 }
 
-const WORDING: Record<ReminderKind, string> = { soon: 'Falta 1 hora para', due: 'Chegou a hora limite de', '1w': 'Falta 1 semana para', '1d': 'Falta 1 dia para', '1h': 'Falta 1 hora para', '10m': 'Faltam 10 minutos para', at: 'Chegou a hora de' }
-const line = (r: Reminder) => `${WORDING[r.kind]} ${r.title}`
+/** `{title}` is the task or reminder; `{n}` the count. The server has the same text; a test compares them. */
+const WORDING: Record<Language, Record<ReminderKind, string>> = {
+  'pt-PT': { soon: 'Falta 1 hora para {title}', due: 'Chegou a hora limite de {title}', '1w': 'Falta 1 semana para {title}', '1d': 'Falta 1 dia para {title}', '1h': 'Falta 1 hora para {title}', '10m': 'Faltam 10 minutos para {title}', at: 'Chegou a hora de {title}' },
+  en: { soon: 'In 1 hour: {title}', due: 'Deadline reached: {title}', '1w': 'In 1 week: {title}', '1d': 'In 1 day: {title}', '1h': 'In 1 hour: {title}', '10m': 'In 10 minutes: {title}', at: 'Now: {title}' },
+  de: { soon: 'In 1 Stunde: {title}', due: 'Frist erreicht: {title}', '1w': 'In 1 Woche: {title}', '1d': 'In 1 Tag: {title}', '1h': 'In 1 Stunde: {title}', '10m': 'In 10 Minuten: {title}', at: 'Jetzt: {title}' },
+  fr: { soon: 'Dans 1 heure : {title}', due: 'Échéance atteinte : {title}', '1w': 'Dans 1 semaine : {title}', '1d': 'Dans 1 jour : {title}', '1h': 'Dans 1 heure : {title}', '10m': 'Dans 10 minutes : {title}', at: 'Maintenant : {title}' },
+}
+const MORE: Record<Language, string> = { 'pt-PT': 'e mais {n}', en: 'and {n} more', de: 'und {n} weitere', fr: 'et {n} de plus' }
+const line = (r: Reminder, lang: Language) => WORDING[lang][r.kind].replace('{title}', () => r.title)
 
 /** The tab a notification opens: Lembretes only when all it announces are reminders. */
 export const noticeTarget = (list: Pick<Reminder, 'taskId'>[]) => list.every(r => r.taskId.startsWith(REMINDER_PREFIX)) ? 'lembretes' : 'tarefas'
 
 /** Text of one notification; reminders from the same check are grouped because the system may show only the last one sent. */
-export function reminderText(list: Reminder[]): { title: string; body: string } {
+export function reminderText(list: Reminder[], lang: Language = DEFAULT_LANGUAGE): { title: string; body: string } {
   const extra = list.length - 3
-  return { title: 'Syncro', body: list.slice(0, 3).map(line).join('\n') + (extra > 0 ? `\ne mais ${extra}` : '') }
+  return { title: 'Syncro', body: list.slice(0, 3).map(r => line(r, lang)).join('\n') + (extra > 0 ? '\n' + MORE[lang].replace('{n}', String(extra)) : '') }
 }

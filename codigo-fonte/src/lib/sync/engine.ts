@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { supabase } from '../supabase'
 import { readItem, readJson as read, removeItem, writeItem, writeJson as write } from '../storage'
 import { emptyData, parseAppData } from '../schema'
+import { savedLanguage } from '../i18n/useT'
 import { LEGACY_KEY, cacheKey, readData, setCommitListener, useStore } from '../../store/useStore'
 import type { AppData } from '../../types'
 import { PROFILE_ID, TABLES, applyRemote, coalesce, diffRows, emptyRows, fromRows, mergeWithServer, toRows, type Row, type Rows, type SyncOp, type Table } from './rows'
@@ -255,7 +256,8 @@ export async function startSync(id: string): Promise<StartResult> {
     startLoops()
   }
   if (cloudEmpty) {
-    finish(legacy ?? emptyData(), emptyRows())
+    // A new account starts in the language last chosen on this device.
+    finish(legacy ?? { ...emptyData(), language: savedLanguage() }, emptyRows())
     archiveLegacy()
     return { kind: 'ready' }
   }

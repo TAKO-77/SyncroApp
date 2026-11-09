@@ -1,3 +1,5 @@
+import type { Language } from './lib/i18n/languages'
+
 export type Rep = 'none' | 'daily' | 'weekdays' | 'custom' | 'weekly'
 export interface EventOverride { x?: 1; title?: string; start?: string; end?: string; cat?: string; color?: string }
 export interface PEvent {
@@ -27,6 +29,8 @@ export interface AppData {
   notes: WorkspaceNote[]; reminders: ReminderItem[]
   /** False when only reminders should notify. */
   notifyTasks: boolean
+  /** The account's language, for the UI and the notifications. */
+  language: Language
   /** Legacy single note per workspace; moved into `notes` by `parseAppData`. */
   taskNotes?: Record<string, string>
 }

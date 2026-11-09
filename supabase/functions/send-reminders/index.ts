@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { ApplicationServer, importVapidKeys, PushMessageError, Urgency } from 'jsr:@negrel/webpush@0.5.0'
-import { expirySeconds, isPushEndpoint, localMinutes, noticeTarget, reminderAlertsAt, reminderText, remindersAt, type ReminderRow, type TaskRow } from './rules.ts'
+import { expirySeconds, isPushEndpoint, languageOf, localMinutes, noticeTarget, reminderAlertsAt, reminderText, remindersAt, type ReminderRow, type TaskRow } from './rules.ts'
 
 // Called every minute by pg_cron (see the push_notifications migration). Sends each device the reminders now due.
 
@@ -37,9 +37,15 @@ Deno.serve(async req => {
     items.push(...data)
     if (data.length < PAGE) break
   }
-  const { data: onlyReminders, error: profileError } = await db.from('profiles').select('user_id').eq('notify_tasks', false)
-  if (profileError) return Response.json({ error: profileError.message }, { status: 500 })
-  const remindersOnly = new Set(onlyReminders.map(p => p.user_id))
+  const userIds = [...new Set(devices.map(d => d.user_id))]
+  const profiles: { user_id: string; notify_tasks: boolean; language: string }[] = []
+  for (let from = 0; from < userIds.length; from += 100) {
+    const { data, error: profileError } = await db.from('profiles').select('user_id, notify_tasks, language').in('user_id', userIds.slice(from, from + 100))
+    if (profileError) return Response.json({ error: profileError.message }, { status: 500 })
+    profiles.push(...data)
+  }
+  const remindersOnly = new Set(profiles.filter(p => p.notify_tasks === false).map(p => p.user_id))
+  const languages = new Map(profiles.map(p => [p.user_id, languageOf(p.language)]))
 
   const server = await ApplicationServer.new({
     contactInformation: 'https://app.getsyncro.workers.dev',
@@ -69,7 +75,7 @@ Deno.serve(async req => {
 
     try {
       await server.subscribe({ endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } })
-        .pushTextMessage(JSON.stringify({ ...reminderText(fresh), open: noticeTarget(fresh) }), { ttl: expirySeconds(fresh), urgency: Urgency.High })
+        .pushTextMessage(JSON.stringify({ ...reminderText(fresh, languages.get(device.user_id)), open: noticeTarget(fresh) }), { ttl: expirySeconds(fresh), urgency: Urgency.High })
       sent += fresh.length
     } catch (err) {
       failed++

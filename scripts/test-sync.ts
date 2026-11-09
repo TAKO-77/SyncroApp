@@ -11,7 +11,7 @@ import { parseQ } from '../codigo-fonte/src/lib/quick.ts'
 import { WEEK_RANGE, clipToWeek, weekScale } from '../codigo-fonte/src/lib/agendaFit.ts'
 import { eventsOn } from '../codigo-fonte/src/lib/recurrence.ts'
 import { noticeTarget, reminderText, remindersBetween } from '../codigo-fonte/src/lib/reminders.ts'
-import { expirySeconds, isPushEndpoint, localMinutes, noticeTarget as serverTarget, reminderAlertsAt, reminderText as serverText, remindersAt, type ReminderRow } from '../supabase/functions/send-reminders/rules.ts'
+import { LANGUAGES as SERVER_LANGUAGES, expirySeconds, isPushEndpoint, languageOf, localMinutes, noticeTarget as serverTarget, reminderAlertsAt, reminderText as serverText, remindersAt, type ReminderRow } from '../supabase/functions/send-reminders/rules.ts'
 import { addSubtaskDraft, applySubtaskEdits, hasBlankSubtask, splitSubtasks, withoutTask } from '../codigo-fonte/src/lib/subtasks.ts'
 import { NOTE_TEXT_MAX, TASK_NOTES_MAX, taskNotesError } from '../codigo-fonte/src/lib/taskNotes.ts'
 import { parseAppData } from '../codigo-fonte/src/lib/schema.ts'
@@ -20,6 +20,9 @@ import type { ReminderItem } from '../codigo-fonte/src/types.ts'
 import { sleepIv, sleepSchedule, sleepTargetDays, sleepWeek } from '../codigo-fonte/src/lib/sleep.ts'
 import { movedOrder, orderByIds, parseOrder, parseSort, parseSortMap, withSort, withoutSort } from '../codigo-fonte/src/lib/taskSort.ts'
 import { readFileSync } from 'node:fs'
+import { LANGUAGES, languageFromLocales } from '../codigo-fonte/src/lib/i18n/languages.ts'
+import { MESSAGES, translator } from '../codigo-fonte/src/lib/i18n/translate.ts'
+import type { ReminderKind } from '../codigo-fonte/src/lib/reminders.ts'
 
 // Checks the mapping between the local document and the Supabase rows used by the sync engine.
 const base = (): AppData => ({
@@ -37,7 +40,7 @@ const base = (): AppData => ({
   cats: [{ id: 'presencial', name: 'Estudo presencial', color: '#cf7f7f' }, { id: 'exercicio', name: 'Exercício', color: '#8bb08b' }],
   dayCats: [{ id: 'aniv', name: 'Aniversário', color: '#cf7f7f', icon: '🎂' }, { id: 'novo', name: 'Novo', color: '#d2bd62' }],
   sleep: { bed: '23:30', wake: '07:30', wk: false, bed2: '00:30', wake2: '09:30' },
-  name: 'Ana', reset: '2026-10-21', notifyTasks: true,
+  name: 'Ana', reset: '2026-10-21', notifyTasks: true, language: 'pt-PT',
   notes: [{ id: 'n1', workspaceId: 'w1', text: '- [ ] rever' }, { id: 'n2', workspaceId: 'w1', text: 'Ideias' }],
   reminders: [
     { id: 'r1', title: 'Consulta', date: '2026-11-20', time: '15:00', repeat: 'none', lead: '1d', until: '', doneUntil: '', doneAt: '' },
@@ -475,6 +478,77 @@ test('server and Windows app write the same notification text', () => {
   assert.equal(reminderText([{ taskId: 'reminder:r', kind: '10m', title: 'Consulta', time: '15:00' }]).body, 'Faltam 10 minutos para Consulta')
   assert.equal(reminderText([{ taskId: 'reminder:r', kind: '1w', title: 'Consulta', time: '15:00' }]).body, 'Falta 1 semana para Consulta')
   assert.equal(reminderText([{ taskId: 'reminder:r', kind: 'at', title: 'Consulta', time: '15:00' }]).body, 'Chegou a hora de Consulta')
+})
+
+test('every language has the same messages, with the same placeholders', () => {
+  const vars = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort()
+  const source = MESSAGES['pt-PT']
+  for (const lang of LANGUAGES) {
+    assert.deepEqual(Object.keys(MESSAGES[lang]).sort(), Object.keys(source).sort(), lang)
+    for (const [key, text] of Object.entries(MESSAGES[lang])) {
+      assert.ok(text.trim(), `${lang} ${key} is empty`)
+      assert.deepEqual(vars(text), vars(source[key as keyof typeof source]), `${lang} ${key}`)
+    }
+  }
+  assert.equal(translator('en').tn('settings.rejected', 1), '1 change was rejected by the server because it contained invalid data.')
+  assert.equal(translator('fr').tn('settings.signOutPending', 0).startsWith('0 modification n’a'), true, 'French uses the singular for 0')
+  assert.equal(translator('pt-PT').t('settings.installedVersion', { version: '2.11.0' }), 'Versão instalada: 2.11.0')
+})
+
+test('the languages match the database and the server', () => {
+  const sql = readFileSync(new URL('../supabase/migrations/20261110000000_profile_language.sql', import.meta.url), 'utf8')
+  const allowed = /language in \(([^)]*)\)/.exec(sql)![1].split(',').map(s => s.trim().replace(/'/g, ''))
+  assert.deepEqual(allowed, [...LANGUAGES])
+  assert.deepEqual([...SERVER_LANGUAGES], [...LANGUAGES])
+  assert.equal(languageOf('de'), 'de')
+  assert.equal(languageOf('es'), 'pt-PT')
+  assert.equal(languageOf(null), 'pt-PT')
+})
+
+test('the language comes from the account, with pt-PT for old data and unknown values', () => {
+  const d = base(); d.language = 'fr'
+  assert.equal(fromRows(toRows(d), base()).language, 'fr')
+  assert.deepEqual(diffRows(toRows(base()), toRows(d))[0].fields, ['language'])
+  const { language: _gone, ...old } = base()
+  assert.equal(parseAppData(clone(old))!.language, 'pt-PT', 'old data and backups')
+  assert.equal(parseAppData({ ...clone(base()), language: 'es' })!.language, 'pt-PT')
+  const rows = toRows(base()); delete rows.profiles.profile.language
+  assert.equal(fromRows(rows, d).language, 'fr', 'a profile row from before the column keeps the local choice')
+  rows.profiles.profile.language = null
+  assert.equal(fromRows(rows, d).language, 'fr', 'a pulled row without the column')
+  const server = { ...toRows(base()).profiles.profile, name: 'Rui', language: 'de' }
+  const onlyLanguage = diffRows(toRows(base()), toRows(d)).find(op => op.table === 'profiles')!
+  assert.deepEqual({ name: mergeWithServer(onlyLanguage, server).name, language: mergeWithServer(onlyLanguage, server).language }, { name: 'Rui', language: 'fr' }, 'changing the language keeps the name set elsewhere')
+  const renamed = base(); renamed.name = 'Ana Maria'
+  const onlyName = diffRows(toRows(base()), toRows(renamed)).find(op => op.table === 'profiles')!
+  assert.equal(mergeWithServer(onlyName, server).language, 'de', 'renaming keeps the language chosen elsewhere')
+})
+
+test('the system language picks the first supported one', () => {
+  assert.equal(languageFromLocales(['pt-BR']), 'pt-PT')
+  assert.equal(languageFromLocales(['es-ES', 'de-AT']), 'de')
+  assert.equal(languageFromLocales(['en-US']), 'en')
+  assert.equal(languageFromLocales(['ja']), 'pt-PT')
+  assert.equal(languageFromLocales([]), 'pt-PT')
+})
+
+test('notifications are written in the account language, the same on both sides', () => {
+  const item = (kind: ReminderKind, i: number) => ({ taskId: `t${i}`, kind, title: `T${i}`, time: '18:00', due: '2026-11-04' })
+  for (const lang of LANGUAGES) {
+    for (const kind of ['soon', 'due', '1w', '1d', '1h', '10m', 'at'] as const) {
+      const list = [item(kind, 0)]
+      assert.deepEqual(serverText(list, lang), { title: reminderText(list, lang).body, body: '' }, `${lang} ${kind}`)
+      assert.ok(reminderText(list, lang).body.includes('T0'), `${lang} ${kind} names the item`)
+    }
+    const many = [0, 1, 2, 3, 4].map(i => item('due', i))
+    assert.equal(serverText(many, lang).body, reminderText(many, lang).body, lang)
+    assert.ok(serverText(many, lang).title.includes('5'), lang)
+  }
+  assert.equal(reminderText([item('soon', 0)], 'en').body, 'In 1 hour: T0')
+  assert.equal(reminderText([0, 1, 2, 3].map(i => item('at', i)), 'de').body.split('\n').at(-1), 'und 1 weitere')
+  assert.equal(serverText([item('at', 0), item('at', 1)], 'fr').title, '2 alertes Syncro')
+  assert.equal(reminderText([item('soon', 0)]).body, 'Falta 1 hora para T0', 'pt-PT by default')
+  assert.equal(reminderText([{ ...item('at', 0), title: 'Pagar $&' }], 'en').body, 'Now: Pagar $&', 'titles are inserted literally')
 })
 
 test('the server only calls known push services', () => {

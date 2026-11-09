@@ -1,6 +1,11 @@
 // Which reminders a device should receive. Self-contained: the function is deployed on its own.
 // The wording matches codigo-fonte/src/lib/reminders.ts, which the Windows app uses; a test keeps them equal.
 
+export const LANGUAGES = ['pt-PT', 'en', 'de', 'fr'] as const
+export type Language = typeof LANGUAGES[number]
+/** profiles.language, with pt-PT for a value this function does not know. */
+export const languageOf = (value: unknown): Language => LANGUAGES.includes(value as Language) ? value as Language : 'pt-PT'
+
 export type ReminderKind = 'soon' | 'due' | '1w' | '1d' | '1h' | '10m' | 'at'
 export interface TaskRow { id: string; title: string; due: string; due_time: string }
 export interface ReminderRow { id: string; title: string; date: string; time: string; frequency: 'none' | 'daily' | 'weekly'; lead_time: '' | '1w' | '1d' | '1h' | '10m'; end_date: string | null; done_until: string }
@@ -64,17 +69,25 @@ export function reminderAlertsAt(rows: ReminderRow[], now: number): Reminder[] {
 const EXPIRY_SECONDS: Record<ReminderKind, number> = { soon: 55 * 60, due: 3600, '1w': 3600, '1d': 3600, '1h': 55 * 60, '10m': 9 * 60, at: 3600 }
 export const expirySeconds = (list: Reminder[]) => Math.max(...list.map(r => EXPIRY_SECONDS[r.kind]))
 
-const WORDING: Record<ReminderKind, string> = { soon: 'Falta 1 hora para', due: 'Chegou a hora limite de', '1w': 'Falta 1 semana para', '1d': 'Falta 1 dia para', '1h': 'Falta 1 hora para', '10m': 'Faltam 10 minutos para', at: 'Chegou a hora de' }
-const line = (r: Pick<Reminder, 'kind' | 'title'>) => `${WORDING[r.kind]} ${r.title}`
+/** `{title}` is the task or reminder; `{n}` the count. The Windows app has the same text; a test compares them. */
+const WORDING: Record<Language, Record<ReminderKind, string>> = {
+  'pt-PT': { soon: 'Falta 1 hora para {title}', due: 'Chegou a hora limite de {title}', '1w': 'Falta 1 semana para {title}', '1d': 'Falta 1 dia para {title}', '1h': 'Falta 1 hora para {title}', '10m': 'Faltam 10 minutos para {title}', at: 'Chegou a hora de {title}' },
+  en: { soon: 'In 1 hour: {title}', due: 'Deadline reached: {title}', '1w': 'In 1 week: {title}', '1d': 'In 1 day: {title}', '1h': 'In 1 hour: {title}', '10m': 'In 10 minutes: {title}', at: 'Now: {title}' },
+  de: { soon: 'In 1 Stunde: {title}', due: 'Frist erreicht: {title}', '1w': 'In 1 Woche: {title}', '1d': 'In 1 Tag: {title}', '1h': 'In 1 Stunde: {title}', '10m': 'In 10 Minuten: {title}', at: 'Jetzt: {title}' },
+  fr: { soon: 'Dans 1 heure : {title}', due: 'Échéance atteinte : {title}', '1w': 'Dans 1 semaine : {title}', '1d': 'Dans 1 jour : {title}', '1h': 'Dans 1 heure : {title}', '10m': 'Dans 10 minutes : {title}', at: 'Maintenant : {title}' },
+}
+const MORE: Record<Language, string> = { 'pt-PT': 'e mais {n}', en: 'and {n} more', de: 'und {n} weitere', fr: 'et {n} de plus' }
+const COUNT: Record<Language, string> = { 'pt-PT': '{n} avisos do Syncro', en: '{n} Syncro alerts', de: '{n} Syncro-Hinweise', fr: '{n} alertes Syncro' }
+const line = (r: Pick<Reminder, 'kind' | 'title'>, lang: Language) => WORDING[lang][r.kind].replace('{title}', () => r.title)
 
 /** The tab a notification opens: Lembretes only when all it announces are reminders. */
 export const noticeTarget = (list: Pick<Reminder, 'taskId'>[]) => list.every(r => r.taskId.startsWith('reminder:')) ? 'lembretes' : 'tarefas'
 
-export function reminderText(list: Pick<Reminder, 'kind' | 'title'>[]): { title: string; body: string } {
+export function reminderText(list: Pick<Reminder, 'kind' | 'title'>[], lang: Language = 'pt-PT'): { title: string; body: string } {
   // iPhones always add "from Syncro" under the title, so the app's name would only repeat there.
-  if (list.length === 1) return { title: line(list[0]), body: '' }
+  if (list.length === 1) return { title: line(list[0], lang), body: '' }
   const extra = list.length - 3
-  return { title: `${list.length} avisos do Syncro`, body: list.slice(0, 3).map(line).join('\n') + (extra > 0 ? `\ne mais ${extra}` : '') }
+  return { title: COUNT[lang].replace('{n}', String(list.length)), body: list.slice(0, 3).map(r => line(r, lang)).join('\n') + (extra > 0 ? '\n' + MORE[lang].replace('{n}', String(extra)) : '') }
 }
 
 const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /(^|\.)push\.apple\.com$/, /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/]

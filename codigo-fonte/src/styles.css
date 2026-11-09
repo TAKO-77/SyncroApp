@@ -262,7 +262,7 @@ textarea{width:100%;resize:vertical}
 /* Task editor: subtasks and notes */
 .field-error{color:var(--error);font-size:12px;font-weight:500}
 .reminder-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.notify-choice{width:fit-content;max-width:100%;margin-bottom:8px}
+.notify-choice,.language-choice{width:fit-content;max-width:100%;margin-bottom:8px}
 .reminder-field{display:flex;flex-direction:column;gap:6px;color:var(--mu);font-size:12px;font-weight:500}.reminder-field .seg button{flex:1}
 .tk.reminder.completing::after{content:"✓ Concluído"}
 .dl [aria-invalid=true]{border-color:var(--error)}
@@ -580,6 +580,7 @@ main>.page{animation:page-in .35s cubic-bezier(.2,.75,.25,1) backwards}
   .calendar-page .mg{flex:none}.calendar-page .mh{padding:6px}.calendar-page .mc{min-height:64px;padding:4px}.calendar-page .mg{--mc-pad:4px}
   .calendar-page .upcoming-compact .upcoming-list{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.calendar-page .upcoming-compact .upcoming-item{flex:none;max-width:none}
 }
+@media(max-width:480px){.language-choice{width:100%}.language-choice button{flex:1;padding-inline:4px}}
 @media(max-width:640px){.note-grid{grid-template-columns:1fr}.note-card-tools{opacity:1}}
 @media(max-width:480px){.date-pill{display:none}.kpis{grid-template-columns:minmax(0,1fr)}.fgrid{grid-template-columns:1fr}.hl-row .tag{display:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}

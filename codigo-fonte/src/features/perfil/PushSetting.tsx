@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
 import { disablePush, enablePush, pushState, type PushState } from '../../lib/push'
+import { useT } from '../../lib/i18n/useT'
+import type { MessageKey } from '../../lib/i18n/translate'
 
-const NOTE: Partial<Record<PushState, string>> = {
-  install: 'No iPhone, instala primeiro o Syncro: em Safari, Partilhar → Adicionar ao ecrã principal.',
-  unsupported: 'Este navegador não permite notificações.',
-  denied: 'Notificações bloqueadas. Permite-as nas definições do telemóvel ou do navegador.',
-}
+const NOTE: Partial<Record<PushState, MessageKey>> = { install: 'settings.pushInstall', unsupported: 'settings.pushUnsupported', denied: 'settings.pushDenied' }
 
 /** Notifications switch of the web/PWA build: reminders arrive through Web Push, even with the app closed. */
 export function PushSetting() {
+  const { t } = useT()
   const [state, setState] = useState<PushState | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -17,16 +16,16 @@ export function PushSetting() {
     setBusy(true); setError('')
     try {
       if (on) await enablePush(); else await disablePush()
-    } catch { setError(on ? 'Não foi possível ligar os avisos. Verifica a ligação e tenta novamente.' : 'Não foi possível desligar os avisos. Verifica a ligação e tenta novamente.') }
+    } catch { setError(t(on ? 'settings.pushOnError' : 'settings.pushOffError')) }
     setState(await pushState()); setBusy(false)
   }
   if (!state) return null
   const note = NOTE[state]
   return <>
-    <h2 className="sub">Notificações</h2>
-    {note ? <p className="mu">{note}</p> : <>
-      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={state === 'on'} disabled={busy} onChange={e => void toggle(e.target.checked)} /> Receber notificações neste dispositivo</label>
-      <p className="mu">Dos lembretes e, se o escolheres no Perfil, das tarefas com hora limite, mesmo com a app fechada.</p>
+    <h2 className="sub">{t('settings.notifications')}</h2>
+    {note ? <p className="mu">{t(note)}</p> : <>
+      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={state === 'on'} disabled={busy} onChange={e => void toggle(e.target.checked)} /> {t('settings.notifyDevice')}</label>
+      <p className="mu">{t('settings.notifyDeviceNote')}</p>
       {error && <p className="neg" role="alert">{error}</p>}
     </>}
   </>

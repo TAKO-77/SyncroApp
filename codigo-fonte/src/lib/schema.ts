@@ -1,5 +1,6 @@
 import { PALETTE, harmonizeDefaultColor } from './palette.ts'
 import { NOTE_TEXT_MAX } from './taskNotes.ts'
+import { DEFAULT_LANGUAGE, LANGUAGES } from './i18n/languages.ts'
 import { z } from 'zod'
 import type { AppData } from '../types'
 
@@ -45,12 +46,13 @@ const schema = z.object({
   taskNotes: z.record(z.string()).optional(),
   reminders: z.array(item).default([]),
   notifyTasks: z.boolean().default(true),
+  language: z.enum(LANGUAGES).catch(DEFAULT_LANGUAGE),
 }).passthrough()
 
 export const emptyData = (): AppData => ({
   ev: [], tasks: [], workspaces: [{ id: 'geral', name: 'Geral' }], fin: [], days: [], cats: DEFAULT_CATS.map(c => ({ ...c })),
   dayCats: DEFAULT_DAY_CATS.map(c => ({ ...c })),
-  sleep: { ...DEFAULT_SLEEP }, reset: '', notes: [], reminders: [], notifyTasks: true,
+  sleep: { ...DEFAULT_SLEEP }, reset: '', notes: [], reminders: [], notifyTasks: true, language: DEFAULT_LANGUAGE,
 })
 
 /** Accepts an export file ({app, v, data}, also from the old HTML version) or the data object itself. */

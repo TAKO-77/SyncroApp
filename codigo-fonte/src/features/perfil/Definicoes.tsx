@@ -8,11 +8,16 @@ import { PushSetting } from './PushSetting'
 import { syncNow, useSync, type SyncStatus } from '../../lib/sync/engine'
 import { signOut, useAuth } from '../../store/useAuth'
 import { confirmDialog } from '../../store/confirm'
+import { Glider } from '../../components/Glider'
+import { useT } from '../../lib/i18n/useT'
+import { LANGUAGES, LANGUAGE_NAMES, isLanguage } from '../../lib/i18n/languages'
+import type { MessageKey } from '../../lib/i18n/translate'
 
-const SYNC_LABEL: Record<SyncStatus, string> = { idle: 'A preparar a sincronização…', syncing: 'A sincronizar…', synced: 'Sincronizado', offline: 'Sem ligação — as alterações ficam guardadas neste dispositivo', error: 'Não foi possível sincronizar' }
+const SYNC_LABEL: Record<SyncStatus, MessageKey> = { idle: 'sync.idle', syncing: 'sync.syncing', synced: 'sync.synced', offline: 'sync.offline', error: 'sync.error' }
 
 export function Definicoes() {
-  const { data, replace, sidebarAutoOpen, setSidebarAutoOpen, focusTimer, setFocusTimer, notifications, setNotifications, theme, setTheme } = useStore()
+  const { t, tn, locale } = useT()
+  const { data, update, replace, sidebarAutoOpen, setSidebarAutoOpen, focusTimer, setFocusTimer, notifications, setNotifications, theme, setTheme } = useStore()
   const { user, offline } = useAuth()
   const sync = useSync()
   const [msg, setMsg] = useState('')
@@ -48,11 +53,11 @@ export function Definicoes() {
   const checkUpdates = () => {
     if (!desktop) return
     setCheckingUpdates(true)
-    setUpdateStatus('A procurar atualizações…')
+    setUpdateStatus(t('settings.searchingUpdates'))
     desktop.postMessage('syncro:check-for-updates')
   }
   const leave = async () => {
-    if (sync.pending && !await confirmDialog({ title: 'Terminar sessão?', message: `Há ${sync.pending} alteraç${sync.pending === 1 ? 'ão' : 'ões'} por enviar. Se terminares sessão, só serão enviadas quando voltares a entrar neste dispositivo.`, confirmLabel: 'Terminar sessão', danger: true })) return
+    if (sync.pending && !await confirmDialog({ title: t('settings.signOutTitle'), message: tn('settings.signOutPending', sync.pending), confirmLabel: t('settings.signOut'), danger: true })) return
     void signOut()
   }
   const file = useRef<HTMLInputElement>(null)
@@ -62,52 +67,61 @@ export function Definicoes() {
     a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' }))
     a.download = `syncro-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
-    setMsg(`Exportado: ${data.ev.length} eventos, ${data.tasks.length} tarefas.`)
+    setMsg(t('settings.exported', { events: data.ev.length, tasks: data.tasks.length }))
   }
   const importar = async (f?: File) => {
     if (!f) return
     try {
-      const d = parseAppData(JSON.parse(await f.text()))
+      const raw = JSON.parse(await f.text()), d = parseAppData(raw)
       if (!d) throw new Error()
-      replace(d); setMsg('Dados importados.')
-    } catch { setMsg('Ficheiro inválido.') }
+      // A backup from before the language choice keeps the account's language.
+      const source = raw && typeof raw === 'object' && 'data' in raw ? raw.data : raw
+      if (!isLanguage(source?.language)) d.language = data.language
+      replace(d); setMsg(t('settings.imported'))
+    } catch { setMsg(t('settings.invalidFile')) }
   }
 
   return <section className="page narrow settings-page">
-    <h2>Definições</h2>
-    <h2 className="sub">Conta</h2>
+    <h2>{t('settings.title')}</h2>
+    <h2 className="sub">{t('settings.account')}</h2>
     <p>{user?.email}</p>
-    <p className="mu" role="status" aria-live="polite">{offline ? 'Sessão sem ligação — a usar os dados guardados neste dispositivo.' : SYNC_LABEL[sync.status]}{sync.pending ? ` · ${sync.pending} por enviar` : ''}{sync.lastSync && sync.status === 'synced' ? ` · ${new Date(sync.lastSync).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>
-    {sync.rejected > 0 && <p className="mu">{sync.rejected} alteraç{sync.rejected === 1 ? 'ão foi recusada' : 'ões foram recusadas'} pelo servidor por conterem dados inválidos.</p>}
+    <p className="mu" role="status" aria-live="polite">{offline ? t('settings.offlineSession') : t(SYNC_LABEL[sync.status])}{sync.pending ? ` · ${t('settings.pending', { n: sync.pending })}` : ''}{sync.lastSync && sync.status === 'synced' ? ` · ${new Date(sync.lastSync).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}` : ''}</p>
+    {sync.rejected > 0 && <p className="mu">{tn('settings.rejected', sync.rejected)}</p>}
     <div className="row">
-      <button className="btn" disabled={sync.status === 'syncing'} onClick={() => { void syncNow() }}>Sincronizar agora</button>
-      <button className="btn" onClick={leave}>Terminar sessão</button>
+      <button className="btn" disabled={sync.status === 'syncing'} onClick={() => { void syncNow() }}>{t('settings.syncNow')}</button>
+      <button className="btn" onClick={leave}>{t('settings.signOut')}</button>
     </div>
-    <h2 className="sub">Atualizações</h2>
+    <h2 className="sub">{t('settings.updates')}</h2>
     {desktop ? <>
-      <p className="mu">{version ? `Versão instalada: ${version}` : 'A obter a versão instalada…'}</p>
-      <button className="btn" disabled={checkingUpdates} onClick={checkUpdates}>{checkingUpdates ? 'A verificar…' : 'Procurar atualizações'}</button>
+      <p className="mu">{version ? t('settings.installedVersion', { version }) : t('settings.gettingVersion')}</p>
+      <button className="btn" disabled={checkingUpdates} onClick={checkUpdates}>{checkingUpdates ? t('settings.checking') : t('settings.checkUpdates')}</button>
       <p className="mu" role="status" aria-live="polite">{updateStatus}</p>
-    </> : <p className="mu">Versão instalada: {__APP_VERSION__} · {new Date(__APP_BUILD__).toLocaleString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
-    <p className="wide-only"><a className="btn" href="https://github.com/TAKO-77/SyncroApp/releases/latest" target="_blank" rel="noreferrer">Descarregar a versão mais recente no GitHub</a></p>
+    </> : <p className="mu">{t('settings.installedVersion', { version: __APP_VERSION__ })} · {new Date(__APP_BUILD__).toLocaleString(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
+    <p className="wide-only"><a className="btn" href="https://github.com/TAKO-77/SyncroApp/releases/latest" target="_blank" rel="noreferrer">{t('settings.download')}</a></p>
     {!desktop && <PushSetting />}
     {desktop && <>
-      <h2 className="sub">Notificações</h2>
-      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={notifications} onChange={e => setNotifications(e.target.checked)} /> Receber notificações neste computador</label>
-      <p className="mu">Dos lembretes e, se o escolheres no Perfil, das tarefas com hora limite. Com esta opção ativa, ao fechar a janela o Syncro continua a correr junto ao relógio do Windows para poder avisar; para o encerrar, escolhe Sair nesse ícone. Desativada, fechar a janela encerra o Syncro.</p>
+      <h2 className="sub">{t('settings.notifications')}</h2>
+      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={notifications} onChange={e => setNotifications(e.target.checked)} /> {t('settings.notifyComputer')}</label>
+      <p className="mu">{t('settings.notifyComputerNote')}</p>
     </>}
-    <h2 className="sub">Aparência</h2>
-    <label className="ck"><input type="checkbox" className="sw" role="switch" checked={theme === 'light'} onChange={e => switchTheme(e.target.checked ? 'light' : 'dark', e.currentTarget)} /> Modo claro</label>
-    <div className="wide-only">
-      <h2 className="sub">Barra lateral</h2>
-      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={sidebarAutoOpen} onChange={e => setSidebarAutoOpen(e.target.checked)} aria-describedby="sidebar-preference-description" /> Abrir automaticamente ao passar o rato</label>
-      <p id="sidebar-preference-description" className="mu">{sidebarAutoOpen ? 'Ativo — a barra abre automaticamente ao passar o rato.' : 'Desativado — usa os ícones para mudar de aba ou o botão no topo da barra para abrir e fechar manualmente.'}</p>
-      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={focusTimer} onChange={e => setFocusTimer(e.target.checked)} /> Mostrar temporizador de foco</label>
+    <h2 className="sub">{t('settings.language')}</h2>
+    <div className="seg language-choice" role="group" aria-label={t('settings.language')}>
+      {LANGUAGES.map(lang => <button key={lang} type="button" lang={lang} aria-pressed={data.language === lang} onClick={() => { if (lang !== data.language) update(d => { d.language = lang }) }}>{LANGUAGE_NAMES[lang]}</button>)}
+      <Glider />
     </div>
-    <h2 className="sub">Dados e cópia de segurança</h2>
+    <p className="mu">{t('settings.languageNote')}</p>
+    <h2 className="sub">{t('settings.appearance')}</h2>
+    <label className="ck"><input type="checkbox" className="sw" role="switch" checked={theme === 'light'} onChange={e => switchTheme(e.target.checked ? 'light' : 'dark', e.currentTarget)} /> {t('settings.lightMode')}</label>
+    <div className="wide-only">
+      <h2 className="sub">{t('settings.sidebar')}</h2>
+      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={sidebarAutoOpen} onChange={e => setSidebarAutoOpen(e.target.checked)} aria-describedby="sidebar-preference-description" /> {t('settings.sidebarAutoOpen')}</label>
+      <p id="sidebar-preference-description" className="mu">{t(sidebarAutoOpen ? 'settings.sidebarAutoOpenOn' : 'settings.sidebarAutoOpenOff')}</p>
+      <label className="ck"><input type="checkbox" className="sw" role="switch" checked={focusTimer} onChange={e => setFocusTimer(e.target.checked)} /> {t('settings.focusTimer')}</label>
+    </div>
+    <h2 className="sub">{t('settings.data')}</h2>
     <div className="row">
-      <button className="btn" onClick={exportar}>Exportar</button>
-      <button className="btn" onClick={() => file.current?.click()}>Importar ficheiro</button>
+      <button className="btn" onClick={exportar}>{t('settings.export')}</button>
+      <button className="btn" onClick={() => file.current?.click()}>{t('settings.import')}</button>
       <input ref={file} type="file" accept=".json,application/json" hidden onChange={e => { void importar(e.target.files?.[0]); e.target.value = '' }} />
     </div>
     <p className="mu" role="status">{msg}</p>

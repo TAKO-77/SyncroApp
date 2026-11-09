@@ -38,7 +38,7 @@ async function check() {
     writeItem(key, now.toISOString())
     if (due.length) {
       writeItem(TARGET_KEY, noticeTarget(due))
-      desktop.postMessage('syncro:notify:' + JSON.stringify(reminderText(due)))
+      desktop.postMessage('syncro:notify:' + JSON.stringify(reminderText(due, data.language)))
     }
   } finally { checking = false }
 }
