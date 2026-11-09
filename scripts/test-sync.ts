@@ -21,7 +21,7 @@ import { sleepIv, sleepSchedule, sleepTargetDays, sleepWeek } from '../codigo-fo
 import { movedOrder, orderByIds, parseOrder, parseSort, parseSortMap, withSort, withoutSort } from '../codigo-fonte/src/lib/taskSort.ts'
 import { readFileSync } from 'node:fs'
 import { LANGUAGES, languageFromLocales } from '../codigo-fonte/src/lib/i18n/languages.ts'
-import { MESSAGES, translator } from '../codigo-fonte/src/lib/i18n/translate.ts'
+import { AREAS, MESSAGES, translator } from '../codigo-fonte/src/lib/i18n/translate.ts'
 import type { ReminderKind } from '../codigo-fonte/src/lib/reminders.ts'
 
 // Checks the mapping between the local document and the Supabase rows used by the sync engine.
@@ -483,6 +483,7 @@ test('server and Windows app write the same notification text', () => {
 test('every language has the same messages, with the same placeholders', () => {
   const vars = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort()
   const source = MESSAGES['pt-PT']
+  assert.equal(Object.keys(source).length, AREAS.reduce((n, area) => n + Object.keys(area['pt-PT']).length, 0), 'no key is in two areas')
   for (const lang of LANGUAGES) {
     assert.deepEqual(Object.keys(MESSAGES[lang]).sort(), Object.keys(source).sort(), lang)
     for (const [key, text] of Object.entries(MESSAGES[lang])) {
@@ -493,6 +494,7 @@ test('every language has the same messages, with the same placeholders', () => {
   assert.equal(translator('en').tn('settings.rejected', 1), '1 change was rejected by the server because it contained invalid data.')
   assert.equal(translator('fr').tn('settings.signOutPending', 0).startsWith('0 modification n’a'), true, 'French uses the singular for 0')
   assert.equal(translator('pt-PT').t('settings.installedVersion', { version: '2.11.0' }), 'Versão instalada: 2.11.0')
+  assert.deepEqual(['pt-PT', 'en', 'de', 'fr'].map(lang => translator(lang as 'en').shortDate('2026-11-04')), ['4 nov', '4 Nov', '4. Nov.', '4 nov.'])
 })
 
 test('the languages match the database and the server', () => {

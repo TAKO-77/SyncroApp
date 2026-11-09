@@ -1,3 +1,7 @@
+import { dayMonth } from './i18n/calendar.ts'
+import type { Language } from './i18n/languages.ts'
+
+/** Portuguese names; translated screens use `days`/`months` from `useT()`. */
 export const DN = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 export const MN = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 export const p2 = (n: number) => String(n).padStart(2, '0')
@@ -30,8 +34,8 @@ export function monthGrid(ym: string): string[] {
 }
 /** Minutes from `a` to `b`, past midnight when `b` is earlier. */
 export const spanMinutes = (a: string, b: string) => (mins(b) - mins(a) + 1440) % 1440
-/** "4 nov". */
-export const shortDate = (day: string) => { const d = parse(day); return `${d.getDate()} ${MN[d.getMonth()]}` }
+/** "4 nov" ("4 Nov", "4. Nov.", "4 nov."). */
+export const shortDate = (day: string, lang: Language = 'pt-PT') => { const d = parse(day); return dayMonth(lang, d.getDate(), d.getMonth()) }
 /** Adds `k` months to a `YYYY-MM` string. */
 export const ymAdd = (ym: string, k: number) => addMonths(`${ym}-01`, k).slice(0, 7)
 /** A day as a count of days, so that differences between days are exact. */

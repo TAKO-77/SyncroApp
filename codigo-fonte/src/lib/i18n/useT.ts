@@ -1,4 +1,5 @@
 import { useStore } from '../../store/useStore'
+import { desktop } from '../desktop'
 import { readItem, writeItem } from '../storage'
 import { DEFAULT_LANGUAGE, isLanguage, languageFromLocales, type Language } from './languages'
 import { translator } from './translate'
@@ -26,9 +27,12 @@ export const useT = () => translator(useLanguage())
 /** For code outside components (dialogs opened from handlers, notifications). */
 export const tr = () => translator(currentLanguage())
 
-/** Keeps <html lang> and the device's copy in step, so the sign-in screen and the next start use the account's language. */
+/**
+ * Keeps <html lang>, the device's copy and the Windows host in step, so the sign-in screen, the next start and the
+ * tray menu use the account's language.
+ */
 export function trackLanguage() {
-  const apply = (lang: Language) => { document.documentElement.lang = lang }
+  const apply = (lang: Language) => { document.documentElement.lang = lang; desktop?.postMessage(`syncro:language:${lang}`) }
   apply(currentLanguage())
   useStore.subscribe((s, prev) => {
     const lang = pick(s)
