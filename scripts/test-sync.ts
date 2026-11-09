@@ -5,7 +5,7 @@ import { purgeExpired } from '../codigo-fonte/src/lib/cleanup.ts'
 import { markDone } from '../codigo-fonte/src/lib/tasks.ts'
 import { addMonths, monthGrid, ymAdd } from '../codigo-fonte/src/lib/dates.ts'
 import { monthTotals, overallBalance } from '../codigo-fonte/src/lib/finance.ts'
-import { daysLeft, upcomingSpecialDays } from '../codigo-fonte/src/lib/specialDays.ts'
+import { daysLeft, defaultEndTime, endTimeInvalid, specialBlocksOn, specialDayTime, upcomingSpecialDays, weekBars } from '../codigo-fonte/src/lib/specialDays.ts'
 import { dueForTime, dueKey, isOverdue } from '../codigo-fonte/src/lib/taskDue.ts'
 import { parseQ } from '../codigo-fonte/src/lib/quick.ts'
 import { WEEK_RANGE, clipToWeek, weekScale } from '../codigo-fonte/src/lib/agendaFit.ts'
@@ -33,7 +33,7 @@ const base = (): AppData => ({
   ],
   workspaces: [{ id: 'geral', name: 'Geral' }, { id: 'w1', name: 'Projeto' }],
   fin: [{ id: 'f1', t: 'out', k: 'rec', n: 'Renda', a: 450.5, date: '2026-10-01', end: '', c: 'casa' }],
-  days: [{ id: 'd1', n: 'Aniversário', ty: 'aniv', s: '2000-05-04', e: '', h: '', o: '', y: true }],
+  days: [{ id: 'd1', n: 'Aniversário', ty: 'aniv', s: '2000-05-04', e: '', h: '', he: '', o: '', y: true }, { id: 'd3', n: 'Congresso', ty: 'novo', s: '2026-11-10', e: '2026-11-12', h: '09:00', he: '18:00', o: '', y: false }],
   cats: [{ id: 'presencial', name: 'Estudo presencial', color: '#cf7f7f' }, { id: 'exercicio', name: 'Exercício', color: '#8bb08b' }],
   dayCats: [{ id: 'aniv', name: 'Aniversário', color: '#cf7f7f', icon: '🎂' }, { id: 'novo', name: 'Novo', color: '#d2bd62' }],
   sleep: { bed: '23:30', wake: '07:30', wk: false, bed2: '00:30', wake2: '09:30' },
@@ -74,6 +74,7 @@ test('round trip keeps every synced field', () => {
   assert.deepEqual(back.notes, d.notes)
   assert.deepEqual(back.dayCats, d.dayCats)
   assert.deepEqual(back.reminders, d.reminders)
+  assert.deepEqual(back.days, d.days)
 })
 
 test('no changes produce no operations', () => assert.deepEqual(diffRows(toRows(base()), toRows(base())), []))
@@ -160,7 +161,7 @@ test('adding and removing notes keeps their order', () => {
 
 test('first upload sends every row', () => {
   const ops = diffRows(emptyRows(), toRows(base()))
-  assert.equal(ops.length, 1 + 2 + 2 + 2 + 2 + 2 + 1 + 1 + 2 + 2)
+  assert.equal(ops.length, 1 + 2 + 2 + 2 + 2 + 2 + 1 + 2 + 2 + 2)
   assert.ok(ops.every(o => !o.deleted))
 })
 
@@ -259,6 +260,46 @@ test('yearly special days roll over the new year and skip 29 February in common 
   const day = (id: string, s: string) => ({ id, n: id, ty: 'aniv', s, e: '', h: '', o: '', y: true })
   assert.deepEqual(upcomingSpecialDays([day('ano', '1990-01-10')], '2026-12-20').map(x => x.date), ['2027-01-10'])
   assert.deepEqual(upcomingSpecialDays([day('bissexto', '2000-02-29')], '2027-02-10'), [])
+})
+
+test('multi-day special days become one bar per week row with stable lanes', () => {
+  const day = (id: string, s: string, e = '', y = false) => ({ id, n: id, ty: 'evento', s, e, h: '', o: '', y })
+  const bars = weekBars([
+    day('viagem', '2026-11-04', '2026-11-11'), day('congresso', '2026-11-10', '2026-11-12'),
+    day('feira', '2026-11-13', '2026-11-14'), day('sozinho', '2026-11-10'), day('anual', '2000-11-10', '', true),
+  ], '2026-11-09')
+  assert.deepEqual(bars.map(b => [b.item.id, b.from, b.to, b.lane, b.head, b.tail]), [
+    ['viagem', 0, 2, 0, false, true], ['congresso', 1, 3, 1, true, true], ['feira', 4, 5, 0, true, true],
+  ])
+  assert.deepEqual(weekBars([day('longo', '2026-11-01', '2026-12-01')], '2026-11-09').map(b => [b.from, b.to, b.head, b.tail]), [[0, 6, false, false]])
+  assert.deepEqual(weekBars([day('fora', '2026-11-01', '2026-11-08')], '2026-11-09'), [])
+})
+
+test('special day end time defaults to one hour later and must follow the start on one day', () => {
+  assert.equal(defaultEndTime('14:00'), '15:00')
+  assert.equal(defaultEndTime('23:30'), '23:59')
+  assert.equal(defaultEndTime(''), '')
+  assert.equal(specialDayTime({ h: '14:00', he: '15:30' }), '14:00–15:30')
+  assert.equal(specialDayTime({ h: '14:00' }), '14:00')
+  assert.equal(specialDayTime({ h: '', he: '15:00' }), '')
+  const x = { s: '2026-11-10', e: '', h: '14:00', he: '14:00', y: false }
+  assert.equal(endTimeInvalid(x), true)
+  assert.equal(endTimeInvalid({ ...x, he: '14:01' }), false)
+  assert.equal(endTimeInvalid({ ...x, e: '2026-11-11', he: '09:00' }), false, 'ends on a later day')
+  assert.equal(endTimeInvalid({ ...x, he: '' }), false)
+})
+
+test('timed special days become Agenda blocks', () => {
+  const day = (id: string, s: string, e: string, h: string, he = '') => ({ id, n: id, ty: 'evento', s, e, h, he, o: '', y: false })
+  const at = (ds: string, ...list: ReturnType<typeof day>[]) => specialBlocksOn(list, ds).map(b => [b.item.id, b.start, b.end, b.cont, b.next])
+  assert.deepEqual(at('2026-11-10', day('reuniao', '2026-11-10', '', '14:00', '15:30')), [['reuniao', '14:00', '15:30', false, false]])
+  assert.deepEqual(at('2026-11-10', day('sem-fim', '2026-11-10', '', '14:00')), [['sem-fim', '14:00', '15:00', false, false]], 'one hour by default')
+  assert.deepEqual(at('2026-11-10', day('sem-hora', '2026-11-10', '', '')), [])
+  const trip = day('viagem', '2026-11-10', '2026-11-12', '09:00', '18:00')
+  assert.deepEqual(at('2026-11-10', trip), [['viagem', '09:00', '24:00', false, true]])
+  assert.deepEqual(at('2026-11-11', trip), [], 'days between stay in the header')
+  assert.deepEqual(at('2026-11-12', trip), [['viagem', '00:00', '18:00', true, false]])
+  assert.deepEqual(at('2026-11-12', { ...trip, he: '' }), [], 'no end time, no block on the last day')
 })
 
 test('a task with a time limit is overdue only after that minute', () => {

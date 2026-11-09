@@ -16,7 +16,8 @@ export interface ReminderItem { id: string; title: string; date: string; time: s
 export interface TaskWorkspace { id: string; name: string }
 export interface WorkspaceNote { id: string; workspaceId: string; text: string }
 export interface Finance { id: string; t: 'in' | 'out'; k: 'rec' | 'one'; n: string; a: number; date: string; end: string; c: string }
-export interface SpecialDay { id: string; n: string; ty: string; s: string; e: string; h: string; o: string; y: boolean }
+/** `h` is the start time and `he` the optional end time (`HH:MM`); see `lib/specialDays.ts`. */
+export interface SpecialDay { id: string; n: string; ty: string; s: string; e: string; h: string; he?: string; o: string; y: boolean }
 export interface Category { id: string; name: string; color: string; icon?: string }
 export interface SleepSchedule { bed: string; wake: string }
 export interface Sleep { daily?: SleepSchedule[]; bed: string; wake: string; wk: boolean; bed2: string; wake2: string }

@@ -3,7 +3,8 @@ import { Plus, Tags } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { DN, MN, dow, fmt, hm, iso, mins, minuteOfDay, p2, parse, spanMinutes } from '../../lib/dates'
 import { categoryColor, crossesMidnight, eventColor, eventMinutes, eventsOn, type DayEvent } from '../../lib/recurrence'
-import { specialDaysOn } from '../../lib/specialDays'
+import { specialBlocksOn, specialDayTime, specialDaysOn, type SpecialBlock } from '../../lib/specialDays'
+import { PALETTE } from '../../lib/palette'
 import { sleepIv } from '../../lib/sleep'
 import { Modal, uid, useArrowKeys, useIsPhone, useNow } from '../../components/common'
 import { CategoryManager } from '../../components/CategoryManager'
@@ -15,9 +16,9 @@ import { Glider } from '../../components/Glider'
 import { WEEK_RANGE, clipToWeek, weekScale } from '../../lib/agendaFit'
 import { SleepWindow } from './SleepWindow'
 
-type L = DayEvent & { l: number; n: number }
-function lanes(list: DayEvent[]): L[] {
-  const out: L[] = []; let cl: L[] = []; let end = 0
+type L<T> = T & { l: number; n: number }
+function lanes<T extends { start: string; end: string }>(list: T[]): L<T>[] {
+  const out: L<T>[] = []; let cl: L<T>[] = []; let end = 0
   const flush = () => {
     const le: number[] = []
     cl.forEach(e => { let i = le.findIndex(x => x <= mins(e.start)); if (i < 0) { i = le.length; le.push(0) } le[i] = mins(e.end); e.l = i })
@@ -51,6 +52,9 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
   const range = narrow ? WEEK_RANGE : { from: 0, to: 1440 }
   const px = narrow ? weekScale(innerHeight) : 1
   const eventsFor = (ds: string) => eventsOn(data, ds).filter(e => !fcat || e.cat === fcat)
+  // Timed special days share the timetable with events; the category filter applies only to events.
+  const itemsFor = (ds: string): (DayEvent | SpecialBlock)[] => [...eventsFor(ds), ...specialBlocksOn(data.days, ds)].sort((a, b) => mins(a.start) - mins(b.start))
+  const dayCat = (ty: string) => data.dayCats.find(c => c.id === ty)?.color ?? PALETTE.neutral
   const y = (m: number) => (m - range.from) * px
   const gridHeight = y(range.to)
   const label = N === 7 ? `${first.getDate()} ${MN[first.getMonth()]} – ${last.getDate()} ${MN[last.getMonth()]} ${last.getFullYear()}` : `${DN[dow(A)]}, ${A.getDate()} ${MN[A.getMonth()]} ${A.getFullYear()}`
@@ -90,17 +94,21 @@ export function Agenda({ anchor, setAnchor, view, setView }: { anchor: string; s
       <div className="gr" style={{ gridTemplateColumns: narrow ? '26px repeat(7,minmax(0,1fr))' : `52px repeat(${N},minmax(104px,1fr))`, minWidth: N === 7 && !narrow ? 790 : 0, ['--hour' as string]: `${60 * px}px` }}>
         <div className="corner" />
         {days.map(d => <div key={iso(d)} className={'hd' + (iso(d) === td ? ' td' : '')}><span className="dw">{DN[dow(d)]}</span><b className="dd">{d.getDate()}</b>
-          {narrow && (() => { const hidden = eventsFor(iso(d)).length - clipToWeek(eventsFor(iso(d))).length
+          {narrow && (() => { const hidden = itemsFor(iso(d)).length - clipToWeek(itemsFor(iso(d))).length
             return hidden > 0 && <button type="button" className="hd-more" aria-label={`${hidden} fora do horário, abrir este dia`} title="Fora do horário das 8:00 às 20:00" onClick={() => { setAnchor(iso(d)); setView('day') }}>+{hidden}</button> })()}
-          {specialDaysOn(data.days, iso(d)).map(x => <span className="agenda-special" key={x.id} title={x.o || x.n}>{x.h ? `${x.h} · ` : ''}{x.n}</span>)}
+          {specialDaysOn(data.days, iso(d)).filter(x => !specialBlocksOn(data.days, iso(d)).some(b => b.item.id === x.id)).map(x => <span className="agenda-special" key={x.id} title={x.o || x.n}>{x.h ? `${specialDayTime(x)} · ` : ''}{x.n}</span>)}
         </div>)}
         <div className="tc" style={{ height: gridHeight }}>{Array.from({ length: (range.to - range.from) / 60 + (narrow ? 1 : 0) }, (_, i) => range.from / 60 + i).map(h => <div key={h} style={{ top: y(h * 60) }}>{narrow ? `${h}h` : `${p2(h)}:00`}</div>)}</div>
         {days.map(d => {
-          const ds = iso(d), evs = narrow ? clipToWeek(eventsFor(ds)) : eventsFor(ds)
+          const ds = iso(d), evs = narrow ? clipToWeek(itemsFor(ds)) : itemsFor(ds)
           return <div key={ds} data-d={ds} className={'col' + (ds === td ? ' td' : '')} style={{ height: gridHeight }}
             onClick={e => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('past')) openNew(ds, Math.max(0, Math.min(1439, Math.round(range.from + (e.clientY - e.currentTarget.getBoundingClientRect().top) / px)))) }}>
             {sleepIv(data.sleep, ds).map(([a, b]) => [Math.max(a, range.from), Math.min(b, range.to)]).filter(([a, b]) => b > a).map(([a, b], i) => <button key={i} type="button" className="slp" aria-label={`Editar o sono de ${DN[dow(d)]}, dia ${d.getDate()}`} title="Editar o horário de sono" style={{ top: y(a), height: (b - a) * px }} onClick={() => setSleepDay(ds)}>{!narrow && b - a > 90 && <span>Sono</span>}</button>)}
-            {lanes(evs).map(e => { const h = Math.max(narrow ? 16 : 18, eventMinutes(e) * px - 1), w = 100 / e.n, gap = narrow ? 1 : 2, night = crossesMidnight({ start: e.realStart, end: e.realEnd }), full = spanMinutes(e.realStart, e.realEnd)
+            {lanes(evs).map(e => {
+              if ('item' in e) { const h = Math.max(narrow ? 16 : 18, (mins(e.end) - mins(e.start)) * px - 1), w = 100 / e.n, gap = narrow ? 1 : 2
+                return <div key={`sd:${e.item.id}`} className={'ev sd' + (!narrow && h < 44 ? ' sm' : '') + (narrow && (e.n > 1 || h < 26) ? ' tight' : '') + (e.cont ? ' from-prev' : e.next ? ' to-next' : '')} title={e.item.o || e.item.n} style={{ ['--c' as string]: dayCat(e.item.ty), top: y(mins(e.start)), height: h, left: `calc(${e.l * w}% + ${gap}px)`, width: `calc(${w}% - ${gap * 2}px)` }}>
+                  <b>{e.item.n}</b><small>{e.cont ? `até às ${e.realEnd}` : e.realEnd ? `${e.realStart}–${e.realEnd}` : `desde as ${e.realStart}`}</small></div> }
+              const h = Math.max(narrow ? 16 : 18, eventMinutes(e) * px - 1), w = 100 / e.n, gap = narrow ? 1 : 2, night = crossesMidnight({ start: e.realStart, end: e.realEnd }), full = spanMinutes(e.realStart, e.realEnd)
               return <div key={`${e.id}:${e.day}`} className={'ev' + (!narrow && h < 44 ? ' sm' : '') + (narrow && (e.n > 1 || h < 26) ? ' tight' : '') + (e.cont ? ' from-prev' : night ? ' to-next' : '')} title={e.title} style={{ ['--c' as string]: color(e), top: y(mins(e.start)), height: h, left: `calc(${e.l * w}% + ${gap}px)`, width: `calc(${w}% - ${gap * 2}px)` }} onClick={() => openEdit(e.id, e.day)}>
                 <b>{e.title}</b><small>{e.cont ? `até às ${e.realEnd}` : `${e.realStart}–${e.realEnd}`}{h < 44 ? '' : ' · ' + fmt(full)}</small></div> })}
             {ds === td && <><div className="past" style={{ height: Math.max(0, Math.min(y(nowM), gridHeight)) }} />{nowM >= range.from && nowM < range.to && <div className="now" style={{ top: y(nowM) }} />}</>}

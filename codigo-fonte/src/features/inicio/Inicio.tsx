@@ -7,7 +7,7 @@ import { eventColor, eventMinutes, eventsOn } from '../../lib/recurrence'
 import { MonthTip, IN_COLOR, OUT_COLOR, monthShort } from '../../components/MonthTip'
 import { DayIcon } from '../../components/DayIcon'
 import { eur, monthTotals, recentMonths, spendByCategory } from '../../lib/finance'
-import { daysLeft, upcomingSpecialDays } from '../../lib/specialDays'
+import { daysLeft, upcomingSpecialDays, specialDayTime } from '../../lib/specialDays'
 import { PC, PN, PRIORITIES, dueLabel, markDone, tasksDueBy, urgentTasks } from '../../lib/tasks'
 import { isOverdue } from '../../lib/taskDue'
 import { useNow } from '../../components/common'
@@ -145,7 +145,7 @@ export function Inicio({ go }: { go: (target: HomeTarget) => void }) {
           const type = dayType(item.ty)
           return <div key={item.id} className="hl-row" style={{ ['--c' as string]: type?.color ?? PALETTE.neutral }}>
             <span className="hl-icon" aria-hidden="true"><DayIcon icon={type?.icon} size={18} /></span>
-            <span className="hl-main"><b>{item.n}</b><small>{shortDate(date)}{item.h ? ` · ${item.h}` : ''}</small></span>
+            <span className="hl-main"><b>{item.n}</b><small>{shortDate(date)}{item.h ? ` · ${specialDayTime(item)}` : ''}</small></span>
             <span className="tag">{inDays(daysLeft(date, today))}</span>
           </div>
         })}</div> : <EmptyState compact icon={<CalendarHeart size={18} strokeWidth={1.5} />} title="Nada marcado" text="Sem dias especiais nos próximos 31 dias." />}
