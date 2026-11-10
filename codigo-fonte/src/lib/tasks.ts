@@ -1,6 +1,8 @@
 import { PALETTE } from './palette.ts'
 import { addDays, shortDate, todayIso } from './dates.ts'
 import { dueKey, isOverdue } from './taskDue.ts'
+import { translator } from './i18n/translate.ts'
+import type { Language } from './i18n/languages.ts'
 import type { Effort, Priority, Task } from '../types'
 
 // Task rules, labels and colours shared by Tarefas, Início, Quick add and the subtask editor.
@@ -8,9 +10,16 @@ import type { Effort, Priority, Task } from '../types'
 /** Most urgent first. */
 export const PRIORITIES: Priority[] = ['urgente', 'alta', 'media', 'baixa']
 export const PC: Record<Priority, string> = { urgente: PALETTE.error, alta: PALETTE.clay, media: PALETTE.gold, baixa: PALETTE.sage }
-export const PN: Record<Priority, string> = { urgente: 'Urgente', alta: 'Alta', media: 'Média', baixa: 'Baixa' }
-export const LV: Record<Effort, { n: string; t: string; c: string }> = { rel: { n: 'Muito Rápido', t: 'até 15 min', c: PALETTE.sage }, lig: { n: 'Rápido', t: 'cerca de 30 min', c: PALETTE.slate }, cui: { n: 'Moderado', t: '1 a 2 horas', c: PALETTE.neutral }, exi: { n: 'Demorado', t: 'várias horas', c: PALETTE.clay }, pro: { n: 'Projeto', t: 'várias etapas', c: PALETTE.gold } }
-export const LK = Object.keys(LV) as Effort[]
+/** Priority name in a language. */
+export const priorityLabel = (p: Priority, lang: Language = 'pt-PT') => translator(lang).t(`tarefas.priority.${p}`)
+/** Effort name and its time hint in a language. */
+export const effortLabel = (e: Effort, lang: Language = 'pt-PT') => translator(lang).t(`tarefas.effort.${e}`)
+export const effortHint = (e: Effort, lang: Language = 'pt-PT') => translator(lang).t(`tarefas.effort.${e}.hint`)
+export const EFFORT_COLORS: Record<Effort, string> = { rel: PALETTE.sage, lig: PALETTE.slate, cui: PALETTE.neutral, exi: PALETTE.clay, pro: PALETTE.gold }
+export const LK = Object.keys(EFFORT_COLORS) as Effort[]
+
+/** Name of a workspace; the built-in one is translated while it still has its original name. */
+export const workspaceLabel = (w: { id: string; name: string }, lang: Language = 'pt-PT') => w.id === 'geral' && w.name === 'Geral' ? translator(lang).t('tarefas.workspace.geral') : w.name
 export const TASK_TITLE_MAX = 90
 
 export const priorityRank = (p: Priority) => PRIORITIES.indexOf(p)
@@ -29,11 +38,11 @@ export function markDone(task: Task, done: boolean, today = todayIso()) {
 }
 
 /** Label for a task's deadline and whether it is overdue. */
-export function dueLabel(task: Pick<Task, 'due' | 'dueTime'>, today: string, time: string): [string, boolean] {
-  const d = task.due, at = task.dueTime ? `, ${task.dueTime}` : ''
-  if (!d) return ['', false]; if (isOverdue(task, today, time)) return ['Atrasada', true]; if (d === today) return [`Hoje${at}`, false]
-  if (d === addDays(today, 1)) return [`Amanhã${at}`, false]
-  return [`${shortDate(d)}${at}`, false]
+export function dueLabel(task: Pick<Task, 'due' | 'dueTime'>, today: string, time: string, lang: Language = 'pt-PT'): [string, boolean] {
+  const { t } = translator(lang), d = task.due, at = task.dueTime ? `, ${task.dueTime}` : ''
+  if (!d) return ['', false]; if (isOverdue(task, today, time)) return [t('tarefas.due.late'), true]; if (d === today) return [`${t('tarefas.due.today')}${at}`, false]
+  if (d === addDays(today, 1)) return [`${t('tarefas.due.tomorrow')}${at}`, false]
+  return [`${shortDate(d, lang)}${at}`, false]
 }
 
 /** Pending tasks due on or before `last` (overdue ones included); undated tasks are left out. */

@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { useAuth } from '../store/useAuth'
 import { drawImage, isAcceptedImage } from './images'
+import { tr } from './i18n/useT'
 
 // Note images live in the private 'note-images' bucket under '<user id>/<file>'.
 // A note references one with a line '![imagem](imagem:<file>)'.
@@ -13,7 +14,7 @@ export const imageMarkdown = (file: string) => `![imagem](imagem:${file})`
 
 const folder = () => {
   const { user, offline } = useAuth.getState()
-  if (!user || offline) throw new Error('Sem ligação. As imagens só podem ser carregadas com internet.')
+  if (!user || offline) throw new Error(tr().t('tarefas.image.offline'))
   return user.id
 }
 
@@ -30,13 +31,13 @@ async function compress(file: File): Promise<Blob> {
 
 /** Uploads an image and returns the file name to reference in the note. */
 export async function uploadNoteImage(file: File): Promise<string> {
-  if (!isAcceptedImage(file, 15)) throw new Error('Escolhe uma imagem JPG, PNG ou WebP até 15 MB.')
+  if (!isAcceptedImage(file, 15)) throw new Error(tr().t('tarefas.image.badType'))
   const userId = folder()
   let blob: Blob
-  try { blob = await compress(file) } catch { throw new Error('Não foi possível ler a imagem. Tenta outra.') }
+  try { blob = await compress(file) } catch { throw new Error(tr().t('tarefas.image.unreadable')) }
   const name = `${crypto.randomUUID()}.jpg`
   const { error } = await supabase.storage.from(BUCKET).upload(`${userId}/${name}`, blob, { contentType: 'image/jpeg', cacheControl: '31536000' })
-  if (error) throw new Error('Não foi possível carregar a imagem. Tenta novamente.')
+  if (error) throw new Error(tr().t('tarefas.image.uploadFailed'))
   cache.set(name, Promise.resolve(URL.createObjectURL(blob)))
   return name
 }

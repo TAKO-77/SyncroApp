@@ -6,9 +6,11 @@ import { eventMinutes, eventsOn } from '../../lib/recurrence'
 import { sleepIv } from '../../lib/sleep'
 import { Donut, type Slice } from '../../components/Donut'
 import { Glider } from '../../components/Glider'
+import { useT } from '../../lib/i18n/useT'
 
 export function Dashboard() {
   const { data } = useStore()
+  const { t: tt } = useT()
   const [per, setPer] = useState<'week' | 'month'>('week')
   const t = parse(todayIso()); let a: Date, b: Date
   if (per === 'week') { a = new Date(t); a.setDate(a.getDate() - dow(t)); b = new Date(a); b.setDate(b.getDate() + 6) }
@@ -19,11 +21,11 @@ export function Dashboard() {
     eventsOn(data, ds).forEach(e => { const k = e.cat || 'none'; m[k] = (m[k] ?? 0) + eventMinutes(e); for (let x = mins(e.start); x < mins(e.end); x++) busy[x] = 1 })
     sleepIv(data.sleep, ds).forEach(([p, q]) => { for (let x = p; x < q; x++) if (!busy[x]) sl++ })
   }
-  const cr: Slice[] = [...data.cats, { id: 'none', name: 'Sem categoria', color: PALETTE.neutral }].map(c => ({ ...c, v: m[c.id] ?? 0 })).filter(r => r.v > 0).sort((x, y) => y.v - x.v)
+  const cr: Slice[] = [...data.cats, { id: 'none', name: tt('perfil.noCategory'), color: PALETTE.neutral }].map(c => ({ ...c, v: m[c.id] ?? 0 })).filter(r => r.v > 0).sort((x, y) => y.v - x.v)
   const plan = cr.reduce((q, r) => q + r.v, 0), P = Math.max(days * 1440, plan)
-  const rows: Slice[] = [...cr, ...(sl ? [{ id: 'sono', name: 'Sono', color: PALETTE.slate, v: sl }] : []), { id: 'free', name: 'Tempo livre', color: PALETTE.muted, v: Math.max(0, P - plan - sl) }]
+  const rows: Slice[] = [...cr, ...(sl ? [{ id: 'sono', name: tt('perfil.sleep'), color: PALETTE.slate, v: sl }] : []), { id: 'free', name: tt('perfil.freeTime'), color: PALETTE.muted, v: Math.max(0, P - plan - sl) }]
   return <>
-    <div className="seg dsw"><button aria-pressed={per === 'week'} onClick={() => setPer('week')}>Semana</button><button aria-pressed={per === 'month'} onClick={() => setPer('month')}>Mês</button><Glider /></div>
-    {plan ? <Donut rows={rows} P={P} fv={fmt} center={fmt(plan)} label="planeadas" /> : <p className="mu">Ainda não há eventos neste período.</p>}
+    <div className="seg dsw"><button aria-pressed={per === 'week'} onClick={() => setPer('week')}>{tt('perfil.week')}</button><button aria-pressed={per === 'month'} onClick={() => setPer('month')}>{tt('perfil.month')}</button><Glider /></div>
+    {plan ? <Donut rows={rows} P={P} fv={fmt} center={fmt(plan)} label={tt('perfil.planned')} /> : <p className="mu">{tt('perfil.noEvents')}</p>}
   </>
 }

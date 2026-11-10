@@ -2,12 +2,13 @@ import assert from 'node:assert/strict'
 import { applyRemote, coalesce, diffRows, emptyRows, fromRows, mergeWithServer, toRows, type Rows, type SyncOp } from '../codigo-fonte/src/lib/sync/rows.ts'
 import type { AppData } from '../codigo-fonte/src/types.ts'
 import { purgeExpired } from '../codigo-fonte/src/lib/cleanup.ts'
-import { markDone } from '../codigo-fonte/src/lib/tasks.ts'
+import { dueLabel, effortLabel, markDone, priorityLabel, workspaceLabel } from '../codigo-fonte/src/lib/tasks.ts'
 import { addMonths, monthGrid, ymAdd } from '../codigo-fonte/src/lib/dates.ts'
-import { monthTotals, overallBalance } from '../codigo-fonte/src/lib/finance.ts'
+import { eur, monthTotals, overallBalance } from '../codigo-fonte/src/lib/finance.ts'
 import { daysLeft, defaultEndTime, endTimeInvalid, specialBlocksOn, specialDayTime, upcomingSpecialDays, weekBars } from '../codigo-fonte/src/lib/specialDays.ts'
 import { dueForTime, dueKey, isOverdue } from '../codigo-fonte/src/lib/taskDue.ts'
 import { parseQ } from '../codigo-fonte/src/lib/quick.ts'
+import type { Language } from '../codigo-fonte/src/lib/i18n/languages.ts'
 import { WEEK_RANGE, clipToWeek, weekScale } from '../codigo-fonte/src/lib/agendaFit.ts'
 import { eventsOn } from '../codigo-fonte/src/lib/recurrence.ts'
 import { noticeTarget, reminderText, remindersBetween } from '../codigo-fonte/src/lib/reminders.ts'
@@ -15,7 +16,7 @@ import { LANGUAGES as SERVER_LANGUAGES, expirySeconds, isPushEndpoint, languageO
 import { addSubtaskDraft, applySubtaskEdits, hasBlankSubtask, splitSubtasks, withoutTask } from '../codigo-fonte/src/lib/subtasks.ts'
 import { NOTE_TEXT_MAX, TASK_NOTES_MAX, taskNotesError } from '../codigo-fonte/src/lib/taskNotes.ts'
 import { parseAppData } from '../codigo-fonte/src/lib/schema.ts'
-import { applyReminderEdit, concludeReminder, reminderAlertsBetween, lastOccurrence, leadAvailable, occurrenceAfter, reminderError, reminderStatus, reopenReminder } from '../codigo-fonte/src/lib/reminderItems.ts'
+import { applyReminderEdit, concludeReminder, leadLabel, reminderAlertsBetween, lastOccurrence, leadAvailable, occurrenceAfter, reminderError, reminderStatus, reopenReminder } from '../codigo-fonte/src/lib/reminderItems.ts'
 import type { ReminderItem } from '../codigo-fonte/src/types.ts'
 import { sleepIv, sleepSchedule, sleepTargetDays, sleepWeek } from '../codigo-fonte/src/lib/sleep.ts'
 import { movedOrder, orderByIds, parseOrder, parseSort, parseSortMap, withSort, withoutSort } from '../codigo-fonte/src/lib/taskSort.ts'
@@ -357,6 +358,81 @@ test('quick add still reads a time written as hours as a duration', () => {
   assert.equal(quick('Ceia 23:30 30min').end, '00:00')
 })
 
+const quickIn = (lang: Language, text: string) => parseQ(text, new Date(2026, 10, 4, 10, 0), lang) as { title: string; date: string; start: string; end: string; rep: string; task?: string } | null
+const shape = (lang: Language, text: string) => { const r = quickIn(lang, text); return r && [r.title, r.date, r.start, r.end, r.rep] }
+
+test('quick add reads a weekday, time, duration and repetition in each language', () => {
+  assert.deepEqual(shape('en', 'Workout fri 6pm 1h30 weekly'), ['Workout', '2026-11-06', '18:00', '19:30', 'weekly'])
+  assert.deepEqual(shape('en', 'Workout Friday at 6:30pm 2 hours every weekday'), ['Workout', '2026-11-06', '18:30', '20:30', 'weekdays'])
+  assert.deepEqual(shape('de', 'Training Fr 18 Uhr 1h30 wöchentlich'), ['Training', '2026-11-06', '18:00', '19:30', 'weekly'])
+  assert.deepEqual(shape('de', 'Training Freitag um 18:00 90min täglich'), ['Training', '2026-11-06', '18:00', '19:30', 'daily'])
+  assert.deepEqual(shape('fr', 'Sport ven 18h 1h30 hebdomadaire'), ['Sport', '2026-11-06', '18:00', '19:30', 'weekly'])
+  assert.deepEqual(shape('fr', 'Sport vendredi à 18h30 2 heures en semaine'), ['Sport', '2026-11-06', '18:30', '20:30', 'weekdays'])
+  assert.deepEqual(shape('fr', 'Sport tous les jours 18h 1h'), ['Sport', '2026-11-04', '18:00', '19:00', 'daily'])
+})
+
+test('quick add reads ranges in each language', () => {
+  assert.deepEqual(shape('en', 'Meeting 6pm-8pm'), ['Meeting', '2026-11-04', '18:00', '20:00', 'none'])
+  assert.deepEqual(shape('en', 'Meeting from 14:00 to 15:30'), ['Meeting', '2026-11-04', '14:00', '15:30', 'none'])
+  assert.deepEqual(shape('en', 'Shift 17:30 until 3:00'), ['Shift', '2026-11-04', '17:30', '03:00', 'none'])
+  assert.deepEqual(shape('de', 'Besprechung von 14:00 bis 15:30'), ['Besprechung', '2026-11-04', '14:00', '15:30', 'none'])
+  assert.deepEqual(shape('de', 'Schicht 17 Uhr bis 3 Uhr'), ['Schicht', '2026-11-04', '17:00', '03:00', 'none'])
+  assert.deepEqual(shape('fr', 'Réunion de 14h à 15h30'), ['Réunion', '2026-11-04', '14:00', '15:30', 'none'])
+  assert.deepEqual(shape('fr', 'Service 17h30 jusqu’à 3:00'), ['Service', '2026-11-04', '17:30', '03:00', 'none'])
+})
+
+test('quick add reads today and tomorrow in each language', () => {
+  assert.deepEqual(shape('en', 'Dentist tomorrow 11am'), ['Dentist', '2026-11-05', '11:00', '12:00', 'none'])
+  assert.deepEqual(shape('en', 'Dentist today 3pm')?.slice(1, 3), ['2026-11-04', '15:00'])
+  assert.deepEqual(shape('de', 'Zahnarzt morgen 11 Uhr'), ['Zahnarzt', '2026-11-05', '11:00', '12:00', 'none'])
+  assert.deepEqual(shape('de', 'Zahnarzt heute 15:00')?.slice(1, 3), ['2026-11-04', '15:00'])
+  assert.deepEqual(shape('fr', 'Dentiste demain 11h'), ['Dentiste', '2026-11-05', '11:00', '12:00', 'none'])
+  assert.deepEqual(shape('fr', 'Dentiste aujourd’hui 15:00')?.slice(1, 3), ['2026-11-04', '15:00'])
+  assert.deepEqual(shape('fr', "Dentiste aujourd'hui 15:00")?.slice(1, 3), ['2026-11-04', '15:00'])
+})
+
+test('quick add treats a small time as a duration unless the at word comes first', () => {
+  assert.equal(shape('en', 'Gym tomorrow 2h')?.[3], '11:00')
+  assert.equal(shape('en', 'Gym tomorrow at 2h')?.[2], '02:00')
+  assert.equal(shape('de', 'Gym morgen um 2h')?.[2], '02:00')
+  assert.equal(shape('fr', 'Gym demain à 2h')?.[2], '02:00')
+  assert.equal(shape('de', 'Gym morgen 2h')?.[3], '11:00')
+})
+
+test('quick add keeps t: as the task prefix in each language', () => {
+  for (const lang of ['pt-PT', 'en', 'de', 'fr'] as const) assert.deepEqual(quickIn(lang, 't: Buy coffee'), { task: 'Buy coffee' })
+  assert.equal(quickIn('en', 't:'), null)
+})
+
+test('quick add only reads the words of the account language', () => {
+  // French "mar" is Tuesday, Portuguese "mar" is the sea.
+  assert.equal(shape('fr', 'Plongée mar 10h')?.[1], '2026-11-10')
+  assert.equal(shape('pt-PT', 'Ida ao mar 10h')?.[0], 'Ida ao mar')
+  assert.equal(shape('pt-PT', 'Ida ao mar 10h')?.[1], '2026-11-04')
+  assert.equal(shape('en', 'Dinner tomorrow')?.[1], '2026-11-05')
+  assert.equal(shape('pt-PT', 'Dinner tomorrow')?.[0], 'Dinner tomorrow')
+  assert.equal(shape('en', 'Treino amanhã')?.[0], 'Treino amanhã')
+})
+
+test('quick add does not take ordinary words for weekdays', () => {
+  // English "sat", "sun" and "wed" count only when capitalised or before a time.
+  assert.equal(shape('en', 'The cat sat quietly')?.[0], 'The cat sat quietly')
+  assert.equal(shape('en', 'Buy sun cream')?.[0], 'Buy sun cream')
+  assert.equal(shape('en', 'Hike sun 9:00')?.[1], '2026-11-08')
+  assert.equal(shape('en', 'Hike Sat')?.[1], '2026-11-07')
+  // German two-letter days count only when capitalised and followed by a time or the end.
+  assert.equal(shape('de', 'Das mache ich so nebenbei')?.[0], 'Das mache ich so nebenbei')
+  assert.equal(shape('de', 'So ein Ärger')?.[0], 'So ein Ärger')
+  assert.equal(shape('de', 'Do it')?.[0], 'Do it')
+  assert.equal(shape('de', 'Yoga Do 7 Uhr')?.[1], '2026-11-05')
+  assert.equal(shape('de', 'Yoga Mi')?.[1], '2026-11-04')
+  assert.equal(shape('de', 'Yoga Sonntag')?.[1], '2026-11-08')
+  assert.equal(shape('de', 'Yoga so 7 Uhr')?.[0], 'Yoga so')
+  assert.equal(shape('de', 'Training Fr. 18:00')?.[1], '2026-11-06')
+  // The at word is dropped only before a time.
+  assert.equal(shape('de', 'Kaffee um die Ecke 18:00')?.[0], 'Kaffee um die Ecke')
+})
+
 const nightShift = (over: Partial<AppData['ev'][number]> = {}): AppData['ev'][number] => ({ id: 'w', title: 'Trabalho', start: '17:30', end: '03:00', date: '2026-11-04', rep: 'none', cat: 'rotina', done: {}, ...over })
 const parts = (ev: AppData['ev'], day: string) => eventsOn({ ...base(), ev }, day).map(e => [e.start, e.end, e.cont, e.day, e.realStart, e.realEnd])
 
@@ -551,6 +627,32 @@ test('notifications are written in the account language, the same on both sides'
   assert.equal(serverText([item('at', 0), item('at', 1)], 'fr').title, '2 alertes Syncro')
   assert.equal(reminderText([item('soon', 0)]).body, 'Falta 1 hora para T0', 'pt-PT by default')
   assert.equal(reminderText([{ ...item('at', 0), title: 'Pagar $&' }], 'en').body, 'Now: Pagar $&', 'titles are inserted literally')
+})
+
+test('labels from lib keep their Portuguese text and follow the language', () => {
+  assert.equal(priorityLabel('alta'), 'Alta')
+  assert.equal(priorityLabel('alta', 'de'), 'Hoch')
+  assert.notEqual(effortLabel('cui', 'de'), priorityLabel('media', 'de'), 'effort and priority chips differ')
+  assert.equal(workspaceLabel({ id: 'geral', name: 'Geral' }), 'Geral')
+  assert.equal(workspaceLabel({ id: 'geral', name: 'Geral' }, 'en'), 'General')
+  assert.equal(workspaceLabel({ id: 'geral', name: 'Casa' }, 'en'), 'Casa', 'a renamed Geral keeps its name')
+  assert.deepEqual(dueLabel({ due: '2026-11-03' }, '2026-11-04', '10:00'), ['Atrasada', true])
+  assert.deepEqual(dueLabel({ due: '2026-11-05' }, '2026-11-04', '10:00', 'fr')[1], false)
+  assert.equal(leadLabel('1d', 'en') !== leadLabel('1d'), true)
+  assert.equal(eur(1234.5, 'en'), '€1,234.5')
+  assert.equal(eur(1234.5, 'de').replace(/\s/g, ' '), '1.234,5 €')
+})
+
+test('quick add leaves ordinary words alone', () => {
+  const now = new Date(2026, 10, 4, 12, 0)
+  const q = (text: string, lang: Language) => parseQ(text, now, lang) as { title: string; date: string; start: string }
+  assert.deepEqual([q('Jeu vidéo', 'fr').title, q('Jeu vidéo', 'fr').date], ['Jeu vidéo', '2026-11-04'])
+  assert.equal(q('Plage à la mer', 'fr').title, 'Plage à la mer')
+  assert.equal(q('Sun cream', 'en').title, 'Sun cream')
+  assert.equal(q('Guten Morgen sagen', 'de').date, '2026-11-04')
+  const monday = q('Arzt Montag morgen 9 Uhr', 'de')
+  assert.deepEqual([monday.title, monday.date, monday.start], ['Arzt', '2026-11-09', '09:00'])
+  assert.equal(q('Arzt morgen 9 Uhr', 'de').date, '2026-11-05')
 })
 
 test('the server only calls known push services', () => {

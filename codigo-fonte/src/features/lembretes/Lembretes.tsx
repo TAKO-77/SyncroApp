@@ -2,16 +2,18 @@ import { useState } from 'react'
 import { uid, useNow } from '../../components/common'
 import { useCompletion } from '../../components/useCompletion'
 import { Glider } from '../../components/Glider'
-import { hm, minuteOfDay, shortDate as shortDay, toStamp, todayIso } from '../../lib/dates'
-import { LEAD_LABELS, newReminder, applyReminderEdit, concludeReminder, occurrenceAfter, reminderStatus, reopenReminder } from '../../lib/reminderItems'
+import { hm, minuteOfDay, toStamp, todayIso } from '../../lib/dates'
+import { leadLabel, newReminder, applyReminderEdit, concludeReminder, occurrenceAfter, reminderStatus, reopenReminder } from '../../lib/reminderItems'
 import { dueLabel } from '../../lib/tasks'
 import { useStore } from '../../store/useStore'
+import { useT } from '../../lib/i18n/useT'
 import type { ReminderItem } from '../../types'
 import { ReminderForm, type ReminderFormValues } from './ReminderForm'
 
 
 export function Lembretes() {
   const { data, update } = useStore()
+  const { t, lang, shortDate: shortDay } = useT()
   const now = useNow(), nowStamp = toStamp(now), today = todayIso(), nowTime = hm(minuteOfDay(now))
   const [pendingView, setPendingView] = useState(true)
   const [form, setForm] = useState<{ id: string | null; values: ReminderFormValues } | null>(null)
@@ -46,28 +48,28 @@ export function Lembretes() {
   const label = (at: string | null, late: boolean) => {
     if (!at) return ''
     const day = at.slice(0, 10), time = at.slice(11)
-    if (late || !pendingView) return `${late ? 'Atrasado · ' : ''}${shortDay(day)}, ${time}`
-    return dueLabel({ due: day, dueTime: time }, today, nowTime)[0]
+    if (late || !pendingView) return t(late ? 'lembretes.lateAt' : 'lembretes.at', { date: shortDay(day), time })
+    return dueLabel({ due: day, dueTime: time }, today, nowTime, lang)[0]
   }
 
   return <section className="page tasks-page"><div className="tasks-main">
-    <div className="head2"><h2>Lembretes</h2><div className="reminder-head">
-      <div className="seg"><button aria-pressed={pendingView} onClick={() => setPendingView(true)}>Pendentes {pending.length}</button><button aria-pressed={!pendingView} onClick={() => setPendingView(false)}>Concluídos {done.length}</button><Glider /></div>
-      <button className="btn pri" onClick={() => setForm({ id: null, values: { title: '', date: today, time: '', repeat: 'none', lead: '', until: '' } })}>+ Novo lembrete</button>
+    <div className="head2"><h2>{t('lembretes.title')}</h2><div className="reminder-head">
+      <div className="seg"><button aria-pressed={pendingView} onClick={() => setPendingView(true)}>{t('lembretes.pending')} {pending.length}</button><button aria-pressed={!pendingView} onClick={() => setPendingView(false)}>{t('lembretes.done')} {done.length}</button><Glider /></div>
+      <button className="btn pri" onClick={() => setForm({ id: null, values: { title: '', date: today, time: '', repeat: 'none', lead: '', until: '' } })}>{t('lembretes.new')}</button>
     </div></div>
     <div className="tasks-list">{list.length ? list.map(({ r, status }) => {
       const finishing = completing.includes(r.id)
       return <div key={r.id} className="tk-group"><div className={'tk reminder' + (status.done ? ' dn' : '') + (finishing ? ' completing' : '')} style={{ ['--c' as string]: status.late ? 'var(--error)' : 'var(--ac-fill)' }}>
-        <span className="rc-wrap"><input className="rc" type="checkbox" checked={status.done || finishing} aria-label="Concluído" onChange={e => toggle(r, status.at, e.target.checked, e.currentTarget.closest<HTMLElement>('.tk'))} /></span>
+        <span className="rc-wrap"><input className="rc" type="checkbox" checked={status.done || finishing} aria-label={t('lembretes.doneAria')} onChange={e => toggle(r, status.at, e.target.checked, e.currentTarget.closest<HTMLElement>('.tk'))} /></span>
         <span className="tt2" onClick={() => setForm({ id: r.id, values: { title: r.title, date: r.date, time: r.time, repeat: r.repeat, lead: r.lead, until: r.until } })}><span className="tt2-text">{r.title}</span></span>
         <span className="tk-meta">
-          {r.repeat !== 'none' && <small className="tm">{r.repeat === 'daily' ? 'Diário' : 'Semanal'} até {shortDay(r.until)}</small>}
-          {r.lead && <small className="tm">{LEAD_LABELS[r.lead]}</small>}
+          {r.repeat !== 'none' && <small className="tm">{t(r.repeat === 'daily' ? 'lembretes.untilDaily' : 'lembretes.untilWeekly', { date: shortDay(r.until) })}</small>}
+          {r.lead && <small className="tm">{leadLabel(r.lead, lang)}</small>}
           <small className={'tm' + (status.late ? ' late' : '')}>{label(status.at, status.late)}</small>
         </span>
-        <button className="x" aria-label="Remover" onClick={() => remove(r.id)}>✕</button>
+        <button className="x" aria-label={t('lembretes.remove')} onClick={() => remove(r.id)}>✕</button>
       </div></div>
-    }) : <div className="tem">{pendingView ? 'Sem lembretes pendentes. Cria um em “Novo lembrete”.' : 'Ainda nada concluído.'}</div>}</div>
+    }) : <div className="tem">{pendingView ? t('lembretes.empty.pending') : t('lembretes.empty.done')}</div>}</div>
     </div>
     {form && <ReminderForm initial={form.values} onSave={save} onClose={() => setForm(null)} onDelete={form.id ? () => { remove(form.id!); setForm(null) } : undefined} />}
   </section>

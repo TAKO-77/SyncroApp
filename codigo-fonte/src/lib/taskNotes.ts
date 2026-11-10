@@ -1,3 +1,6 @@
+import { translator } from './i18n/translate.ts'
+import type { Language } from './i18n/languages.ts'
+
 // Limit of a task's notes. The same value is in the `tasks.notes` check of the database;
 // scripts/test-sync.ts fails if the two differ.
 
@@ -7,12 +10,12 @@ export const NOTE_TEXT_MAX = 5000
 /** From this length the editor shows how many characters are used. */
 export const TASK_NOTES_WARN = 9000
 
-const count = (n: number) => n.toLocaleString('pt-PT')
+const count = (n: number, lang: Language) => n.toLocaleString(translator(lang).locale)
 
 /** Message for notes over the limit, or null. Notes are never cut, so the user decides what to remove. */
-export function taskNotesError(notes = ''): string | null {
+export function taskNotesError(notes = '', lang: Language = 'pt-PT'): string | null {
   const over = notes.length - TASK_NOTES_MAX
-  return over > 0 ? `As notas têm ${count(notes.length)} caracteres e o limite é ${count(TASK_NOTES_MAX)}. Remove ${count(over)} para poderes guardar.` : null
+  return over > 0 ? translator(lang).t('tarefas.notesTooLong', { used: count(notes.length, lang), max: count(TASK_NOTES_MAX, lang), over: count(over, lang) }) : null
 }
 
-export const taskNotesCount = (notes = '') => `${count(notes.length)} / ${count(TASK_NOTES_MAX)}`
+export const taskNotesCount = (notes = '', lang: Language = 'pt-PT') => `${count(notes.length, lang)} / ${count(TASK_NOTES_MAX, lang)}`

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import { Clock } from 'lucide-react'
 import { Picker, moveFocus } from './Picker'
+import { useT } from '../lib/i18n/useT'
 
 const p2 = (n: number) => String(n).padStart(2, '0')
 const HOURS = Array.from({ length: 24 }, (_, i) => p2(i))
@@ -37,13 +38,14 @@ function TimeColumn({ label, options, selected, initial, onPick }: { label: stri
 }
 
 function TimePanel({ value, required, onPick, close }: { value: string; required?: boolean; onPick: (value: string) => void; close: () => void }) {
+  const { t } = useT()
   const [h, m] = value ? value.split(':') : ['', '']
   return <>
     <div className="time-cols">
-      <TimeColumn label="Horas" options={HOURS} selected={h} initial onPick={v => onPick(`${v}:${m || '00'}`)} />
-      <TimeColumn label="Minutos" options={MINUTES} selected={m} onPick={v => { onPick(`${h || '00'}:${v}`); close() }} />
+      <TimeColumn label={t('common.hours')} options={HOURS} selected={h} initial onPick={v => onPick(`${v}:${m || '00'}`)} />
+      <TimeColumn label={t('common.minutes')} options={MINUTES} selected={m} onPick={v => { onPick(`${h || '00'}:${v}`); close() }} />
     </div>
-    {!required && value && <div className="pop-foot"><span /><button type="button" className="pop-link" onClick={() => { onPick(''); close() }}>Limpar</button></div>}
+    {!required && value && <div className="pop-foot"><span /><button type="button" className="pop-link" onClick={() => { onPick(''); close() }}>{t('common.clear')}</button></div>}
   </>
 }
 

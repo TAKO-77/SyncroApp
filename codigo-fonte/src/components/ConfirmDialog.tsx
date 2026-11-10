@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { useConfirm } from '../store/confirm'
+import { useT } from '../lib/i18n/useT'
 
 export function ConfirmDialog() {
+  const { t } = useT()
   const request = useConfirm(s => s.request)
   const confirmButton = useRef<HTMLButtonElement>(null)
   const answer = (ok: boolean) => { request?.resolve(ok); useConfirm.setState({ request: null }) }
@@ -20,8 +22,8 @@ export function ConfirmDialog() {
       <h2 id="confirm-title">{request.title}</h2>
       {request.message && <p id="confirm-message" className="mu">{request.message}</p>}
       <div className="acts">
-        <button type="button" className="btn" onClick={() => answer(false)}>Cancelar</button>
-        <button ref={confirmButton} type="button" className={'btn ' + (request.danger ? 'dng-solid' : 'pri')} onClick={() => answer(true)}>{request.confirmLabel ?? 'Confirmar'}</button>
+        <button type="button" className="btn" onClick={() => answer(false)}>{t('common.cancel')}</button>
+        <button ref={confirmButton} type="button" className={'btn ' + (request.danger ? 'dng-solid' : 'pri')} onClick={() => answer(true)}>{request.confirmLabel ?? t('common.confirm')}</button>
       </div>
     </div>
   </div>

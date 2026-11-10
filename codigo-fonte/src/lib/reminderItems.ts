@@ -1,13 +1,16 @@
 import type { ReminderItem, ReminderLead } from '../types'
 import { reminderNoticeId, type Reminder } from './reminders.ts'
 import { addDays, dayIndex, hm, mins } from './dates.ts'
+import { translator } from './i18n/translate.ts'
+import type { Language } from './i18n/languages.ts'
 
 // The user's reminders: their occurrences and whether they are late or concluded. An occurrence is a local
 // 'YYYY-MM-DDTHH:MM' string, so they compare as text.
 
 export const LEAD_MINUTES: Record<Exclude<ReminderLead, ''>, number> = { '1w': 7 * 24 * 60, '1d': 24 * 60, '1h': 60, '10m': 10 }
-export const LEAD_LABELS: Record<ReminderLead, string> = { '': 'Sem aviso prévio', '1w': '1 semana antes', '1d': '1 dia antes', '1h': '1 hora antes', '10m': '10 minutos antes' }
-export const LEADS = Object.keys(LEAD_LABELS) as ReminderLead[]
+export const LEADS: ReminderLead[] = ['', '1w', '1d', '1h', '10m']
+/** Name of an early warning in a language. */
+export const leadLabel = (lead: ReminderLead, lang: Language = 'pt-PT') => translator(lang).t(`lembretes.lead.${lead || 'none'}` as 'lembretes.lead.none')
 
 type Schedule = Pick<ReminderItem, 'date' | 'time' | 'repeat' | 'until'>
 
@@ -106,14 +109,15 @@ export function reminderAlertsBetween(items: ReminderItem[], since: string, now:
  * Message for the first problem in the form, or an empty string. A new reminder or a new date and time must be
  * in the future; `saved` lets a reminder that is already late keep its schedule while other things are edited.
  */
-export function reminderError(r: Pick<ReminderItem, 'title' | 'date' | 'time' | 'repeat' | 'until'>, now: string, saved?: Pick<ReminderItem, 'date' | 'time'>): string {
-  if (!r.title.trim()) return 'Escreve o nome do lembrete.'
-  if (!r.date) return r.repeat === 'none' ? 'Escolhe a data.' : 'Escolhe a data de início.'
-  if (!r.time) return 'Escolhe a hora.'
+export function reminderError(r: Pick<ReminderItem, 'title' | 'date' | 'time' | 'repeat' | 'until'>, now: string, saved?: Pick<ReminderItem, 'date' | 'time'>, lang: Language = 'pt-PT'): string {
+  const { t } = translator(lang)
+  if (!r.title.trim()) return t('lembretes.error.title')
+  if (!r.date) return r.repeat === 'none' ? t('lembretes.error.date') : t('lembretes.error.startDate')
+  if (!r.time) return t('lembretes.error.time')
   const unchanged = saved && saved.date === r.date && saved.time === r.time
-  if (!unchanged && at(r.date, r.time) <= now) return 'Escolhe uma data e hora no futuro.'
-  if (r.repeat !== 'none' && !r.until) return 'Escolhe o dia final.'
-  if (r.repeat !== 'none' && r.until < r.date) return 'O dia final não pode ser antes da data de início.'
+  if (!unchanged && at(r.date, r.time) <= now) return t('lembretes.error.future')
+  if (r.repeat !== 'none' && !r.until) return t('lembretes.error.until')
+  if (r.repeat !== 'none' && r.until < r.date) return t('lembretes.error.untilBefore')
   return ''
 }
 

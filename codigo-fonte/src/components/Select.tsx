@@ -1,5 +1,6 @@
 import { ChevronDown, Check } from 'lucide-react'
 import { Picker, moveFocus } from './Picker'
+import { useT } from '../lib/i18n/useT'
 
 export interface SelectOption<T> { value: T; label: string; hint?: string; color?: string }
 
@@ -7,12 +8,13 @@ export interface SelectOption<T> { value: T; label: string; hint?: string; color
 export function Select<T extends string | number>({ value, options, onChange, className, 'aria-label': label }: {
   value: T; options: SelectOption<T>[]; onChange: (value: T) => void; className?: string; 'aria-label'?: string
 }) {
+  const { t } = useT()
   const current = options.find(o => o.value === value)
   const initial = current ?? options[0]
   return <Picker className={'sel' + (className ? ' ' + className : '')} label={label} matchWidth value={String(value)} empty={!current}
     icon={current?.color ? <span className="sel-dot" style={{ ['--c' as string]: current.color }} aria-hidden="true" /> : undefined}
     after={<ChevronDown className="sel-chevron" size={16} aria-hidden="true" />}
-    text={current?.label ?? 'Escolher'}
+    text={current?.label ?? t('common.choose')}
     panel={close => <div className="sel-list" role="listbox" aria-label={label}
       onKeyDown={e => moveFocus(e, { ArrowUp: -1, ArrowDown: 1, Home: -999, End: 999 })}>
       {options.map((o, k) => <button key={String(o.value)} type="button" role="option" className="sel-opt" aria-selected={o.value === value} style={{ ['--i' as string]: Math.min(k, 10) }}

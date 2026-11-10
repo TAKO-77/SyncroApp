@@ -1,10 +1,11 @@
 import type { Finance } from '../types'
 import { ymAdd } from './dates.ts'
 import { FIN_CATS } from './palette.ts'
+import { LOCALES, type Language } from './i18n/languages.ts'
 
 // Monthly finance totals shared by Finanças and Início.
 
-export const eur = (n: number) => n.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 2 })
+export const eur = (n: number, lang: Language = 'pt-PT') => n.toLocaleString(LOCALES[lang], { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 2 })
 
 /** Whether a record counts in month `ym`: recurring ones from their start month until `end`, one-off ones only in their own month. */
 export const activeIn = (e: Finance, ym: string) => e.k === 'rec' ? ym >= e.date.slice(0, 7) && (!e.end || ym <= e.end) : e.date.slice(0, 7) === ym

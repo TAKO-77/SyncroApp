@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { noteImageUrl } from '../../lib/noteImages'
+import { useT } from '../../lib/i18n/useT'
 
 /** Shows one image stored for a note, with loading and unavailable states. */
 export function NoteImage({ file, alt, className = 'note-img' }: { file: string; alt: string; className?: string }) {
+  const { t } = useT()
   const [state, setState] = useState<{ url?: string; failed?: boolean }>({})
   useEffect(() => {
     let active = true
@@ -11,5 +13,5 @@ export function NoteImage({ file, alt, className = 'note-img' }: { file: string;
     return () => { active = false }
   }, [file])
   if (state.url) return <img className={className} src={state.url} alt={alt} loading="lazy" />
-  return <div className={`${className} note-img-empty`} role="img" aria-label={alt}>{state.failed ? 'Imagem indisponível sem ligação.' : 'A carregar imagem…'}</div>
+  return <div className={`${className} note-img-empty`} role="img" aria-label={alt}>{state.failed ? t('tarefas.image.unavailable') : t('tarefas.image.uploading')}</div>
 }

@@ -5,6 +5,7 @@ import { startSync, stopSync, type LegacyChoice } from '../../lib/sync/engine'
 import { initAuth, signOut, useAuth } from '../../store/useAuth'
 import { AuthScreen } from './AuthScreen'
 import { confirmDialog } from '../../store/confirm'
+import { useT } from '../../lib/i18n/useT'
 
 type Phase = { kind: 'loading' } | { kind: 'ready' } | { kind: 'error' } | { kind: 'choose'; resolve: (choice: LegacyChoice) => void }
 
@@ -14,6 +15,7 @@ function Notice({ title, children }: { title: string; children?: ReactNode }) {
 
 /** Shows the sign-in screen until there is a user, then loads that user's data before rendering the app. */
 export function AccountGate({ children }: { children: ReactNode }) {
+  const { t } = useT()
   const { ready, user } = useAuth()
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
   const [attempt, setAttempt] = useState(0)
@@ -40,23 +42,23 @@ export function AccountGate({ children }: { children: ReactNode }) {
   const reveal = !booting && landed
   useEffect(() => { if (reveal) hideSplash() }, [reveal])
 
-  if (!supabaseConfigured) return <Notice title="Ligação à base de dados por configurar"><p className="mu">Define VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em codigo-fonte/.env e volta a compilar a aplicação.</p></Notice>
+  if (!supabaseConfigured) return <Notice title={t('auth.setup.title')}><p className="mu">{t('auth.setup.text')}</p></Notice>
   if (!reveal) return null
   if (!user) return <AuthScreen />
-  if (phase.kind === 'error') return <Notice title="Não foi possível carregar os teus dados">
-    <p className="mu">O primeiro acesso a esta conta neste dispositivo precisa de ligação à Internet.</p>
-    <div className="auth-links"><button className="btn pri" onClick={() => setAttempt(a => a + 1)}>Tentar novamente</button><button className="btn ghost" onClick={() => void signOut()}>Terminar sessão</button></div>
+  if (phase.kind === 'error') return <Notice title={t('auth.loadError.title')}>
+    <p className="mu">{t('auth.loadError.text')}</p>
+    <div className="auth-links"><button className="btn pri" onClick={() => setAttempt(a => a + 1)}>{t('auth.loadError.retry')}</button><button className="btn ghost" onClick={() => void signOut()}>{t('auth.loadError.signOut')}</button></div>
   </Notice>
   if (phase.kind === 'choose') {
     const pick = (choice: LegacyChoice) => { phase.resolve(choice); setPhase({ kind: 'ready' }) }
-    return <Notice title="Já tens dados nesta conta">
-      <p className="mu">Este dispositivo também tem dados guardados antes de iniciares sessão. Escolhe o que pretendes manter.</p>
+    return <Notice title={t('auth.legacy.title')}>
+      <p className="mu">{t('auth.legacy.text')}</p>
       <div className="auth-choices">
-        <button className="btn pri" onClick={() => pick('merge')}>Juntar os dois</button>
-        <button className="btn" onClick={() => pick('cloud')}>Manter só os dados da conta</button>
-        <button className="btn dng" onClick={async () => { if (await confirmDialog({ title: 'Substituir pelos dados deste dispositivo?', message: 'Os dados da conta que não existem neste dispositivo serão eliminados.', confirmLabel: 'Substituir', danger: true })) pick('local') }}>Substituir pelos dados deste dispositivo</button>
+        <button className="btn pri" onClick={() => pick('merge')}>{t('auth.legacy.merge')}</button>
+        <button className="btn" onClick={() => pick('cloud')}>{t('auth.legacy.cloud')}</button>
+        <button className="btn dng" onClick={async () => { if (await confirmDialog({ title: t('auth.legacy.confirmTitle'), message: t('auth.legacy.confirmText'), confirmLabel: t('auth.legacy.confirmLabel'), danger: true })) pick('local') }}>{t('auth.legacy.local')}</button>
       </div>
-      <p className="mu">Os dados deste dispositivo ficam guardados como cópia de segurança local em qualquer dos casos.</p>
+      <p className="mu">{t('auth.legacy.note')}</p>
     </Notice>
   }
   return <>{children}</>

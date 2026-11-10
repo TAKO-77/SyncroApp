@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Bell, CalendarDays, CalendarClock, House, ListTodo, Wallet, UserRound, PanelLeft, Plus, Settings } from 'lucide-react'
 import { Inicio, TodaySummary } from './features/inicio/Inicio'
-import { DN, MN, dow, todayIso } from './lib/dates'
+import { dow, iso, todayIso } from './lib/dates'
+import { useT } from './lib/i18n/useT'
+import type { MessageKey } from './lib/i18n/translate'
 import { Agenda, type AgendaView } from './features/agenda/Agenda'
 import { Calendario } from './features/calendario/Calendario'
 import { Tarefas } from './features/tarefas/Tarefas'
@@ -26,10 +28,11 @@ import { RevealText } from './components/RevealText'
 const syncroSymbol = new URL('./assets/syncro-symbol.png', import.meta.url).href
 const syncroLogo = new URL('./assets/syncro-logo.png', import.meta.url).href
 
-const SECTIONS = [{ id: 'inicio', label: 'Início', icon: House }, { id: 'agenda', label: 'Agenda', icon: CalendarClock }, { id: 'calendario', label: 'Calendário', icon: CalendarDays }, { id: 'tarefas', label: 'Tarefas', icon: ListTodo }, { id: 'lembretes', label: 'Lembretes', icon: Bell }, { id: 'financas', label: 'Finanças', icon: Wallet }, { id: 'perfil', label: 'Perfil', icon: UserRound }, { id: 'definicoes', label: 'Definições', icon: Settings }] as const
+const SECTIONS = [{ id: 'inicio', label: 'app.nav.inicio', icon: House }, { id: 'agenda', label: 'app.nav.agenda', icon: CalendarClock }, { id: 'calendario', label: 'app.nav.calendario', icon: CalendarDays }, { id: 'tarefas', label: 'app.nav.tarefas', icon: ListTodo }, { id: 'lembretes', label: 'app.nav.lembretes', icon: Bell }, { id: 'financas', label: 'app.nav.financas', icon: Wallet }, { id: 'perfil', label: 'app.nav.perfil', icon: UserRound }, { id: 'definicoes', label: 'app.nav.definicoes', icon: Settings }] as const satisfies readonly { id: string; label: MessageKey; icon: unknown }[]
 type Id = typeof SECTIONS[number]['id']
 
 export default function App() {
+  const { t, locale, days, shortDate } = useT()
   const [sec, setSec] = useState<Id>(() => takeOpenRequest() ?? 'inicio')
   const [anchor, setAnchor] = useState(todayIso())
   const [agendaView, setAgendaView] = useState<AgendaView>('week')
@@ -74,7 +77,7 @@ export default function App() {
   }, [])
   useArrowScroll()
   const now = useNow(10000), h = now.getHours()
-  const g = h < 6 ? 'Boa noite' : h < 13 ? 'Bom dia' : h < 20 ? 'Boa tarde' : 'Boa noite'
+  const g = t(h < 6 ? 'app.greet.night' : h < 13 ? 'app.greet.morning' : h < 20 ? 'app.greet.afternoon' : 'app.greet.evening')
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       const typing = /INPUT|SELECT|TEXTAREA/.test((document.activeElement?.tagName) ?? '')
@@ -89,20 +92,20 @@ export default function App() {
   return <div className={`app${sidebarOpen ? ' sidebar-open' : ''}${schedule ? ' schedule-layout' : ''}`}>
     <LogoFilter />
     <aside id="sidebar" className="sb" onMouseEnter={() => { if (sidebarAutoOpen) setSidebarOpen(true) }} onMouseLeave={() => { if (sidebarAutoOpen) setSidebarOpen(false) }} onFocus={() => { if (sidebarAutoOpen) setSidebarOpen(true) }} onBlur={e => { if (sidebarAutoOpen && !e.currentTarget.contains(e.relatedTarget as Node | null)) setSidebarOpen(false) }}>
-      {!sidebarAutoOpen && <button className="sidebar-toggle" type="button" aria-label={sidebarOpen ? 'Fechar barra lateral' : 'Abrir barra lateral'} title={sidebarOpen ? 'Fechar barra lateral' : 'Abrir barra lateral'} aria-expanded={sidebarOpen} aria-controls="sidebar" onClick={() => setSidebarOpen(open => !open)}><PanelLeft size={20} strokeWidth={1.5} aria-hidden="true" /></button>}
+      {!sidebarAutoOpen && <button className="sidebar-toggle" type="button" aria-label={t(sidebarOpen ? 'app.sidebar.close' : 'app.sidebar.open')} title={t(sidebarOpen ? 'app.sidebar.close' : 'app.sidebar.open')} aria-expanded={sidebarOpen} aria-controls="sidebar" onClick={() => setSidebarOpen(open => !open)}><PanelLeft size={20} strokeWidth={1.5} aria-hidden="true" /></button>}
       <div className="brand"><img src={syncroSymbol} alt="Syncro" width={162} height={178} /><span aria-hidden="true">SYNCRO</span></div>
-      <nav className="nav">{navSections.map(s => <button key={s.id} title={s.label} aria-label={s.label} aria-current={isCurrent(s.id) ? 'page' : undefined} onClick={() => setSec(s.id)}><s.icon size={20} strokeWidth={1.5} aria-hidden="true" /><span>{s.label}</span></button>)}<Glider /></nav>
+      <nav className="nav">{navSections.map(s => <button key={s.id} title={t(s.label)} aria-label={t(s.label)} aria-current={isCurrent(s.id) ? 'page' : undefined} onClick={() => setSec(s.id)}><s.icon size={20} strokeWidth={1.5} aria-hidden="true" /><span>{t(s.label)}</span></button>)}<Glider /></nav>
       {focusTimer && <Foco />}
-      <nav className="nav settings-nav" aria-label="Definições"><button title="Definições" aria-label="Definições" aria-current={sec === 'definicoes' ? 'page' : undefined} onClick={() => setSec('definicoes')}><Settings size={20} strokeWidth={1.5} aria-hidden="true" /><span>Definições</span></button></nav>
+      <nav className="nav settings-nav" aria-label={t('app.nav.definicoes')}><button title={t('app.nav.definicoes')} aria-label={t('app.nav.definicoes')} aria-current={sec === 'definicoes' ? 'page' : undefined} onClick={() => setSec('definicoes')}><Settings size={20} strokeWidth={1.5} aria-hidden="true" /><span>{t('app.nav.definicoes')}</span></button></nav>
     </aside>
     <main>
       <div className="mobile-brand"><img src={syncroLogo} alt="Syncro" width={607} height={222} /></div>
       <div className={'top' + (sec === 'inicio' ? ' hero' : '')}><div>{sec === 'inicio' && <><div className="hello"><RevealText text={g + (data.name ? ', ' : '.')} />{data.name && <span className="nm"><RevealText text={data.name} from={g.length + 2} /></span>}</div><TodaySummary /></>}</div>
-        <div className="top-actions"><button type="button" className="date-pill" title={`${now.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Abrir calendário`} onClick={() => setSec('calendario')}>
-          <span>{DN[dow(now)]}, {now.getDate()} {MN[now.getMonth()]}</span><span className="mu num">{now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span><span className="date-pill-ic"><CalendarDays size={16} strokeWidth={1.5} aria-hidden="true" /></span></button>
-          <button className="btn pri" onClick={() => setQa(true)} title="Adição rápida ( / )"><Plus size={16} strokeWidth={2} aria-hidden="true" />Adição rápida</button><ProfileButton active={sec === 'perfil'} onClick={() => setSec('perfil')} /></div></div>
-      {phone && schedule && <div className="seg schedule-switch"><button aria-pressed={sec === 'agenda'} onClick={() => setSec('agenda')}>Agenda</button><button aria-pressed={sec === 'calendario'} onClick={() => setSec('calendario')}>Calendário</button><Glider /></div>}
-      {phone && taskGroup && <div className="seg schedule-switch"><button aria-pressed={sec === 'tarefas'} onClick={() => setSec('tarefas')}>Tarefas</button><button aria-pressed={sec === 'lembretes'} onClick={() => setSec('lembretes')}>Lembretes</button><Glider /></div>}
+        <div className="top-actions"><button type="button" className="date-pill" title={`${now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · ${t('app.openCalendar')}`} onClick={() => setSec('calendario')}>
+          <span>{days[dow(now)]}, {shortDate(iso(now))}</span><span className="mu num">{now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</span><span className="date-pill-ic"><CalendarDays size={16} strokeWidth={1.5} aria-hidden="true" /></span></button>
+          <button className="btn pri" onClick={() => setQa(true)} title={t('app.quickAddHint')}><Plus size={16} strokeWidth={2} aria-hidden="true" />{t('app.quickAdd')}</button><ProfileButton active={sec === 'perfil'} onClick={() => setSec('perfil')} /></div></div>
+      {phone && schedule && <div className="seg schedule-switch"><button aria-pressed={sec === 'agenda'} onClick={() => setSec('agenda')}>{t('app.nav.agenda')}</button><button aria-pressed={sec === 'calendario'} onClick={() => setSec('calendario')}>{t('app.nav.calendario')}</button><Glider /></div>}
+      {phone && taskGroup && <div className="seg schedule-switch"><button aria-pressed={sec === 'tarefas'} onClick={() => setSec('tarefas')}>{t('app.nav.tarefas')}</button><button aria-pressed={sec === 'lembretes'} onClick={() => setSec('lembretes')}>{t('app.nav.lembretes')}</button><Glider /></div>}
       {sec === 'inicio' && <Inicio go={setSec} />}
       {phone && schedule ? <SwipePager page={sec === 'agenda' ? 0 : 1} onChange={p => setSec(p ? 'calendario' : 'agenda')} pages={[agendaPage, calendarPage]} /> : <>
         {sec === 'agenda' && agendaPage}
@@ -116,7 +119,7 @@ export default function App() {
       {sec === 'perfil' && <Perfil />}
       {sec === 'definicoes' && <Definicoes />}
     </main>
-    {sec !== 'agenda' && sec !== 'perfil' && sec !== 'definicoes' && <button type="button" className="fab" aria-label="Adição rápida" title="Adição rápida" onClick={() => setQa(true)}><Plus size={24} strokeWidth={2} aria-hidden="true" /></button>}
+    {sec !== 'agenda' && sec !== 'perfil' && sec !== 'definicoes' && <button type="button" className="fab" aria-label={t('app.quickAdd')} title={t('app.quickAdd')} onClick={() => setQa(true)}><Plus size={24} strokeWidth={2} aria-hidden="true" /></button>}
     {qa && <QuickAdd onClose={() => setQa(false)} onEvent={ds => { setAnchor(ds); setSec('agenda') }} />}
     <Toast />
   </div>

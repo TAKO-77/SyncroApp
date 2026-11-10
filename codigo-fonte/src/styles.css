@@ -514,7 +514,7 @@ main>.page{animation:page-in .35s cubic-bezier(.2,.75,.25,1) backwards}
   .sb .sidebar-toggle,.sb .brand,.sb>.btn,.sb .pomo{display:none}
   .sb>.nav{flex:4;min-width:0;flex-direction:row}.sb>.settings-nav{flex:1;min-height:0;padding-top:0;border-top:0}
   .nav button,.app:not(.sidebar-open) .nav button{flex:1;width:auto;flex-direction:column;justify-content:center;gap:3px;text-align:center;padding:6px 2px;font-size:10px}
-  .nav button span,.app:not(.sidebar-open) .nav button span{display:inline}
+  .nav button span,.app:not(.sidebar-open) .nav button span{display:inline;max-width:100%;overflow:hidden;text-overflow:ellipsis}.nav button{min-width:0}
   .nav button svg{width:20px;height:20px}
   main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;align-content:start;padding:4px 2px 0}main>*{grid-column:1/-1}
   /* The logo and the top actions share the first row, so every tab gains a line of space. */

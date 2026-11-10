@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type KeyboardEvent } from 'react'
 import { uid } from '../../components/common'
+import { useT } from '../../lib/i18n/useT'
 import { addSubtaskDraft, type SubtaskDraft } from '../../lib/subtasks'
 import { TASK_TITLE_MAX } from '../../lib/tasks'
 
@@ -7,6 +8,7 @@ import { TASK_TITLE_MAX } from '../../lib/tasks'
 export function SubtaskList({ subtasks, onChange, newTitle, onNewTitle }: {
   subtasks: SubtaskDraft[]; onChange: (subtasks: SubtaskDraft[]) => void; newTitle: string; onNewTitle: (title: string) => void
 }) {
+  const { t } = useT()
   const baseId = useId()
   const addInput = useRef<HTMLInputElement>(null)
   const [addError, setAddError] = useState(false)
@@ -26,20 +28,20 @@ export function SubtaskList({ subtasks, onChange, newTitle, onNewTitle }: {
   }
 
   return <div className="w subtasks" role="group" aria-labelledby={`${baseId}-label`} onKeyDown={onKeyDown}>
-    <span id={`${baseId}-label`} className="subtasks-label">Subtarefas</span>
+    <span id={`${baseId}-label`} className="subtasks-label">{t('tarefas.sub.title')}</span>
     {subtasks.length > 0 && <ul className="subtask-list">{subtasks.map((s, i) => {
       const blank = !s.t.trim(), errorId = `${baseId}-${s.id}-error`
       return <li key={s.id} className={'subtask' + (s.d ? ' dn' : '')}>
-        <input className="rc" type="checkbox" checked={s.d} aria-label={`Subtarefa ${i + 1} concluída`} onChange={e => edit(s.id, { d: e.target.checked })} />
-        <input className="subtask-title" type="text" value={s.t} maxLength={TASK_TITLE_MAX} autoComplete="off" aria-label={`Título da subtarefa ${i + 1}`} aria-invalid={blank} aria-describedby={blank ? errorId : undefined} onChange={e => edit(s.id, { t: e.target.value })} />
-        <button type="button" className="x" title="Eliminar subtarefa" aria-label={`Eliminar subtarefa ${i + 1}`} onClick={() => remove(s.id)}>✕</button>
-        {blank && <small id={errorId} className="field-error" role="alert">A subtarefa precisa de um título.</small>}
+        <input className="rc" type="checkbox" checked={s.d} aria-label={t('tarefas.sub.doneAria', { n: i + 1 })} onChange={e => edit(s.id, { d: e.target.checked })} />
+        <input className="subtask-title" type="text" value={s.t} maxLength={TASK_TITLE_MAX} autoComplete="off" aria-label={t('tarefas.sub.titleAria', { n: i + 1 })} aria-invalid={blank} aria-describedby={blank ? errorId : undefined} onChange={e => edit(s.id, { t: e.target.value })} />
+        <button type="button" className="x" title={t('tarefas.sub.delete')} aria-label={t('tarefas.sub.deleteAria', { n: i + 1 })} onClick={() => remove(s.id)}>✕</button>
+        {blank && <small id={errorId} className="field-error" role="alert">{t('tarefas.sub.blank')}</small>}
       </li>
     })}</ul>}
     <div className="subtask-add">
-      <input ref={addInput} type="text" value={newTitle} maxLength={TASK_TITLE_MAX} autoComplete="off" placeholder="Nova subtarefa…" aria-label="Nova subtarefa" aria-invalid={addError} aria-describedby={addError ? `${baseId}-add-error` : undefined} onChange={e => { onNewTitle(e.target.value); setAddError(false) }} />
-      <button type="button" className="btn" onClick={add}>Adicionar</button>
+      <input ref={addInput} type="text" value={newTitle} maxLength={TASK_TITLE_MAX} autoComplete="off" placeholder={t('tarefas.sub.placeholder')} aria-label={t('tarefas.sub.newAria')} aria-invalid={addError} aria-describedby={addError ? `${baseId}-add-error` : undefined} onChange={e => { onNewTitle(e.target.value); setAddError(false) }} />
+      <button type="button" className="btn" onClick={add}>{t('tarefas.add')}</button>
     </div>
-    {addError && <small id={`${baseId}-add-error`} className="field-error" role="alert">Escreve um título para a subtarefa.</small>}
+    {addError && <small id={`${baseId}-add-error`} className="field-error" role="alert">{t('tarefas.sub.needTitle')}</small>}
   </div>
 }

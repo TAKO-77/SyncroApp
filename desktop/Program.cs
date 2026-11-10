@@ -56,6 +56,8 @@ internal sealed class PlannerWindow : Form
     private readonly WebView2 view = new WebView2();
     private const string NotifyPrefix = "syncro:notify:";
     private const string BackgroundPrefix = "syncro:background:";
+    private const string LanguagePrefix = "syncro:language:";
+    private ToolStripMenuItem openItem, exitItem;
     private const string ToastAppId = "Syncro.Desktop";
     private readonly List<object> recentToasts = new List<object>();
     private const int WM_QUERYENDSESSION = 0x0011;
@@ -66,8 +68,178 @@ internal sealed class PlannerWindow : Form
     // The X only hides the window while this computer receives notifications; the page says which at start-up.
     private bool runInBackground = true;
 
+    // Languages in the order of the translations below; the page reports its choice with syncro:language:<code>.
+    private static readonly string[] LanguageCodes = { "pt-PT", "en", "de", "fr" };
+    private static int languageIndex;
+
+    private static readonly Dictionary<string, string[]> Texts = new Dictionary<string, string[]> {
+        { "tray.open", new[] {
+            "Abrir o Syncro",
+            "Open Syncro",
+            "Syncro öffnen",
+            "Ouvrir Syncro" } },
+        { "tray.exit", new[] {
+            "Sair",
+            "Quit",
+            "Beenden",
+            "Quitter" } },
+        { "hint.title", new[] {
+            "O Syncro continua aqui",
+            "Syncro is still here",
+            "Syncro läuft weiter",
+            "Syncro est toujours là" } },
+        { "hint.body", new[] {
+            "Fica junto ao relógio para poder avisar sobre as tarefas. Para o encerrar, escolhe Sair neste ícone.",
+            "It stays next to the clock so it can notify you about your tasks. To close it, choose Quit on this icon.",
+            "Es bleibt neben der Uhr, damit es dich an Aufgaben erinnern kann. Zum Schließen wähle Beenden an diesem Symbol.",
+            "Il reste près de l'horloge pour pouvoir te prévenir de tes tâches. Pour le fermer, choisis Quitter sur cette icône." } },
+        { "err.noindex", new[] {
+            "Não foi encontrado o index.html junto da aplicação nem na pasta dist.",
+            "index.html was not found next to the app or in the dist folder.",
+            "index.html wurde weder neben der App noch im Ordner dist gefunden.",
+            "index.html est introuvable à côté de l'application et dans le dossier dist." } },
+        { "err.browser", new[] {
+            "Não foi possível abrir o navegador. Visita as releases do Syncro no GitHub.",
+            "Could not open the browser. Visit the Syncro releases on GitHub.",
+            "Der Browser konnte nicht geöffnet werden. Besuche die Syncro-Releases auf GitHub.",
+            "Impossible d'ouvrir le navigateur. Va voir les versions de Syncro sur GitHub." } },
+        { "err.badresponse", new[] {
+            "Resposta de atualização inválida.",
+            "Invalid update response.",
+            "Ungültige Antwort der Update-Suche.",
+            "Réponse de mise à jour invalide." } },
+        { "err.notag", new[] {
+            "A release não tem uma tag de versão.",
+            "The release has no version tag.",
+            "Das Release hat kein Versions-Tag.",
+            "La version publiée n'a pas de tag de version." } },
+        { "err.tagformat", new[] {
+            "A tag da release deve ter o formato v2.3.2.",
+            "The release tag must look like v2.3.2.",
+            "Das Release-Tag muss das Format v2.3.2 haben.",
+            "Le tag de la version doit avoir le format v2.3.2." } },
+        { "err.notofficial", new[] {
+            "O instalador não pertence à release oficial do Syncro.",
+            "The installer does not belong to the official Syncro release.",
+            "Das Installationsprogramm gehört nicht zum offiziellen Syncro-Release.",
+            "Le programme d'installation n'appartient pas à la version officielle de Syncro." } },
+        { "err.size", new[] {
+            "O tamanho do instalador é inválido.",
+            "The installer size is invalid.",
+            "Die Größe des Installationsprogramms ist ungültig.",
+            "La taille du programme d'installation est invalide." } },
+        { "err.noasset", new[] {
+            "A nova release não contém o ficheiro SyncroSetup.exe pronto a descarregar.",
+            "The new release does not contain a SyncroSetup.exe file ready to download.",
+            "Das neue Release enthält keine herunterladbare Datei SyncroSetup.exe.",
+            "La nouvelle version ne contient pas de fichier SyncroSetup.exe prêt à être téléchargé." } },
+        { "err.incomplete", new[] {
+            "O instalador está incompleto ou não é um executável Windows. Volta a tentar.",
+            "The installer is incomplete or is not a Windows executable. Try again.",
+            "Das Installationsprogramm ist unvollständig oder keine Windows-Programmdatei. Versuche es erneut.",
+            "Le programme d'installation est incomplet ou n'est pas un exécutable Windows. Réessaie." } },
+        { "err.digest", new[] {
+            "O instalador não corresponde ao ficheiro publicado no GitHub. Volta a tentar.",
+            "The installer does not match the file published on GitHub. Try again.",
+            "Das Installationsprogramm stimmt nicht mit der auf GitHub veröffentlichten Datei überein. Versuche es erneut.",
+            "Le programme d'installation ne correspond pas au fichier publié sur GitHub. Réessaie." } },
+        { "err.openinstaller", new[] {
+            "Não foi possível abrir o instalador.",
+            "Could not open the installer.",
+            "Das Installationsprogramm konnte nicht geöffnet werden.",
+            "Impossible d'ouvrir le programme d'installation." } },
+        { "upd.busy", new[] {
+            "Já está em curso uma procura de atualizações.",
+            "An update check is already in progress.",
+            "Die Update-Suche läuft bereits.",
+            "Une recherche de mises à jour est déjà en cours." } },
+        { "upd.checking", new[] {
+            "A procurar atualizações…",
+            "Checking for updates…",
+            "Suche nach Updates …",
+            "Recherche de mises à jour…" } },
+        { "upd.latest", new[] {
+            "Tens a versão mais recente ({0}).",
+            "You have the latest version ({0}).",
+            "Du hast die neueste Version ({0}).",
+            "Tu as la dernière version ({0})." } },
+        { "upd.prompt", new[] {
+            "Está disponível a versão {0} do Syncro. Queres descarregar e instalar a atualização agora?",
+            "Syncro version {0} is available. Do you want to download and install the update now?",
+            "Syncro-Version {0} ist verfügbar. Möchtest du das Update jetzt herunterladen und installieren?",
+            "La version {0} de Syncro est disponible. Veux-tu télécharger et installer la mise à jour maintenant ?" } },
+        { "upd.title", new[] {
+            "Atualização do Syncro",
+            "Syncro update",
+            "Syncro-Update",
+            "Mise à jour de Syncro" } },
+        { "upd.later", new[] {
+            "Atualização disponível: {0}. Podes instalá-la mais tarde.",
+            "Update available: {0}. You can install it later.",
+            "Update verfügbar: {0}. Du kannst es später installieren.",
+            "Mise à jour disponible : {0}. Tu peux l'installer plus tard." } },
+        { "upd.downloading", new[] {
+            "A descarregar a atualização…",
+            "Downloading the update…",
+            "Update wird heruntergeladen …",
+            "Téléchargement de la mise à jour…" } },
+        { "upd.failed", new[] {
+            "Não foi possível atualizar. {0} Podes tentar novamente ou descarregar a versão no GitHub.",
+            "Could not update. {0} You can try again or download the version from GitHub.",
+            "Das Update ist fehlgeschlagen. {0} Du kannst es erneut versuchen oder die Version auf GitHub herunterladen.",
+            "Impossible de mettre à jour. {0} Tu peux réessayer ou télécharger la version sur GitHub." } },
+        { "upd.checkfailed", new[] {
+            "Não foi possível procurar atualizações. Verifica a ligação e tenta novamente.",
+            "Could not check for updates. Check your connection and try again.",
+            "Die Update-Suche ist fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.",
+            "Impossible de rechercher des mises à jour. Vérifie ta connexion et réessaie." } },
+    };
+
+    private static string Tr(string id)
+    {
+        string[] values;
+        if (!Texts.TryGetValue(id, out values)) return id;
+        return values[languageIndex];
+    }
+
+    private static string Tr(string id, params object[] args)
+    {
+        return String.Format(Tr(id), args);
+    }
+
+    private static string LanguageFile()
+    {
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Syncro", "language.txt");
+    }
+
+    private static void LoadLanguage()
+    {
+        try
+        {
+            int index = Array.IndexOf(LanguageCodes, File.ReadAllText(LanguageFile()).Trim());
+            if (index >= 0) languageIndex = index;
+        }
+        catch { /* No saved language yet: Portuguese. */ }
+    }
+
+    private void SetLanguage(string code)
+    {
+        int index = Array.IndexOf(LanguageCodes, code);
+        if (index < 0 || index == languageIndex) return;
+        languageIndex = index;
+        if (openItem != null) openItem.Text = Tr("tray.open");
+        if (exitItem != null) exitItem.Text = Tr("tray.exit");
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(LanguageFile()));
+            File.WriteAllText(LanguageFile(), code);
+        }
+        catch { /* Losing the saved language only affects texts shown before the page loads. */ }
+    }
+
     public PlannerWindow(EventWaitHandle showRequest)
     {
+        LoadLanguage();
         Text = "Syncro";
         // Keep the restored window inside smaller screens instead of a fixed 1920x1200.
         var area = Screen.PrimaryScreen.WorkingArea;
@@ -94,8 +266,10 @@ internal sealed class PlannerWindow : Form
     private void SetUpTray()
     {
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Abrir o Syncro", null, (sender, args) => ShowFromTray());
-        menu.Items.Add("Sair", null, (sender, args) => ExitApp());
+        openItem = new ToolStripMenuItem(Tr("tray.open"), null, (sender, args) => ShowFromTray());
+        exitItem = new ToolStripMenuItem(Tr("tray.exit"), null, (sender, args) => ExitApp());
+        menu.Items.Add(openItem);
+        menu.Items.Add(exitItem);
         tray.Icon = Icon;
         tray.Text = "Syncro";
         tray.ContextMenuStrip = menu;
@@ -149,7 +323,7 @@ internal sealed class PlannerWindow : Form
             if (File.Exists(marker)) return;
             Directory.CreateDirectory(folder);
             File.WriteAllText(marker, "");
-            Notify("O Syncro continua aqui", "Fica junto ao relógio para poder avisar sobre as tarefas. Para o encerrar, escolhe Sair neste ícone.", false);
+            Notify(Tr("hint.title"), Tr("hint.body"), false);
         }
         catch (Exception ex) { LogUpdateFailure(ex); }
     }
@@ -311,7 +485,7 @@ internal sealed class PlannerWindow : Form
         }
         if (!File.Exists(html))
         {
-            MessageBox.Show(this, "Não foi encontrado o index.html junto da aplicação nem na pasta dist.", "Syncro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(this, Tr("err.noindex"), "Syncro", MessageBoxButtons.OK, MessageBoxIcon.Error);
             ExitApp();
             return;
         }
@@ -336,7 +510,7 @@ internal sealed class PlannerWindow : Form
             catch (Exception ex)
             {
                 LogUpdateFailure(ex);
-                if (isReleases) PublishUpdateStatus("Não foi possível abrir o navegador. Visita as releases do Syncro no GitHub.", false);
+                if (isReleases) PublishUpdateStatus(Tr("err.browser"), false);
             }
         };
         view.CoreWebView2.WebMessageReceived += async (sender, args) =>
@@ -349,6 +523,7 @@ internal sealed class PlannerWindow : Form
             else if (message == "syncro:version") PublishUpdateStatus("", checkingUpdates);
             else if (message.StartsWith(NotifyPrefix, StringComparison.Ordinal)) ShowNotification(message.Substring(NotifyPrefix.Length));
             else if (message.StartsWith(BackgroundPrefix, StringComparison.Ordinal)) runInBackground = message.Substring(BackgroundPrefix.Length) != "off";
+            else if (message.StartsWith(LanguagePrefix, StringComparison.Ordinal)) SetLanguage(message.Substring(LanguagePrefix.Length));
         };
         view.Source = new Uri("https://planner.local/index.html");
         await CheckForUpdates();
@@ -392,15 +567,15 @@ internal sealed class PlannerWindow : Form
     private static UpdateInfo ParseUpdate(string json, string installedVersion)
     {
         var release = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
-        if (release == null) throw new InvalidDataException("Resposta de atualização inválida.");
+        if (release == null) throw new InvalidDataException(Tr("err.badresponse"));
         object value;
         if ((release.TryGetValue("draft", out value) && true.Equals(value)) ||
             (release.TryGetValue("prerelease", out value) && true.Equals(value))) return null;
-        if (!release.TryGetValue("tag_name", out value)) throw new InvalidDataException("A release não tem uma tag de versão.");
+        if (!release.TryGetValue("tag_name", out value)) throw new InvalidDataException(Tr("err.notag"));
         string tag = Convert.ToString(value).Trim();
         Version latest, current;
         if (!Version.TryParse(tag.TrimStart('v', 'V'), out latest) || !Version.TryParse(installedVersion, out current))
-            throw new InvalidDataException("A tag da release deve ter o formato v2.3.2.");
+            throw new InvalidDataException(Tr("err.tagformat"));
         if (NormalizeVersion(latest) <= NormalizeVersion(current)) return null;
 
         // JavaScriptSerializer returns ArrayList here, not object[]. Accept its enumerable interface.
@@ -418,14 +593,14 @@ internal sealed class PlannerWindow : Form
             if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out url) || url.Scheme != Uri.UriSchemeHttps ||
                 !String.Equals(url.Host, "github.com", StringComparison.OrdinalIgnoreCase) || !url.IsDefaultPort ||
                 url.UserInfo.Length != 0 || url.Query.Length != 0 || url.Fragment.Length != 0 || url.AbsolutePath != expectedPath)
-                throw new InvalidDataException("O instalador não pertence à release oficial do Syncro.");
+                throw new InvalidDataException(Tr("err.notofficial"));
             long size;
             if (!item.TryGetValue("size", out value) || !Int64.TryParse(Convert.ToString(value), out size) || size <= 0)
-                throw new InvalidDataException("O tamanho do instalador é inválido.");
+                throw new InvalidDataException(Tr("err.size"));
             return new UpdateInfo { Version = latest, InstallerUrl = url.AbsoluteUri, Size = size,
                 Digest = item.TryGetValue("digest", out value) ? Convert.ToString(value) : "" };
         }
-        throw new InvalidDataException("A nova release não contém o ficheiro SyncroSetup.exe pronto a descarregar.");
+        throw new InvalidDataException(Tr("err.noasset"));
     }
 
     private static void ValidateInstaller(string path, long expectedSize, string digest)
@@ -433,7 +608,7 @@ internal sealed class PlannerWindow : Form
         using (var file = File.OpenRead(path))
         {
             if (file.Length != expectedSize || file.Length < 2 || file.ReadByte() != 'M' || file.ReadByte() != 'Z')
-                throw new InvalidDataException("O instalador está incompleto ou não é um executável Windows. Volta a tentar.");
+                throw new InvalidDataException(Tr("err.incomplete"));
             if (!String.IsNullOrEmpty(digest))
             {
                 file.Position = 0;
@@ -441,7 +616,7 @@ internal sealed class PlannerWindow : Form
                 {
                     string actual = "sha256:" + BitConverter.ToString(sha.ComputeHash(file)).Replace("-", "").ToLowerInvariant();
                     if (!String.Equals(actual, digest, StringComparison.OrdinalIgnoreCase))
-                        throw new InvalidDataException("O instalador não corresponde ao ficheiro publicado no GitHub. Volta a tentar.");
+                        throw new InvalidDataException(Tr("err.digest"));
                 }
             }
         }
@@ -449,7 +624,7 @@ internal sealed class PlannerWindow : Form
 
     private async System.Threading.Tasks.Task CheckForUpdates(bool manual = false)
     {
-        if (checkingUpdates) { PublishUpdateStatus("Já está em curso uma procura de atualizações.", true); return; }
+        if (checkingUpdates) { PublishUpdateStatus(Tr("upd.busy"), true); return; }
         checkingUpdates = true;
         bool accepted = false;
         bool launched = false;
@@ -457,7 +632,7 @@ internal sealed class PlannerWindow : Form
         string status = "";
         try
         {
-            PublishUpdateStatus("A procurar atualizações…", true);
+            PublishUpdateStatus(Tr("upd.checking"), true);
             using (var client = new UpdateWebClient())
             {
                 client.Headers[HttpRequestHeader.UserAgent] = "Syncro-Updater";
@@ -465,11 +640,11 @@ internal sealed class PlannerWindow : Form
                 string json = await client.DownloadStringTaskAsync(LatestReleaseApi);
                 UpdateInfo update = ParseUpdate(json, AppVersion);
                 if (IsDisposed || Disposing) return;
-                if (update == null) { status = "Tens a versão mais recente (" + AppVersion + ")."; return; }
-                if (MessageBox.Show(this, "Está disponível a versão " + update.Version + " do Syncro. Queres descarregar e instalar a atualização agora?", "Atualização do Syncro", MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes)
-                { status = "Atualização disponível: " + update.Version + ". Podes instalá-la mais tarde."; return; }
+                if (update == null) { status = Tr("upd.latest", AppVersion); return; }
+                if (MessageBox.Show(this, Tr("upd.prompt", update.Version), Tr("upd.title"), MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes)
+                { status = Tr("upd.later", update.Version); return; }
                 accepted = true;
-                PublishUpdateStatus("A descarregar a atualização…", true);
+                PublishUpdateStatus(Tr("upd.downloading"), true);
                 string downloadFolder = Path.Combine(Path.GetTempPath(), "Syncro-Update-" + Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(downloadFolder);
                 installerPath = Path.Combine(downloadFolder, "SyncroSetup.exe");
@@ -484,7 +659,7 @@ internal sealed class PlannerWindow : Form
                 var installer = Process.Start(new ProcessStartInfo(installerPath) {
                     UseShellExecute = true, Arguments = "/DIR=\"" + installFolder + "\"",
                 });
-                if (installer == null) throw new IOException("Não foi possível abrir o instalador.");
+                if (installer == null) throw new IOException(Tr("err.openinstaller"));
                 launched = true;
                 ExitApp();
             }
@@ -492,11 +667,11 @@ internal sealed class PlannerWindow : Form
         catch (Exception ex)
         {
             LogUpdateFailure(ex);
-            status = "Não foi possível atualizar. " + ex.Message + " Podes tentar novamente ou descarregar a versão no GitHub.";
+            status = Tr("upd.failed", ex.Message);
             if (accepted && !IsDisposed && !Disposing)
-                MessageBox.Show(this, status, "Atualização do Syncro", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, status, Tr("upd.title"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
             // Startup stays quiet offline. A manual check always reports its outcome in Settings.
-            if (!manual && !accepted) status = "Não foi possível procurar atualizações. Verifica a ligação e tenta novamente.";
+            if (!manual && !accepted) status = Tr("upd.checkfailed");
         }
         finally
         {

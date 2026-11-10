@@ -81,7 +81,7 @@ export const settings = defineMessages({
     'settings.download': 'Download the latest version from GitHub',
     'settings.notifications': 'Notifications',
     'settings.notifyComputer': 'Get notifications on this computer',
-    'settings.notifyComputerNote': 'For reminders and, if you choose so in Profile, for tasks with a time limit. While this is on, closing the window keeps Syncro running next to the Windows clock so it can notify you; to quit, choose Exit on that icon. When it is off, closing the window quits Syncro.',
+    'settings.notifyComputerNote': 'For reminders and, if you choose so in Profile, for tasks with a time limit. While this is on, closing the window keeps Syncro running next to the Windows clock so it can notify you; to quit, choose Quit on that icon. When it is off, closing the window quits Syncro.',
     'settings.notifyDevice': 'Get notifications on this device',
     'settings.notifyDeviceNote': 'For reminders and, if you choose so in Profile, for tasks with a time limit, even with the app closed.',
     'settings.pushInstall': 'On iPhone, install Syncro first: in Safari, Share → Add to Home Screen.',
