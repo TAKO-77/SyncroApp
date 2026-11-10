@@ -3,6 +3,11 @@ import { createClient } from '@supabase/supabase-js'
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() ?? ''
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? ''
 
+// Recovery or error redirects can leave tokens in the address; they must not stay in the history.
+if (typeof location !== 'undefined' && /(access_token=|error=|type=recovery)/.test(location.hash)) {
+  try { history.replaceState(null, '', location.pathname + location.search) } catch { /* ignore */ }
+}
+
 export const supabaseConfigured = /^https:\/\/\S+$/.test(url) && anonKey.length > 20
 
 // The anon key is public by design; access is restricted by row level security.

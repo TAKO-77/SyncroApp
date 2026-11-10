@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
+import { refreshPush } from '../../lib/push'
 import { LogoFilter } from '../../components/common'
 import { useT } from '../../lib/i18n/useT'
 import type { MessageKey, Translator } from '../../lib/i18n/translate'
@@ -75,8 +76,15 @@ export function AuthScreen() {
       } else {
         const { error } = await supabase.auth.verifyOtp({ email: mail, token: code.trim(), type: 'recovery' })
         if (error) return setError(describe(t, error))
-        const { error: updateError } = await supabase.auth.updateUser({ password })
+        const { data: updated, error: updateError } = await supabase.auth.updateUser({ password })
         if (updateError) setError(describe(t, updateError))
+        else {
+          // A reset means the old password may be compromised: end the other sessions and drop every push subscription;
+          // this device registers again right away. None of it may block the reset.
+          try { await supabase.auth.signOut({ scope: 'others' }) } catch { /* ignore */ }
+          try { if (updated.user) await supabase.from('push_subscriptions').delete().eq('user_id', updated.user.id) } catch { /* ignore */ }
+          try { await refreshPush() } catch { /* ignore */ }
+        }
       }
     } catch {
       setError(t('auth.err.network'))
