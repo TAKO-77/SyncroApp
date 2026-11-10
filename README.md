@@ -36,7 +36,7 @@
 - **Funciona sem Internet.** As alterações aparecem de imediato e sincronizam quando houver ligação.
 - **Em todos os dispositivos.** Aplicação para Windows e app web instalável no Android e no iPhone, com a mesma conta.
 - **Avisa a tempo.** Notificações das tarefas com hora limite e dos lembretes, no computador e no telemóvel.
-- **Modo claro e escuro**, atalhos de teclado e adição rápida em linguagem natural (`/` ou `Ctrl+K`).
+- **Em português, inglês, alemão e francês**, com modo claro e escuro, atalhos de teclado e adição rápida em linguagem natural no idioma escolhido (`/` ou `Ctrl+K`).
 
 ## Funcionalidades
 
@@ -121,7 +121,7 @@ A app web abre sem ligação com os dados guardados no dispositivo e sincroniza 
 
 No primeiro início de sessão, os dados guardados neste computador antes das contas são enviados para a conta, se esta estiver vazia. Se a conta já tiver dados, o Syncro pergunta se queres juntá-los, manter só os da conta ou substituí-los pelos do computador.
 
-Em **Definições → Conta**, podes ver o estado da sincronização, sincronizar manualmente e terminar sessão. Em **Definições → Dados e cópia de segurança**, podes exportar um ficheiro JSON ou importar uma cópia anterior.
+Em **Definições → Conta**, podes ver o estado da sincronização, sincronizar manualmente e terminar sessão. Em **Definições → Dados e cópia de segurança**, podes exportar um ficheiro JSON ou importar uma cópia anterior. Em **Definições → Idioma**, escolhes o idioma da app; a escolha fica na conta e aplica-se a todos os dispositivos e às notificações.
 
 O instalador preserva os dados durante as atualizações. Ao desinstalar, podes escolher se pretendes eliminá-los.
 
