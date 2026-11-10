@@ -14,6 +14,7 @@ assert.equal(installer.match(/#define AppVersion "([\d.]+)"/)?.[1], version, 'In
 assert.equal(JSON.parse(readFileSync(join(root, 'codigo-fonte/package.json'), 'utf8')).version, version, 'Web version differs from application')
 
 const asset = { name: 'SyncroSetup.exe', state: 'uploaded', size: 128,
+  digest: 'sha256:' + '0'.repeat(64),
   browser_download_url: 'https://github.com/TAKO-77/SyncroApp/releases/download/v9.0.0/SyncroSetup.exe' }
 const release = { tag_name: 'v9.0.0', draft: false, prerelease: false, assets: [asset] }
 const cases = [
@@ -31,6 +32,7 @@ const cases = [
   { name: 'invalid tag', data: { ...release, tag_name: 'release-new' }, current: version, expected: 'error' },
   { name: 'installer upload unfinished', data: { ...release, assets: [{ ...asset, state: 'new' }] }, current: version, expected: 'error' },
   { name: 'installer missing', data: { ...release, assets: [{ ...asset, name: 'Source.zip' }] }, current: version, expected: 'error' },
+  { name: 'missing digest rejected', data: { ...release, assets: [{ ...asset, digest: null }] }, current: version, expected: 'error' },
   { name: 'empty installer', data: { ...release, assets: [{ ...asset, size: 0 }] }, current: version, expected: 'error' },
   { name: 'invalid download URL', data: { ...release, assets: [{ ...asset, browser_download_url: 'https://example.com/SyncroSetup.exe' }] }, current: version, expected: 'error' },
   { name: 'HTTPS required', data: { ...release, assets: [{ ...asset, browser_download_url: asset.browser_download_url.replace('https:', 'http:') }] }, current: version, expected: 'error' },
@@ -47,10 +49,11 @@ writeFileSync(goodPath, good)
 writeFileSync(badPath, Buffer.from('<html>error</html>'))
 const digest = 'sha256:' + createHash('sha256').update(good).digest('hex')
 const downloads = [
-  { name: 'download without optional digest', path: goodPath, size: good.length, digest: '', error: false },
+  { name: 'download without digest rejected', path: goodPath, size: good.length, digest: '', error: true },
+  { name: 'non-SHA256 digest rejected', path: goodPath, size: good.length, digest: 'md5:' + '0'.repeat(32), error: true },
   { name: 'valid SHA256', path: goodPath, size: good.length, digest, error: false },
-  { name: 'truncated download', path: goodPath, size: good.length + 1, digest: '', error: true },
-  { name: 'HTML response rejected', path: badPath, size: readFileSync(badPath).length, digest: '', error: true },
+  { name: 'truncated download', path: goodPath, size: good.length + 1, digest, error: true },
+  { name: 'HTML response rejected', path: badPath, size: readFileSync(badPath).length, digest: 'sha256:' + createHash('sha256').update(readFileSync(badPath)).digest('hex'), error: true },
   { name: 'SHA256 mismatch', path: goodPath, size: good.length, digest: 'sha256:' + '0'.repeat(64), error: true },
 ]
 const quote = (value: string) => "'" + value.replaceAll("'", "''") + "'"

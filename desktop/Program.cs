@@ -128,6 +128,11 @@ internal sealed class PlannerWindow : Form
             "The installer size is invalid.",
             "Die Größe des Installationsprogramms ist ungültig.",
             "La taille du programme d'installation est invalide." } },
+        { "err.nodigest", new[] {
+            "Não é possível verificar esta atualização. Transfere-a da página de versões.",
+            "This update cannot be verified. Download it from the releases page.",
+            "Dieses Update kann nicht überprüft werden. Lade es von der Release-Seite herunter.",
+            "Cette mise à jour ne peut pas être vérifiée. Télécharge-la depuis la page des versions." } },
         { "err.noasset", new[] {
             "A nova release não contém o ficheiro SyncroSetup.exe pronto a descarregar.",
             "The new release does not contain a SyncroSetup.exe file ready to download.",
@@ -503,15 +508,18 @@ internal sealed class PlannerWindow : Form
         view.CoreWebView2.NewWindowRequested += (sender, args) =>
         {
             args.Handled = true;
-            Uri target;
-            if (!Uri.TryCreate(args.Uri, UriKind.Absolute, out target) || (target.Scheme != Uri.UriSchemeHttps && target.Scheme != Uri.UriSchemeHttp)) return;
-            var isReleases = target.AbsoluteUri == "https://github.com/TAKO-77/SyncroApp/releases/latest";
-            try { Process.Start(new ProcessStartInfo(target.AbsoluteUri) { UseShellExecute = true }); }
-            catch (Exception ex)
-            {
-                LogUpdateFailure(ex);
-                if (isReleases) PublishUpdateStatus(Tr("err.browser"), false);
-            }
+            OpenExternal(args.Uri);
+        };
+        view.CoreWebView2.NavigationStarting += (sender, args) =>
+        {
+            string uri = args.Uri ?? "";
+            if (IsAppUri(uri)) return;
+            args.Cancel = true;
+            if (args.IsUserInitiated) OpenExternal(uri);
+        };
+        view.CoreWebView2.FrameNavigationStarting += (sender, args) =>
+        {
+            if (!IsAppUri(args.Uri ?? "")) args.Cancel = true;
         };
         view.CoreWebView2.WebMessageReceived += async (sender, args) =>
         {
@@ -527,6 +535,25 @@ internal sealed class PlannerWindow : Form
         };
         view.Source = new Uri("https://planner.local/index.html");
         await CheckForUpdates();
+    }
+
+    private static bool IsAppUri(string uri)
+    {
+        return uri.StartsWith("https://planner.local/", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(uri, "about:blank", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void OpenExternal(string uri)
+    {
+        Uri target;
+        if (!Uri.TryCreate(uri, UriKind.Absolute, out target) || (target.Scheme != Uri.UriSchemeHttps && target.Scheme != Uri.UriSchemeHttp)) return;
+        var isReleases = target.AbsoluteUri == "https://github.com/TAKO-77/SyncroApp/releases/latest";
+        try { Process.Start(new ProcessStartInfo(target.AbsoluteUri) { UseShellExecute = true }); }
+        catch (Exception ex)
+        {
+            LogUpdateFailure(ex);
+            if (isReleases) PublishUpdateStatus(Tr("err.browser"), false);
+        }
     }
 
     private void PublishUpdateStatus(string message, bool busy)
@@ -597,8 +624,10 @@ internal sealed class PlannerWindow : Form
             long size;
             if (!item.TryGetValue("size", out value) || !Int64.TryParse(Convert.ToString(value), out size) || size <= 0)
                 throw new InvalidDataException(Tr("err.size"));
-            return new UpdateInfo { Version = latest, InstallerUrl = url.AbsoluteUri, Size = size,
-                Digest = item.TryGetValue("digest", out value) ? Convert.ToString(value) : "" };
+            string digest = item.TryGetValue("digest", out value) ? Convert.ToString(value) : "";
+            if (String.IsNullOrEmpty(digest) || !digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException(Tr("err.nodigest"));
+            return new UpdateInfo { Version = latest, InstallerUrl = url.AbsoluteUri, Size = size, Digest = digest };
         }
         throw new InvalidDataException(Tr("err.noasset"));
     }
@@ -609,15 +638,14 @@ internal sealed class PlannerWindow : Form
         {
             if (file.Length != expectedSize || file.Length < 2 || file.ReadByte() != 'M' || file.ReadByte() != 'Z')
                 throw new InvalidDataException(Tr("err.incomplete"));
-            if (!String.IsNullOrEmpty(digest))
+            if (String.IsNullOrEmpty(digest) || !digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException(Tr("err.digest"));
+            file.Position = 0;
+            using (var sha = SHA256.Create())
             {
-                file.Position = 0;
-                using (var sha = SHA256.Create())
-                {
-                    string actual = "sha256:" + BitConverter.ToString(sha.ComputeHash(file)).Replace("-", "").ToLowerInvariant();
-                    if (!String.Equals(actual, digest, StringComparison.OrdinalIgnoreCase))
-                        throw new InvalidDataException(Tr("err.digest"));
-                }
+                string actual = "sha256:" + BitConverter.ToString(sha.ComputeHash(file)).Replace("-", "").ToLowerInvariant();
+                if (!String.Equals(actual, digest, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException(Tr("err.digest"));
             }
         }
     }
