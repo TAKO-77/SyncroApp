@@ -41,7 +41,7 @@ const schema = z.object({
   }).passthrough().default({}),
   name: z.string().optional(),
   photo: z.string().max(200000).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).optional(),
-  reset: z.string().default(''),
+  reset: z.string().max(32).catch(''),
   notes: z.array(z.object({ id: z.string(), workspaceId: z.string(), text: z.string().max(NOTE_TEXT_MAX) })).default([]),
   taskNotes: z.record(z.string()).optional(),
   reminders: z.array(item).default([]),

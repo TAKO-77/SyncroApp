@@ -12,7 +12,7 @@ import type { Language } from '../codigo-fonte/src/lib/i18n/languages.ts'
 import { WEEK_RANGE, clipToWeek, weekScale } from '../codigo-fonte/src/lib/agendaFit.ts'
 import { eventsOn } from '../codigo-fonte/src/lib/recurrence.ts'
 import { noticeTarget, reminderText, remindersBetween } from '../codigo-fonte/src/lib/reminders.ts'
-import { LANGUAGES as SERVER_LANGUAGES, expirySeconds, isPushEndpoint, languageOf, localMinutes, noticeTarget as serverTarget, reminderAlertsAt, reminderText as serverText, remindersAt, type ReminderRow } from '../supabase/functions/send-reminders/rules.ts'
+import { LANGUAGES as SERVER_LANGUAGES, expirySeconds, isPushEndpoint, languageOf, localMinutes, noticeTarget as serverTarget, reminderAlertsAt, reminderText as serverText, remindersAt, sameSecret, type ReminderRow } from '../supabase/functions/send-reminders/rules.ts'
 import { addSubtaskDraft, applySubtaskEdits, hasBlankSubtask, splitSubtasks, withoutTask } from '../codigo-fonte/src/lib/subtasks.ts'
 import { NOTE_TEXT_MAX, TASK_NOTES_MAX, taskNotesError } from '../codigo-fonte/src/lib/taskNotes.ts'
 import { parseAppData } from '../codigo-fonte/src/lib/schema.ts'
@@ -658,6 +658,45 @@ test('quick add leaves ordinary words alone', () => {
 test('the server only calls known push services', () => {
   for (const ok of ['https://fcm.googleapis.com/fcm/send/abc', 'https://web.push.apple.com/abc', 'https://updates.push.services.mozilla.com/wpush/v2/abc', 'https://wns2-par02p.notify.windows.com/w/?token=abc']) assert.equal(isPushEndpoint(ok), true, ok)
   for (const bad of ['http://fcm.googleapis.com/fcm/send/abc', 'https://evil.example/fcm.googleapis.com', 'https://fcm.googleapis.com.evil.example/x', 'https://notpush.apple.com/x', 'http://169.254.169.254/latest', 'não é url']) assert.equal(isPushEndpoint(bad), false, bad)
+})
+
+test('the push function compares secrets in full', () => {
+  assert.equal(sameSecret('abc123', 'abc123'), true)
+  assert.equal(sameSecret('abc123', 'abc124'), false)
+  assert.equal(sameSecret('abc', 'abcd'), false)
+  assert.equal(sameSecret('abcd', 'abc'), false)
+  assert.equal(sameSecret('', 'abc'), false)
+  assert.equal(sameSecret('abc', ''), false)
+  assert.equal(sameSecret('', ''), true)
+  assert.equal(sameSecret('ação', 'ação'), true)
+})
+
+test('the database accepts the same push endpoints as the server', () => {
+  const sql = readFileSync(new URL('../supabase/migrations/20261111000000_push_subscription_limits.sql', import.meta.url), 'utf8')
+  const pattern = new RegExp(/p_endpoint !~\* '([^']+)'/.exec(sql)![1], 'i')
+  const good = ['https://fcm.googleapis.com/fcm/send/abc', 'https://web.push.apple.com/abc', 'https://updates.push.services.mozilla.com/wpush/v2/abc', 'https://wns2-par02p.notify.windows.com/w/?token=abc', 'https://push.apple.com/x']
+  const bad = ['http://fcm.googleapis.com/fcm/send/abc', 'https://evil.example/fcm.googleapis.com', 'https://fcm.googleapis.com.evil.example/x', 'https://notpush.apple.com/x', 'http://169.254.169.254/latest', 'não é url', 'https://fcm.googleapis.com@evil.example/', 'https://evil.example/@fcm.googleapis.com/']
+  for (const url of good) { assert.equal(pattern.test(url), true, url); assert.equal(isPushEndpoint(url), true, url) }
+  for (const url of bad) assert.equal(pattern.test(url), false, url)
+  const zone = new RegExp(/p_time_zone !~ '([^']+)'/.exec(sql)![1])
+  for (const ok of ['Europe/Lisbon', 'America/Argentina/Buenos_Aires', 'Etc/GMT+1', 'UTC']) assert.equal(zone.test(ok), true, ok)
+  for (const bad of ['', 'x'.repeat(65), 'Europe/Lisbon; drop', 'a b']) assert.equal(zone.test(bad), false, bad)
+})
+
+test('the database id limit fits the ids the app builds', () => {
+  const sql = readFileSync(new URL('../supabase/migrations/20261111000001_column_bounds.sql', import.meta.url), 'utf8')
+  const limit = Number(/char_length\(id\) <= (\d+)/.exec(sql)![1])
+  const tables = /foreach t in array array\[([^\]]*)\]/.exec(sql)![1].split(',').map(name => name.trim().replace(/'/g, ''))
+  assert.deepEqual(tables.sort(), ['day_categories', 'event_categories', 'events', 'finances', 'reminders', 'special_days', 'tasks', 'workspace_notes', 'workspaces'])
+  assert.ok(readFileSync(new URL('../codigo-fonte/src/components/common.tsx', import.meta.url), 'utf8').includes('p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)'), 'uid() changed: recheck the id limit')
+  // Same shape as uid(): prefix + base-36 time + up to 3 random characters.
+  const built = (prefix: string) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)
+  for (const prefix of ['t', 'w', 'n', 'e', 'f', 'c', 'd', 'r', 's']) assert.ok(built(prefix).length <= limit, prefix)
+  assert.ok(('n-' + built('w')).length <= limit, 'note id n-<workspace id>')
+  // Worst case: prefix + 9 base-36 digits of the time + 3 random characters, under a 'n-' prefix.
+  assert.ok(('n-' + 'w' + 'zzzzzzzzz' + 'zzz').length <= limit)
+  assert.equal(parseAppData({ ...clone(base()), reset: 'x'.repeat(33) })!.reset, '', 'reset above the database limit is dropped')
+  assert.equal(parseAppData({ ...clone(base()), reset: 'x'.repeat(32) })!.reset, 'x'.repeat(32))
 })
 
 // Subtasks

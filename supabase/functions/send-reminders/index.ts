@@ -1,6 +1,6 @@
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2.118.0'
 import { ApplicationServer, importVapidKeys, PushMessageError, Urgency } from 'jsr:@negrel/webpush@0.5.0'
-import { expirySeconds, isPushEndpoint, languageOf, localMinutes, noticeTarget, reminderAlertsAt, reminderText, remindersAt, type ReminderRow, type TaskRow } from './rules.ts'
+import { expirySeconds, isPushEndpoint, languageOf, localMinutes, noticeTarget, reminderAlertsAt, reminderText, remindersAt, sameSecret, type ReminderRow, type TaskRow } from './rules.ts'
 
 // Called every minute by pg_cron (see the push_notifications migration). Sends each device the reminders now due.
 
@@ -9,11 +9,18 @@ const day = (offset: number) => new Date(Date.now() + offset * 864e5).toISOStrin
 
 Deno.serve(async req => {
   const secret = Deno.env.get('CRON_SECRET')
-  if (!secret || req.headers.get('x-cron-secret') !== secret) return new Response('Forbidden', { status: 403 })
+  if (!secret || !sameSecret(req.headers.get('x-cron-secret') ?? '', secret)) return new Response('Forbidden', { status: 403 })
 
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
-  const { data: devices, error } = await db.from('push_subscriptions').select('endpoint, user_id, p256dh, auth, time_zone')
-  if (error) return Response.json({ error: error.message }, { status: 500 })
+  const devices: { endpoint: string; user_id: string; p256dh: string; auth: string; time_zone: string }[] = []
+  for (let last = ''; ;) {
+    const query = db.from('push_subscriptions').select('endpoint, user_id, p256dh, auth, time_zone').order('endpoint').limit(PAGE)
+    const { data, error } = await (last ? query.gt('endpoint', last) : query)
+    if (error) return Response.json({ error: error.message }, { status: 500 })
+    devices.push(...data)
+    if (data.length < PAGE) break
+    last = data[data.length - 1].endpoint
+  }
   if (!devices.length) return Response.json({ devices: 0, sent: 0 })
 
   // Any time zone's "today" falls within a day of the UTC date.
