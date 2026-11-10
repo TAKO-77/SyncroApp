@@ -25,8 +25,8 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: light)" srcset="docs/images/inicio-light.png">
-    <img src="docs/images/inicio-dark.png" alt="Syncro's Home screen with today's agenda, pending tasks, the month's balance and upcoming special days" width="900">
+    <source media="(prefers-color-scheme: light)" srcset="docs/images/home-light.png">
+    <img src="docs/images/home-dark.png" alt="Syncro's Home screen with today's agenda, pending tasks, the month's balance and upcoming special days" width="900">
   </picture>
 </p>
 
@@ -44,31 +44,31 @@
 
 Daily and weekly planning, with coloured categories, recurring events and events that run past midnight. Each weekday's sleep schedule appears on the grid and is edited right in the Agenda.
 
-<p align="center"><img src="docs/images/agenda-dark.png" alt="Weekly Agenda with classes, lunch, study and gym" width="900"></p>
+<p align="center"><img src="docs/images/agenda-dark.png" alt="Weekly Agenda with classes, lunch, study and the gym" width="900"></p>
 
 ### Tasks
 
 Priorities, estimated effort, due date and time, subtasks, and workspaces with their own notes. Each workspace can have its own sort order.
 
-<p align="center"><img src="docs/images/tarefas-dark.png" alt="Task list with priorities, effort and due dates" width="900"></p>
+<p align="center"><img src="docs/images/tasks-dark.png" alt="Task list with priorities, effort and due dates" width="900"></p>
 
 ### Finances
 
 Income and expenses, recurring entries, the month's and overall balance, the last six months at a glance and spending by category.
 
-<p align="center"><img src="docs/images/financas-dark.png" alt="Finances with the month's balance, the last six months and spending by category" width="900"></p>
+<p align="center"><img src="docs/images/finances-dark.png" alt="Finances with the month's balance, the last six months and spending by category" width="900"></p>
 
 <table>
   <tr>
     <td width="50%" valign="top">
       <h3>Calendar</h3>
       <p>Birthdays, exams, appointments and trips, with a list of what is coming up in the next 31 days.</p>
-      <img src="docs/images/calendario-dark.png" alt="Monthly calendar with special days">
+      <img src="docs/images/calendar-dark.png" alt="Monthly calendar with special days">
     </td>
     <td width="50%" valign="top">
       <h3>Reminders</h3>
       <p>One-off reminders with an early warning, or reminders repeated every day or every week.</p>
-      <img src="docs/images/lembretes-dark.png" alt="List of pending reminders">
+      <img src="docs/images/reminders-dark.png" alt="List of pending reminders">
     </td>
   </tr>
 </table>
@@ -76,11 +76,11 @@ Income and expenses, recurring entries, the month's and overall balance, the las
 ### Phone
 
 <p align="center">
-  <img src="docs/images/telemovel-inicio-dark.png" alt="Home on a phone" width="240">
+  <img src="docs/images/phone-home-dark.png" alt="Home on a phone" width="240">
   &nbsp;
-  <img src="docs/images/telemovel-agenda-dark.png" alt="Weekly Agenda on a phone" width="240">
+  <img src="docs/images/phone-agenda-dark.png" alt="Weekly Agenda on a phone" width="240">
   &nbsp;
-  <img src="docs/images/telemovel-financas-dark.png" alt="Finances on a phone" width="240">
+  <img src="docs/images/phone-finances-dark.png" alt="Finances on a phone" width="240">
 </p>
 
 On small screens, navigation moves to a bar at the bottom, and Agenda/Calendar and Tasks/Reminders share one tab each.
