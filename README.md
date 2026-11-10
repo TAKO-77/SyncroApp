@@ -137,25 +137,3 @@ In the web app, a **New version available** notice appears when a new version is
 
 **Versions 2.3.0 and 2.3.1** have a bug reading release assets. Download and install version 2.3.2 manually once, over the existing installation, without uninstalling. Later updates then use the fixed updater.
 
----
-
-## Development
-
-The UI uses React, TypeScript and Vite. The Windows executable uses WebView2. The visual design follows `docs/DESIGN_SYSTEM.md`.
-
-Building and testing need Node.js 22.18 or later (native TypeScript scripts) and the Windows .NET Framework. The installer is built with Inno Setup.
-
-## Publishing a version
-
-The prepared version is **2.11.0**. To publish an update:
-
-1. Set the same new number in `desktop/Program.cs` (`AppVersion`), `desktop/installer/Syncro.iss` (`AppVersion`) and `codigo-fonte/package.json` (`version`), which is the version shown in the web app.
-2. Quit Syncro and run `scripts/build.bat`.
-3. Open `desktop/installer/Syncro.iss` in Inno Setup and compile the installer. The result is `releases/SyncroSetup.exe`.
-4. Commit and push the code and documentation. Leave out installed dependencies, temporary files and local shortcuts. Generated files are shipped in the release installer.
-5. Create a GitHub Release from the pushed commit, with a tag matching the version, for example `v2.3.2`.
-6. Attach the **new** `releases/SyncroSetup.exe`, named exactly **SyncroSetup.exe**, describe the changes and publish it as **Latest**. Do not mark it as a draft or pre-release. Pushing commits or creating a tag alone does not make the installer available to the app.
-
-The tag number must match the version of the executable and the installer for update detection to work.
-
-Inno Setup refuses to compile if the executable's version differs from the one declared in the installer, so an installer with an old executable cannot be published. Before publishing, check installing over an earlier version and the **Check for updates** option. The 2.3.2 release notes must say that a one-time manual install is needed for users of 2.3.0/2.3.1.
