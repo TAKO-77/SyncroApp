@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../supabase'
-import { readItem, readJson as read, removeItem, writeItem, writeJson as write } from '../storage'
+import { readItem, readJson as read, remindersCheckedKey, removeItem, writeItem, writeJson as write } from '../storage'
 import { emptyData, parseAppData } from '../schema'
 import { deviceLanguage } from '../i18n/useT'
 import { LEGACY_KEY, cacheKey, readData, setCommitListener, useStore } from '../../store/useStore'
@@ -35,6 +35,15 @@ let retryTimer: number | undefined
 let retryDelay = 5000
 let pullTimer: number | undefined
 const keys = (id: string) => ({ outbox: `syncro-outbox:${id}`, pulled: `syncro-pulled:${id}`, rejected: `syncro-rejected:${id}` })
+/** Pending uploads saved for this account on this device. */
+export const pendingOps = (id: string) => Object.keys(userId === id ? outbox : read<Record<string, QueuedOp>>(keys(id).outbox, {})).length
+/** Changes the server refused; they are kept so they are not lost silently. */
+export const rejectedOps = (id: string) => read<QueuedOp[]>(keys(id).rejected, []).length
+
+/** Removes this account's local copy; only call it when nothing is waiting to upload and nothing was rejected. */
+export function clearLocalCopy(id: string) {
+  for (const key of [cacheKey(id), keys(id).outbox, keys(id).pulled, keys(id).rejected, remindersCheckedKey(id)]) removeItem(key)
+}
 const opKey = (op: { table: Table; id: string }) => `${op.table}:${op.id}`
 
 function saveOutbox() {

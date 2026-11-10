@@ -18,6 +18,9 @@ export function readJson<T>(key: string, fallback: T): T {
   try { return raw ? JSON.parse(raw) as T : fallback } catch { return fallback }
 }
 
+/** Last time this account's reminders were checked on this device. */
+export const remindersCheckedKey = (userId: string) => `syncro-reminders-checked:${userId}`
+
 export const writeJson = (key: string, value: unknown) => writeItem(key, JSON.stringify(value))
 
 /** An on/off preference that is on unless turned off. */

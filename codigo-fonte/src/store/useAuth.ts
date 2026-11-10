@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from '../lib/supabase'
 import { cacheKey } from './useStore'
 import { disablePush } from '../lib/push'
+import { clearLocalCopy, flush, pendingOps, rejectedOps, stopSync } from '../lib/sync/engine'
 import { readItem, readJson, removeItem, writeJson } from '../lib/storage'
 
 interface AuthUser { id: string; email: string }
@@ -47,8 +48,16 @@ export function initAuth() {
 
 export async function signOut() {
   // While the session still allows it: this device must stop receiving this account's reminders.
+  const id = useAuth.getState().user?.id
+  // Still signed in here, so queued changes can be sent first.
+  await flush().catch(() => undefined)
   await disablePush().catch(() => undefined)
   remember(null)
   await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
   useAuth.setState({ user: null, offline: false })
+  if (!id) return
+  const keep = pendingOps(id) > 0 || rejectedOps(id) > 0
+  // Stop the engine first so a running pull or check cannot write the keys again.
+  stopSync()
+  if (!keep) clearLocalCopy(id)
 }

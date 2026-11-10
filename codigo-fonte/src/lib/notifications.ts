@@ -3,7 +3,7 @@ import { pull } from './sync/engine'
 import { noticeTarget, reminderText, remindersBetween } from './reminders'
 import { reminderAlertsBetween } from './reminderItems'
 import { toStamp } from './dates'
-import { readItem, writeItem } from './storage'
+import { readItem, remindersCheckedKey, writeItem } from './storage'
 import { useStore } from '../store/useStore'
 
 // Checks for reminders and task limits while the Windows host is running and asks it to show them.
@@ -15,7 +15,7 @@ export const noticeSection = () => readItem(TARGET_KEY) === 'lembretes' ? 'lembr
 const CHECK_MS = 20 * 1000
 /** After a longer gap (computer asleep, app just opened) other devices may have changed the tasks. */
 const STALE_MS = 2 * 60 * 1000
-const checkedKey = (userId: string) => `syncro-reminders-checked:${userId}`
+const checkedKey = remindersCheckedKey
 
 function readChecked(key: string): Date | null {
   const raw = readItem(key), d = raw ? new Date(raw) : null
