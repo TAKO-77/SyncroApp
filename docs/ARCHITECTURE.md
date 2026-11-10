@@ -1,20 +1,20 @@
 # Architecture
 
-## Estado da implementação e organização
+## Current implementation and layout
 
-Expo + React Native e Supabase continuam a ser a arquitetura pretendida. A migração ainda não foi realizada. A implementação atual usa React/TypeScript com Vite em `codigo-fonte/` e um anfitrião Windows WebView2 em `desktop/Program.cs`. O Supabase já é usado para autenticação (email e palavra-passe) e base de dados, com tabelas por entidade protegidas por RLS (`supabase/migrations/`). A interface é local-first: lê e escreve numa cache local por utilizador, envia as alterações em segundo plano através de uma fila (`codigo-fonte/src/lib/sync/`) e recebe alterações de outros dispositivos por `updated_at`, com eliminações lógicas (`deleted`). Quando uma alteração mexe só em alguns campos de uma linha, a fila envia apenas esses campos sobre a versão atual do servidor, para não apagar o que foi alterado noutro dispositivo (nos campos com várias entradas, como os dias concluídos de um evento repetido, junta entrada a entrada); a app também sincroniza quando volta a ficar visível (`visibilitychange`). Uma subtarefa é uma linha normal de `tasks` com `parent_id`, por isso sincroniza e notifica como qualquer tarefa.
+Expo + React Native with Supabase is still the intended architecture. The migration has not happened yet. The current implementation uses React/TypeScript with Vite in `codigo-fonte/` and a Windows WebView2 host in `desktop/Program.cs`. Supabase is already used for authentication (email and password) and the database, with one table per entity protected by RLS (`supabase/migrations/`). The UI is local-first: it reads and writes a per-user local cache, sends changes in the background through a queue (`codigo-fonte/src/lib/sync/`) and receives changes from other devices by `updated_at`, with soft deletes (`deleted`). When a change touches only some columns of a row, the queue sends only those columns over the server's current version, so edits made on another device are not lost (columns holding several entries, such as the completed days of a repeating event, are merged entry by entry); the app also syncs when it becomes visible again (`visibilitychange`). A subtask is an ordinary `tasks` row with `parent_id`, so it syncs and notifies like any task.
 
-A interface arranca tanto dentro do anfitrião Windows como num navegador normal. A ponte do WebView2 (`lib/desktop.ts`) só existe no anfitrião; sem ela, as funções exclusivas do Windows (versão instalada e procura de atualizações) ficam escondidas. No navegador, a interface é uma PWA (`vite-plugin-pwa` em `vite.config.ts`): o manifesto, o service worker e os ícones (`codigo-fonte/public/icons/`) são gerados no build, e `lib/pwa.ts` regista o service worker só fora do anfitrião Windows, mostrando `components/UpdateBanner.tsx` quando há uma versão nova. O anfitrião Windows copia apenas `index.html` e `assets/`. A versão web é publicada no Cloudflare como Worker com ficheiros estáticos (`codigo-fonte/wrangler.jsonc`), compilado a cada push para o `main`. A página Início (`features/inicio/`) resume as restantes abas usando os mesmos módulos que elas (`lib/finance.ts`, `lib/specialDays.ts` e `lib/tasks.ts`), para que os números coincidam.
+The UI starts both inside the Windows host and in a normal browser. The WebView2 bridge (`lib/desktop.ts`) only exists in the host; without it, the Windows-only features (installed version and update check) are hidden. In the browser, the UI is a PWA (`vite-plugin-pwa` in `vite.config.ts`): the manifest, the service worker and the icons (`codigo-fonte/public/icons/`) are generated at build time, and `lib/pwa.ts` registers the service worker only outside the Windows host, showing `components/UpdateBanner.tsx` when a new version is available. The Windows host copies only `index.html` and `assets/`. The web version is published on Cloudflare as a Worker with static assets (`codigo-fonte/wrangler.jsonc`), built on every push to `main`. The Home page (`features/inicio/`) sums up the other tabs using the same modules they use (`lib/finance.ts`, `lib/specialDays.ts` and `lib/tasks.ts`), so the numbers match. All UI text is in `lib/i18n/`, in Portuguese, English, German and French; the language is chosen per account.
 
-- `docs/`: documentação do produto e design.
-- `codigo-fonte/src/`: componentes (`components/`), uma pasta por aba (`features/`), estado (`store/`) e utilitários e lógica partilhada (`lib/`).
-- `scripts/test-sync.ts` e `scripts/test-updater.ts`: testes dos módulos puros da interface e do atualizador, executados pelo `build.bat`.
-- `desktop/assets/`: ícones; `desktop/lib/`: bibliotecas WebView2.
-- `desktop/installer/Syncro.iss`: configuração do instalador, que inclui apenas `dist/windows/`.
-- `scripts/build.bat`: compila a interface e prepara a aplicação em `dist/windows/`.
-- `releases/`: instaladores; `local/`: atalhos específicos da máquina.
+- `docs/`: product and design documentation.
+- `codigo-fonte/src/`: components (`components/`), one folder per tab (`features/`), state (`store/`), and utilities and shared logic (`lib/`).
+- `scripts/test-sync.ts` and `scripts/test-updater.ts`: tests of the UI's pure modules and of the updater, run by `build.bat`.
+- `desktop/assets/`: icons; `desktop/lib/`: WebView2 libraries.
+- `desktop/installer/Syncro.iss`: installer configuration, which includes only `dist/windows/`.
+- `scripts/build.bat`: builds the UI and prepares the app in `dist/windows/`.
+- `releases/`: installers; `local/`: machine-specific shortcuts.
 
-As secções seguintes descrevem a arquitetura pretendida para a futura migração.
+The following sections describe the intended architecture for the future migration.
 # 01 System Overview
 One Codebase (Expo + React Native) → Supabase (Backend, Auth, Database)
 

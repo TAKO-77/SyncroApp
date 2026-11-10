@@ -1,161 +1,161 @@
 <p align="center">
-  <img src="codigo-fonte/public/icons/pwa-192.png" alt="Logótipo do Syncro" width="96" height="96">
+  <img src="codigo-fonte/public/icons/pwa-192.png" alt="Syncro logo" width="96" height="96">
 </p>
 
 <h1 align="center">Syncro</h1>
 
 <p align="center">
-  <strong>Agenda, calendário, tarefas, lembretes e finanças num só lugar.</strong><br>
-  No computador e no telemóvel, sempre sincronizado.
+  <strong>Agenda, calendar, tasks, reminders and finances in one place.</strong><br>
+  On your computer and your phone, always in sync.
 </p>
 
 <p align="center">
-  <a href="https://github.com/TAKO-77/SyncroApp/releases/latest"><img alt="Versão mais recente" src="https://img.shields.io/github/v/release/TAKO-77/SyncroApp?style=flat-square&label=vers%C3%A3o&color=f5a524"></a>
-  <img alt="Windows, Android e iPhone" src="https://img.shields.io/badge/Windows%20%C2%B7%20Android%20%C2%B7%20iPhone-1c1c1c?style=flat-square">
-  <a href="https://app.getsyncro.workers.dev"><img alt="App web" src="https://img.shields.io/badge/app%20web-abrir-f5a524?style=flat-square"></a>
+  <a href="https://github.com/TAKO-77/SyncroApp/releases/latest"><img alt="Latest version" src="https://img.shields.io/github/v/release/TAKO-77/SyncroApp?style=flat-square&label=version&color=f5a524"></a>
+  <img alt="Windows, Android and iPhone" src="https://img.shields.io/badge/Windows%20%C2%B7%20Android%20%C2%B7%20iPhone-1c1c1c?style=flat-square">
+  <a href="https://app.getsyncro.workers.dev"><img alt="Web app" src="https://img.shields.io/badge/web%20app-open-f5a524?style=flat-square"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/TAKO-77/SyncroApp/releases/latest/download/SyncroSetup.exe"><strong>Descarregar para Windows</strong></a>
+  <a href="https://github.com/TAKO-77/SyncroApp/releases/latest/download/SyncroSetup.exe"><strong>Download for Windows</strong></a>
   &nbsp;·&nbsp;
-  <a href="https://app.getsyncro.workers.dev"><strong>Abrir no browser</strong></a>
+  <a href="https://app.getsyncro.workers.dev"><strong>Open in the browser</strong></a>
   &nbsp;·&nbsp;
-  <a href="#telemóvel"><strong>Instalar no telemóvel</strong></a>
+  <a href="#phone"><strong>Install on your phone</strong></a>
 </p>
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="docs/images/inicio-light.png">
-    <img src="docs/images/inicio-dark.png" alt="Ecrã Início do Syncro com a agenda do dia, tarefas pendentes, saldo do mês e próximos dias especiais" width="900">
+    <img src="docs/images/inicio-dark.png" alt="Syncro's Home screen with today's agenda, pending tasks, the month's balance and upcoming special days" width="900">
   </picture>
 </p>
 
-## Porquê o Syncro
+## Why Syncro
 
-- **Tudo num ecrã.** O Início resume o dia: eventos, tarefas, saldo do mês e datas importantes.
-- **Funciona sem Internet.** As alterações aparecem de imediato e sincronizam quando houver ligação.
-- **Em todos os dispositivos.** Aplicação para Windows e app web instalável no Android e no iPhone, com a mesma conta.
-- **Avisa a tempo.** Notificações das tarefas com hora limite e dos lembretes, no computador e no telemóvel.
-- **Em português, inglês, alemão e francês**, com modo claro e escuro, atalhos de teclado e adição rápida em linguagem natural no idioma escolhido (`/` ou `Ctrl+K`).
+- **Everything on one screen.** Home sums up your day: events, tasks, the month's balance and important dates.
+- **Works offline.** Changes show up at once and sync when there is a connection.
+- **On every device.** A Windows app and a web app you can install on Android and iPhone, with the same account.
+- **Reminds you in time.** Notifications for tasks with a time limit and for reminders, on your computer and your phone.
+- **In English, Portuguese, German and French**, with light and dark modes, keyboard shortcuts and natural-language quick add in the chosen language (`/` or `Ctrl+K`).
 
-## Funcionalidades
+## Features
 
 ### Agenda
 
-Planeamento diário e semanal, com categorias coloridas, eventos recorrentes e eventos que atravessam a meia-noite. O horário de sono de cada dia da semana aparece na grelha e edita-se diretamente na Agenda.
+Daily and weekly planning, with coloured categories, recurring events and events that run past midnight. Each weekday's sleep schedule appears on the grid and is edited right in the Agenda.
 
-<p align="center"><img src="docs/images/agenda-dark.png" alt="Vista semanal da Agenda com aulas, almoço, estudo e ginásio" width="900"></p>
+<p align="center"><img src="docs/images/agenda-dark.png" alt="Weekly Agenda with classes, lunch, study and gym" width="900"></p>
 
-### Tarefas
+### Tasks
 
-Prioridades, esforço estimado, data e hora limite, subtarefas e espaços de trabalho com notas próprias. Cada espaço de trabalho pode ter a sua ordenação.
+Priorities, estimated effort, due date and time, subtasks, and workspaces with their own notes. Each workspace can have its own sort order.
 
-<p align="center"><img src="docs/images/tarefas-dark.png" alt="Lista de tarefas com prioridades, esforço e datas limite" width="900"></p>
+<p align="center"><img src="docs/images/tarefas-dark.png" alt="Task list with priorities, effort and due dates" width="900"></p>
 
-### Finanças
+### Finances
 
-Receitas e despesas, movimentos recorrentes, saldo do mês e saldo geral, evolução dos últimos seis meses e despesas por categoria.
+Income and expenses, recurring entries, the month's and overall balance, the last six months at a glance and spending by category.
 
-<p align="center"><img src="docs/images/financas-dark.png" alt="Finanças com saldo do mês, evolução dos últimos seis meses e despesas por categoria" width="900"></p>
+<p align="center"><img src="docs/images/financas-dark.png" alt="Finances with the month's balance, the last six months and spending by category" width="900"></p>
 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <h3>Calendário</h3>
-      <p>Aniversários, exames, consultas e viagens, com a lista do que aí vem nos próximos 31 dias.</p>
-      <img src="docs/images/calendario-dark.png" alt="Calendário mensal com dias especiais">
+      <h3>Calendar</h3>
+      <p>Birthdays, exams, appointments and trips, with a list of what is coming up in the next 31 days.</p>
+      <img src="docs/images/calendario-dark.png" alt="Monthly calendar with special days">
     </td>
     <td width="50%" valign="top">
-      <h3>Lembretes</h3>
-      <p>Lembretes únicos, com aviso antecipado, ou repetidos todos os dias ou todas as semanas.</p>
-      <img src="docs/images/lembretes-dark.png" alt="Lista de lembretes pendentes">
+      <h3>Reminders</h3>
+      <p>One-off reminders with an early warning, or reminders repeated every day or every week.</p>
+      <img src="docs/images/lembretes-dark.png" alt="List of pending reminders">
     </td>
   </tr>
 </table>
 
-### No telemóvel
+### Phone
 
 <p align="center">
-  <img src="docs/images/telemovel-inicio-dark.png" alt="Início no telemóvel" width="240">
+  <img src="docs/images/telemovel-inicio-dark.png" alt="Home on a phone" width="240">
   &nbsp;
-  <img src="docs/images/telemovel-agenda-dark.png" alt="Agenda semanal no telemóvel" width="240">
+  <img src="docs/images/telemovel-agenda-dark.png" alt="Weekly Agenda on a phone" width="240">
   &nbsp;
-  <img src="docs/images/telemovel-financas-dark.png" alt="Finanças no telemóvel" width="240">
+  <img src="docs/images/telemovel-financas-dark.png" alt="Finances on a phone" width="240">
 </p>
 
-Em ecrãs pequenos, a navegação passa para uma barra no fundo e Agenda/Calendário e Tarefas/Lembretes partilham o mesmo separador.
+On small screens, navigation moves to a bar at the bottom, and Agenda/Calendar and Tasks/Reminders share one tab each.
 
-> As imagens usam dados de demonstração.
+> The screenshots use demo data.
 
-## Instalar
+## Install
 
 ### Windows
 
-1. Abre a [versão mais recente](https://github.com/TAKO-77/SyncroApp/releases/latest).
-2. Descarrega e executa **SyncroSetup.exe**.
-3. Abre o Syncro pelo menu Iniciar ou pelo atalho criado durante a instalação.
+1. Open the [latest version](https://github.com/TAKO-77/SyncroApp/releases/latest).
+2. Download and run **SyncroSetup.exe**.
+3. Open Syncro from the Start menu or the shortcut created during setup.
 
-A aplicação requer o Microsoft Edge WebView2 Runtime. O instalador verifica se está disponível e indica como o instalar, caso seja necessário.
+The app needs the Microsoft Edge WebView2 Runtime. The installer checks whether it is available and tells you how to install it if needed.
 
-### Telemóvel
+### Phone
 
-O Syncro também pode ser instalado como app web (PWA) a partir de [app.getsyncro.workers.dev](https://app.getsyncro.workers.dev):
+Syncro can also be installed as a web app (PWA) from [app.getsyncro.workers.dev](https://app.getsyncro.workers.dev):
 
-- **Android (Chrome):** abre o endereço e escolhe **⋮ → Instalar app**.
-- **iPhone (Safari):** abre o endereço e escolhe **Partilhar → Adicionar ao ecrã principal**. As notificações no iPhone só funcionam com a app instalada desta forma.
+- **Android (Chrome):** open the address and choose **⋮ → Install app**.
+- **iPhone (Safari):** open the address and choose **Share → Add to Home Screen**. Notifications on iPhone only work with the app installed this way.
 
-A app web abre sem ligação com os dados guardados no dispositivo e sincroniza com a mesma conta da aplicação Windows.
+The web app opens offline with the data saved on the device and syncs with the same account as the Windows app.
 
-## Atalhos
+## Shortcuts
 
-| Tecla | Ação |
+| Key | Action |
 | --- | --- |
-| `1` a `8` | Início, Agenda, Calendário, Tarefas, Lembretes, Finanças, Perfil e Definições |
-| `/` ou `Ctrl+K` | Adição rápida |
-| `←` `→` | Período anterior ou seguinte na Agenda, no Calendário e nas Finanças |
-| `↑` `↓` | Deslocar a grelha da Agenda ou a página |
+| `1` to `8` | Home, Agenda, Calendar, Tasks, Reminders, Finances, Profile and Settings |
+| `/` or `Ctrl+K` | Quick add |
+| `←` `→` | Previous or next period in the Agenda, Calendar and Finances |
+| `↑` `↓` | Scroll the Agenda grid or the page |
 
-## Dados e cópias de segurança
+## Data and backups
 
-É necessário iniciar sessão com uma conta (email e palavra-passe). Os dados de cada conta são guardados no Supabase e mantidos em cache no computador: as alterações aparecem de imediato, são enviadas em segundo plano e continuam guardadas localmente se não houver ligação à Internet. O primeiro início de sessão num computador precisa de ligação.
+You need to sign in with an account (email and password). Each account's data is stored in Supabase and cached on the computer: changes show up at once, are sent in the background and stay saved locally when there is no Internet connection. The first sign-in on a computer needs a connection.
 
-No primeiro início de sessão, os dados guardados neste computador antes das contas são enviados para a conta, se esta estiver vazia. Se a conta já tiver dados, o Syncro pergunta se queres juntá-los, manter só os da conta ou substituí-los pelos do computador.
+On the first sign-in, data saved on this computer before accounts existed is uploaded to the account if the account is empty. If the account already has data, Syncro asks whether to merge them, keep only the account's data or replace it with the computer's.
 
-Em **Definições → Conta**, podes ver o estado da sincronização, sincronizar manualmente e terminar sessão. Em **Definições → Dados e cópia de segurança**, podes exportar um ficheiro JSON ou importar uma cópia anterior. Em **Definições → Idioma**, escolhes o idioma da app; a escolha fica na conta e aplica-se a todos os dispositivos e às notificações.
+In **Settings → Account** you can see the sync status, sync manually and sign out. In **Settings → Data and backup** you can export a JSON file or import an earlier backup. In **Settings → Language** you choose the app's language; the choice is saved in your account and applies to all your devices and to notifications.
 
-O instalador preserva os dados durante as atualizações. Ao desinstalar, podes escolher se pretendes eliminá-los.
+The installer keeps your data during updates. When uninstalling, you can choose whether to delete it.
 
-## Atualizações
+## Updates
 
-Ao iniciar, o Syncro verifica se existe uma versão mais recente publicada neste repositório. Quando encontra uma atualização, pergunta se queres descarregar e executar o instalador. A aplicação continua a funcionar se não houver ligação à Internet ou se a verificação falhar.
+On start-up, Syncro checks whether a newer version has been published in this repository. When it finds one, it asks whether to download and run the installer. The app keeps working when there is no Internet connection or the check fails.
 
-Em **Definições → Atualizações**, podes consultar a versão instalada, procurar atualizações manualmente e abrir a página de releases. A procura manual mostra o resultado e eventuais erros. A app só fecha depois de descarregar, validar e conseguir abrir o instalador, que reutiliza a pasta de instalação atual.
+In **Settings → Updates** you can see the installed version, check for updates manually and open the releases page. A manual check shows its result and any errors. The app only closes after it has downloaded, verified and opened the installer, which reuses the current installation folder.
 
-O atualizador usa apenas releases públicas estáveis, com tag numérica (`v2.3.2` ou `V2.3.2`) e um anexo chamado **SyncroSetup.exe**. Confirma o tamanho do download e, quando fornecido pelo GitHub, o SHA-256. As falhas ficam registadas em `%LOCALAPPDATA%\Syncro\updates.log`.
+The updater only uses stable public releases with a numeric tag (`v2.3.2` or `V2.3.2`) and an asset named **SyncroSetup.exe**. It checks the download size and, when GitHub provides it, the SHA-256. Failures are logged in `%LOCALAPPDATA%\Syncro\updates.log`.
 
-Na app web, quando é publicada uma versão nova aparece o aviso **Nova versão disponível**; a versão nova só é aplicada quando escolhes **Recarregar**.
+In the web app, a **New version available** notice appears when a new version is published; it is only applied when you choose **Update**.
 
-**Versões 2.3.0 e 2.3.1:** têm um erro na leitura dos anexos da release. É necessário descarregar e instalar manualmente a versão 2.3.2 uma vez, por cima da instalação existente, sem desinstalar. As atualizações futuras passam a usar o atualizador corrigido.
+**Versions 2.3.0 and 2.3.1** have a bug reading release assets. Download and install version 2.3.2 manually once, over the existing installation, without uninstalling. Later updates then use the fixed updater.
 
 ---
 
-## Desenvolvimento
+## Development
 
-A interface usa React, TypeScript e Vite. O executável Windows usa WebView2. O aspeto visual segue `docs/DESIGN_SYSTEM.md`.
+The UI uses React, TypeScript and Vite. The Windows executable uses WebView2. The visual design follows `docs/DESIGN_SYSTEM.md`.
 
-A compilação e os testes requerem Node.js 22.18 ou superior (suporte nativo a scripts TypeScript) e o .NET Framework do Windows. O instalador é compilado com Inno Setup.
+Building and testing need Node.js 22.18 or later (native TypeScript scripts) and the Windows .NET Framework. The installer is built with Inno Setup.
 
-## Publicar uma versão
+## Publishing a version
 
-A versão preparada é **2.11.0**. Para publicar uma atualização:
+The prepared version is **2.11.0**. To publish an update:
 
-1. Define o mesmo novo número em `desktop/Program.cs` (`AppVersion`), `desktop/installer/Syncro.iss` (`AppVersion`) e `codigo-fonte/package.json` (`version`), que é a versão mostrada na aplicação web.
-2. Fecha o Syncro e executa `scripts/build.bat`.
-3. Abre `desktop/installer/Syncro.iss` no Inno Setup e compila o instalador. O resultado fica em `releases/SyncroSetup.exe`.
-4. Faz commit e push do código e da documentação. Exclui dependências instaladas, ficheiros temporários e atalhos locais. Os ficheiros gerados são distribuídos no instalador da Release.
-5. Cria uma GitHub Release a partir do commit enviado, com uma tag correspondente à versão, por exemplo `v2.3.2`.
-6. Anexa o **novo** `releases/SyncroSetup.exe`, com o nome exato **SyncroSetup.exe**, descreve as alterações e publica como **Latest**. Não marques como draft ou pre-release. Só enviar commits ou criar uma tag não disponibiliza o instalador à app.
+1. Set the same new number in `desktop/Program.cs` (`AppVersion`), `desktop/installer/Syncro.iss` (`AppVersion`) and `codigo-fonte/package.json` (`version`), which is the version shown in the web app.
+2. Quit Syncro and run `scripts/build.bat`.
+3. Open `desktop/installer/Syncro.iss` in Inno Setup and compile the installer. The result is `releases/SyncroSetup.exe`.
+4. Commit and push the code and documentation. Leave out installed dependencies, temporary files and local shortcuts. Generated files are shipped in the release installer.
+5. Create a GitHub Release from the pushed commit, with a tag matching the version, for example `v2.3.2`.
+6. Attach the **new** `releases/SyncroSetup.exe`, named exactly **SyncroSetup.exe**, describe the changes and publish it as **Latest**. Do not mark it as a draft or pre-release. Pushing commits or creating a tag alone does not make the installer available to the app.
 
-O número da tag deve coincidir com a versão do executável e do instalador para que a deteção de atualizações funcione corretamente.
+The tag number must match the version of the executable and the installer for update detection to work.
 
-O Inno Setup recusa compilar se a versão do executável for diferente da declarada no instalador, evitando publicar um instalador com um executável antigo. Antes de publicar, confirma a instalação por cima de uma versão anterior e a opção **Procurar atualizações**. Na release 2.3.2, indica que a instalação manual inicial é necessária para quem usa 2.3.0/2.3.1.
+Inno Setup refuses to compile if the executable's version differs from the one declared in the installer, so an installer with an old executable cannot be published. Before publishing, check installing over an earlier version and the **Check for updates** option. The 2.3.2 release notes must say that a one-time manual install is needed for users of 2.3.0/2.3.1.
