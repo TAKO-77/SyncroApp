@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { applyRemote, coalesce, diffRows, emptyRows, fromRows, mergeWithServer, toRows, type Rows, type SyncOp } from '../codigo-fonte/src/lib/sync/rows.ts'
+import { TABLES, applyRemote, coalesce, diffRows, emptyRows, fromRows, mergeWithServer, toRows, type Rows, type SyncOp } from '../codigo-fonte/src/lib/sync/rows.ts'
 import type { AppData } from '../codigo-fonte/src/types.ts'
 import { purgeExpired } from '../codigo-fonte/src/lib/cleanup.ts'
 import { dueLabel, effortLabel, markDone, priorityLabel, workspaceLabel } from '../codigo-fonte/src/lib/tasks.ts'
@@ -681,6 +681,14 @@ test('the database accepts the same push endpoints as the server', () => {
   const zone = new RegExp(/p_time_zone !~ '([^']+)'/.exec(sql)![1])
   for (const ok of ['Europe/Lisbon', 'America/Argentina/Buenos_Aires', 'Etc/GMT+1', 'UTC']) assert.equal(zone.test(ok), true, ok)
   for (const bad of ['', 'x'.repeat(65), 'Europe/Lisbon; drop', 'a b']) assert.equal(zone.test(bad), false, bad)
+})
+
+test('every synced table except profiles has a row limit above what the app keeps', () => {
+  const sql = readFileSync(new URL('../supabase/migrations/20261126000000_row_limits.sql', import.meta.url), 'utf8')
+  const limits = [...sql.matchAll(/before insert on public\.(\w+) for each row execute function public\.enforce_row_limit\('(\d+)', '(\d+)'\)/g)]
+  assert.deepEqual(limits.map(m => m[1]).sort(), TABLES.filter(t => t !== 'profiles').sort())
+  // Soft-deleted rows count towards the total, so it must leave years of room above the rows in use.
+  for (const [, table, live, total] of limits) assert.ok(Number(live) >= 200 && Number(total) >= 2.5 * Number(live), table)
 })
 
 test('the database id limit fits the ids the app builds', () => {
