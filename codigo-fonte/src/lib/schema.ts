@@ -23,7 +23,7 @@ const DEFAULT_DAY_CATS = [
 ]
 const DEFAULT_SLEEP = { bed: '23:30', wake: '07:30', wk: false, bed2: '00:30', wake2: '09:30' }
 
-const item = z.object({ id: z.string() }).passthrough()
+const item = z.object({ id: z.string() }).loose()
 const category = z.object({ id: z.string(), name: z.string(), color: z.string().regex(/^#[0-9a-f]{6}$/i), icon: z.string().optional() })
 const schema = z.object({
   ev: z.array(item).default([]),
@@ -38,16 +38,16 @@ const schema = z.object({
       bed: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
       wake: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
     })).length(7).optional(),
-  }).passthrough().default({}),
+  }).loose().default({}),
   name: z.string().optional(),
   photo: z.string().max(200000).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).optional(),
   reset: z.string().max(32).catch(''),
   notes: z.array(z.object({ id: z.string(), workspaceId: z.string(), text: z.string().max(NOTE_TEXT_MAX) })).default([]),
-  taskNotes: z.record(z.string()).optional(),
+  taskNotes: z.record(z.string(), z.string()).optional(),
   reminders: z.array(item).default([]),
   notifyTasks: z.boolean().default(true),
   language: z.enum(LANGUAGES).catch(DEFAULT_LANGUAGE),
-}).passthrough()
+}).loose()
 
 export const emptyData = (): AppData => ({
   ev: [], tasks: [], workspaces: [{ id: 'geral', name: 'Geral' }], fin: [], days: [], cats: DEFAULT_CATS.map(c => ({ ...c })),
