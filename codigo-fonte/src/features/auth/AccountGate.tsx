@@ -16,7 +16,9 @@ function Notice({ title, children }: { title: string; children?: ReactNode }) {
 /** Shows the sign-in screen until there is a user, then loads that user's data before rendering the app. */
 export function AccountGate({ children }: { children: ReactNode }) {
   const { t } = useT()
-  const { ready, user } = useAuth()
+  const { ready, user: signedIn, recovering } = useAuth()
+  // Verifying a reset code already signs in; keep the sign-in screen until the new password is saved.
+  const user = recovering ? null : signedIn
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
   const [attempt, setAttempt] = useState(0)
   useEffect(() => { initAuth() }, [])

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
 import { refreshPush } from '../../lib/push'
+import { setRecovering } from '../../store/useAuth'
 import { LogoFilter } from '../../components/common'
 import { useT } from '../../lib/i18n/useT'
 import type { MessageKey, Translator } from '../../lib/i18n/translate'
@@ -18,6 +19,7 @@ const MESSAGES: Record<string, MessageKey> = {
   otp_expired: 'auth.err.otp_expired',
   over_email_send_rate_limit: 'auth.err.over_email_send_rate_limit',
   over_request_rate_limit: 'auth.err.over_request_rate_limit',
+  same_password: 'auth.err.same_password',
 }
 function describe(t: Translator['t'], error: { code?: string; message: string; name?: string }) {
   if (error.code && MESSAGES[error.code]) return t(MESSAGES[error.code])
@@ -45,14 +47,23 @@ export function AuthScreen() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
-  const go = (next: Mode, message = '') => { setMode(next); setError(''); setInfo(message); setCode(''); setShowPassword(false); if (next !== 'signin' && next !== 'signup') setPassword('') }
+  // The reset code was accepted (which signs in), but the new password is not saved yet.
+  const [verified, setVerified] = useState(false)
+  const go = (next: Mode, message = '') => {
+    if (verified) {
+      setVerified(false)
+      // Leaving a half-finished reset: drop the session the code opened, so the old password is not silently kept.
+      void supabase.auth.signOut({ scope: 'local' }).catch(() => undefined).finally(() => setRecovering(false))
+    }
+    setMode(next); setError(''); setInfo(message); setCode(''); setShowPassword(false); if (next !== 'signin' && next !== 'signup') setPassword('')
+  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     const mail = email.trim().toLowerCase()
     if (mode !== 'reset' && !EMAIL.test(mail)) return setError(t('auth.err.email'))
     if ((mode === 'signin' || mode === 'signup' || mode === 'reset') && password.length < MIN_PASSWORD) return setError(t('auth.err.passwordLength', { n: MIN_PASSWORD }))
-    if ((mode === 'confirm' || mode === 'reset') && !CODE.test(code.trim())) return setError(t('auth.err.code'))
+    if ((mode === 'confirm' || (mode === 'reset' && !verified)) && !CODE.test(code.trim())) return setError(t('auth.err.code'))
     setBusy(true); setError('')
     try {
       if (mode === 'signin') {
@@ -74,11 +85,23 @@ export function AuthScreen() {
         if (error) setError(describe(t, error))
         else go('reset', t('auth.info.resetSent', { email: mail }))
       } else {
-        const { error } = await supabase.auth.verifyOtp({ email: mail, token: code.trim(), type: 'recovery' })
-        if (error) return setError(describe(t, error))
+        if (!verified) {
+          // Hold the sign-in screen first: a valid code signs in, and the app would replace this screen before the password is saved.
+          setRecovering(true)
+          let ok = false
+          try {
+            const { error } = await supabase.auth.verifyOtp({ email: mail, token: code.trim(), type: 'recovery' })
+            if (error) return setError(describe(t, error))
+            ok = true
+          } finally { if (!ok) setRecovering(false) }
+          setVerified(true)
+        }
         const { data: updated, error: updateError } = await supabase.auth.updateUser({ password })
         if (updateError) setError(describe(t, updateError))
         else {
+          // The password is saved: let the app in now; the clean-up below keeps running and must not hold it.
+          setVerified(false)
+          setRecovering(false)
           // A reset means the old password may be compromised: end the other sessions and drop every push subscription;
           // this device registers again right away. None of it may block the reset.
           try { await supabase.auth.signOut({ scope: 'others' }) } catch { /* ignore */ }
@@ -106,7 +129,7 @@ export function AuthScreen() {
       <h2>{t(TITLES[mode])}</h2>
       {info && <p className="mu" role="status">{info}</p>}
       {mode !== 'reset' && <label>{t('auth.email')}<input type="email" value={email} autoComplete="email" required autoFocus disabled={mode === 'confirm'} onChange={e => setEmail(e.target.value)} /></label>}
-      {(mode === 'confirm' || mode === 'reset') && <label>{t('auth.code')}<input value={code} inputMode="numeric" autoComplete="one-time-code" maxLength={10} required autoFocus onChange={e => setCode(e.target.value.replace(/\D/g, ''))} /></label>}
+      {(mode === 'confirm' || (mode === 'reset' && !verified)) && <label>{t('auth.code')}<input value={code} inputMode="numeric" autoComplete="one-time-code" maxLength={10} required autoFocus onChange={e => setCode(e.target.value.replace(/\D/g, ''))} /></label>}
       {(mode === 'signin' || mode === 'signup' || mode === 'reset') && <label>{t(mode === 'reset' ? 'auth.newPassword' : 'auth.password')}<span className="auth-password">
         <input type={showPassword ? 'text' : 'password'} value={password} minLength={MIN_PASSWORD} autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} required onChange={e => setPassword(e.target.value)} />
         <button type="button" className="auth-eye" aria-label={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')} title={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')} aria-pressed={showPassword} onClick={() => setShowPassword(v => !v)}><EyeIcon off={showPassword} /></button>
@@ -114,10 +137,10 @@ export function AuthScreen() {
       {error && <p className="auth-error" role="alert">{error}</p>}
       <button className="btn pri" type="submit" disabled={busy}>{busy ? t('auth.busy') : t(SUBMIT[mode])}</button>
       <div className="auth-links">
-        {mode === 'signin' && <><button type="button" className="btn ghost" onClick={() => go('signup')}>{t('auth.submit.signup')}</button><button type="button" className="btn ghost" onClick={() => go('forgot')}>{t('auth.forgotLink')}</button></>}
-        {mode === 'signup' && <button type="button" className="btn ghost" onClick={() => go('signin')}>{t('auth.haveAccount')}</button>}
-        {(mode === 'confirm' || mode === 'reset') && <button type="button" className="btn ghost" disabled={busy} onClick={() => void resend()}>{t('auth.resend')}</button>}
-        {mode !== 'signin' && mode !== 'signup' && <button type="button" className="btn ghost" onClick={() => go('signin')}>{t('auth.back')}</button>}
+        {mode === 'signin' && <><button type="button" className="btn ghost" disabled={busy} onClick={() => go('signup')}>{t('auth.submit.signup')}</button><button type="button" className="btn ghost" disabled={busy} onClick={() => go('forgot')}>{t('auth.forgotLink')}</button></>}
+        {mode === 'signup' && <button type="button" className="btn ghost" disabled={busy} onClick={() => go('signin')}>{t('auth.haveAccount')}</button>}
+        {(mode === 'confirm' || (mode === 'reset' && !verified)) && <button type="button" className="btn ghost" disabled={busy} onClick={() => void resend()}>{t('auth.resend')}</button>}
+        {mode !== 'signin' && mode !== 'signup' && <button type="button" className="btn ghost" disabled={busy} onClick={() => go('signin')}>{t('auth.back')}</button>}
       </div>
     </form>
   </main>
