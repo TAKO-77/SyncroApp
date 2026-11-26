@@ -29,7 +29,18 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
   const upcoming = upcomingSpecialDays(data.days, today)
   const shift = (k: number) => setM(addMonths(m, k))
   useArrowKeys(shift)
-  const blank = (): F => ({ n: '', ty: data.dayCats.some(c => c.id === 'evento') ? 'evento' : data.dayCats[0]?.id ?? '', s: m.slice(0, 7) === today.slice(0, 7) ? today : m, e: '', h: '', he: '', o: '', y: false })
+  // Birthdays come back every year, so picking that category turns on the yearly repeat.
+  const isBirthday = (c: { id: string, name: string }) => c.id === 'aniv' || /^(anivers[aá]rio|birthday|geburtstag|anniversaire)s?$/i.test(c.name.trim())
+  // Picking a birthday ticks the yearly repeat; leaving one unticks it; between other categories the user's choice stays.
+  const pickYearly = (form: F, next: { id: string, name: string }) => {
+    if (isBirthday(next)) return true
+    const prev = data.dayCats.find(c => c.id === form.ty)
+    return prev && isBirthday(prev) ? false : form.y
+  }
+  const blank = (): F => {
+    const cat = data.dayCats.find(c => c.id === 'evento') ?? data.dayCats[0]
+    return { n: '', ty: cat?.id ?? '', s: m.slice(0, 7) === today.slice(0, 7) ? today : m, e: '', h: '', he: '', o: '', y: cat ? isBirthday(cat) : false }
+  }
   const save = (ev: FormEvent) => {
     ev.preventDefault(); if (!f) return
     const o = { ...f, n: f.n.trim(), e: f.y ? '' : f.e, he: f.h ? f.he ?? '' : '' }
@@ -77,7 +88,7 @@ export function Calendario({ onOpenDay }: { onOpenDay: (ds: string) => void }) {
     {f && <Modal title={f.id ? t('calendario.editDay') : t('calendario.newDay')} onClose={() => setF(null)}>
       <form className="fgrid" onSubmit={save}>
         <label className="w">{t('calendario.fTitle')}<input value={f.n} required maxLength={60} autoFocus onChange={e => setF({ ...f, n: e.target.value })} /></label>
-        <div className="w cats">{data.dayCats.map(c => <label key={c.id} className="cp"><input type="radio" name="sd" checked={f.ty === c.id} onChange={() => setF({ ...f, ty: c.id, y: !f.id && c.id === 'aniv' ? true : f.y })} /><span style={{ ['--c' as string]: c.color }}><DayIcon icon={c.icon} size={14} />{c.name}</span></label>)}</div>
+        <div className="w cats">{data.dayCats.map(c => <label key={c.id} className="cp"><input type="radio" name="sd" checked={f.ty === c.id} onChange={() => setF({ ...f, ty: c.id, y: pickYearly(f, c) })} /><span style={{ ['--c' as string]: c.color }}><DayIcon icon={c.icon} size={14} />{c.name}</span></label>)}</div>
         <label>{t('calendario.fStart')}<DatePicker required value={f.s} onChange={s => setF({ ...f, s })} /></label>
         {!f.y && <label>{t('calendario.fEnd')}<DatePicker value={f.e} min={f.s} onChange={e => setF({ ...f, e })} /></label>}
         <label>{t('calendario.fTime')}<TimePicker value={f.h} onChange={h => { setErr(''); setF({ ...f, h, he: h ? (f.he && f.he > h ? f.he : defaultEndTime(h)) : '' }) }} /></label>
